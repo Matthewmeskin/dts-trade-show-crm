@@ -88,7 +88,10 @@ export default async function ShowRecordPage({
             </Badge>
           </div>
           <p className="mt-1 text-sm text-slate-500">
-            {formatDateRange(show.move_in_start, show.move_out_end)}
+            {formatDateRange(
+              show.show_start_date ?? show.move_in_start,
+              show.show_end_date ?? show.move_out_end,
+            )}
             {show.industry_vertical ? ` · ${show.industry_vertical}` : ""}
           </p>
         </div>
@@ -172,6 +175,8 @@ async function OverviewTab({ show }: { show: ShowWithStatus }) {
         <Card>
           <CardHeader title="Key dates" icon="calendar" />
           <div className="grid grid-cols-1 gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
+            <DateCell label="Show start" value={show.show_start_date} />
+            <DateCell label="Show end" value={show.show_end_date} />
             <DateCell label="Advance warehouse open" value={show.advance_warehouse_open} />
             <DateCell label="Advance warehouse cutoff" value={show.advance_warehouse_cutoff} />
             <DateCell label="Move-in start" value={show.move_in_start} />

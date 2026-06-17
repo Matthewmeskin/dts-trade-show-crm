@@ -525,8 +525,10 @@ export type Database = {
           move_in_start: string | null
           move_out_end: string | null
           move_out_start: string | null
+          show_end_date: string | null
           show_management_company: string | null
           show_name: string
+          show_start_date: string | null
           updated_at: string
           venue_id: string | null
         }
@@ -549,8 +551,10 @@ export type Database = {
           move_in_start?: string | null
           move_out_end?: string | null
           move_out_start?: string | null
+          show_end_date?: string | null
           show_management_company?: string | null
           show_name: string
+          show_start_date?: string | null
           updated_at?: string
           venue_id?: string | null
         }
@@ -573,8 +577,10 @@ export type Database = {
           move_in_start?: string | null
           move_out_end?: string | null
           move_out_start?: string | null
+          show_end_date?: string | null
           show_management_company?: string | null
           show_name?: string
+          show_start_date?: string | null
           updated_at?: string
           venue_id?: string | null
         }
@@ -773,8 +779,10 @@ export type Database = {
           move_in_start: string | null
           move_out_end: string | null
           move_out_start: string | null
+          show_end_date: string | null
           show_management_company: string | null
           show_name: string | null
+          show_start_date: string | null
           status: Database["public"]["Enums"]["show_status"] | null
           updated_at: string | null
           venue_id: string | null
@@ -798,8 +806,10 @@ export type Database = {
           move_in_start?: string | null
           move_out_end?: string | null
           move_out_start?: string | null
+          show_end_date?: string | null
           show_management_company?: string | null
           show_name?: string | null
+          show_start_date?: string | null
           status?: never
           updated_at?: string | null
           venue_id?: string | null
@@ -823,8 +833,10 @@ export type Database = {
           move_in_start?: string | null
           move_out_end?: string | null
           move_out_start?: string | null
+          show_end_date?: string | null
           show_management_company?: string | null
           show_name?: string | null
+          show_start_date?: string | null
           status?: never
           updated_at?: string | null
           venue_id?: string | null

@@ -129,8 +129,20 @@ export function ShowForm({
         </FormSection>
 
         <FormSection
+          title="Show dates"
+          description="The actual days the show is open — separate from the freight dates below."
+        >
+          <Field label="Show start date" htmlFor="show_start_date">
+            <input id="show_start_date" name="show_start_date" type="date" defaultValue={d?.show_start_date ?? ""} className={inputClass} />
+          </Field>
+          <Field label="Show end date" htmlFor="show_end_date" error={err.show_end_date}>
+            <input id="show_end_date" name="show_end_date" type="date" defaultValue={d?.show_end_date ?? ""} className={inputClass} />
+          </Field>
+        </FormSection>
+
+        <FormSection
           title="Move-in / move-out"
-          description="The show's on-site run. Status is computed from these dates."
+          description="Freight logistics — the on-site dock window. Show status is computed from these."
         >
           <Field label="Move-in start" htmlFor="move_in_start">
             <input id="move_in_start" name="move_in_start" type="date" defaultValue={d?.move_in_start ?? ""} className={inputClass} />

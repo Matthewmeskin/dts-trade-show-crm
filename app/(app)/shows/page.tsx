@@ -147,10 +147,10 @@ export default async function ShowsPage({
                         </Badge>
                       </td>
                       <td className="px-5 py-3 text-slate-600">
-                        {formatDate(s.move_in_start)}
+                        {formatDate(s.show_start_date)}
                       </td>
                       <td className="px-5 py-3 text-slate-600">
-                        {formatDate(s.move_out_end)}
+                        {formatDate(s.show_end_date)}
                       </td>
                       <td className="px-5 py-3 text-slate-600">
                         {venue ? (

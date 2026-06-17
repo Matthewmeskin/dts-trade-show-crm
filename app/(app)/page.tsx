@@ -145,7 +145,10 @@ function FeaturedShowCard({ data }: { data: Awaited<ReturnType<typeof loadDashbo
               </div>
               <div className="flex items-center gap-1.5">
                 <Icon name="calendar" className="h-3.5 w-3.5 text-slate-400" />
-                {formatDateRange(featured.move_in_start, featured.move_out_end)}
+                {formatDateRange(
+                  featured.show_start_date ?? featured.move_in_start,
+                  featured.show_end_date ?? featured.move_out_end,
+                )}
               </div>
             </div>
           </div>

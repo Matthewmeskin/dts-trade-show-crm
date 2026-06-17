@@ -43,6 +43,12 @@ function parseShow(fd: FormData): {
     fieldErrors.move_out_end = "Move-out must be on or after move-in.";
   }
 
+  const show_start = str(fd, "show_start_date");
+  const show_end = str(fd, "show_end_date");
+  if (show_start && show_end && show_start > show_end) {
+    fieldErrors.show_end_date = "Show end must be on or after show start.";
+  }
+
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
   return {
@@ -54,6 +60,8 @@ function parseShow(fd: FormData): {
       venue_id: str(fd, "venue_id"),
       gsc_contact_id: str(fd, "gsc_contact_id"),
       archived: fd.get("archived") === "on",
+      show_start_date: str(fd, "show_start_date"),
+      show_end_date: str(fd, "show_end_date"),
       move_in_start,
       move_in_end: str(fd, "move_in_end"),
       move_out_start: str(fd, "move_out_start"),
