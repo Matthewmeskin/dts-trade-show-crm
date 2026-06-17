@@ -1,8 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-/** Routes that an unauthenticated visitor is allowed to reach. */
-const PUBLIC_PREFIXES = ["/login", "/auth"];
+/**
+ * Routes an unauthenticated visitor is allowed to reach. API routes are public
+ * to the proxy because they authenticate themselves (a user session for app
+ * routes, a bearer secret for the TMS ingest) and must return JSON — never a
+ * redirect to the login page.
+ */
+const PUBLIC_PREFIXES = ["/login", "/auth", "/api"];
 
 /**
  * Refreshes the Supabase auth session on every request and redirects
