@@ -1,26 +1,39 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ---------------------------------------------------------------------------
+   DTS brand theme — colors + fonts exposed as Tailwind tokens.
+   Generates utilities like bg-dts-maroon, text-dts-blue, ring-dts-maroon,
+   font-heading, etc.
+--------------------------------------------------------------------------- */
+@theme {
+  /* Brand palette */
+  --color-dts-maroon: #ab0534;
+  --color-dts-maroon-dark: #8a042a; /* hover/pressed state for maroon CTAs */
+  --color-dts-blue: #0063a0; /* website blue — sidebar + primary accent */
+  --color-dts-darkblue: #33658a; /* optional deeper blue accent */
+  --color-dts-lightblue: #86bbd8;
+  --color-dts-midgrey: #818181;
+  --color-dts-bg: #f4f4f4; /* app background grey */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Fonts (CSS vars are injected by next/font in app/layout.tsx) */
+  --font-sans: var(--font-lato), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-montserrat), var(--font-lato), ui-sans-serif,
+    system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-dts-bg);
+  color: #1c1c1c;
+  font-family: var(--font-sans);
+}
+
+/* Headings use Montserrat by default. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-heading {
+  font-family: var(--font-heading);
 }
