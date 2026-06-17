@@ -35,32 +35,37 @@ export const TMS_SYNC_META: Record<
 
 export const SHIPMENT_STATUS_META: Record<
   ShipmentStatus,
-  { label: string; badge: string; dot: string }
+  { label: string; badge: string; dot: string; text: string }
 > = {
   quoted: {
     label: "Quoted",
     badge: "bg-dts-midgrey/10 text-dts-midgrey ring-1 ring-inset ring-dts-midgrey/30",
     dot: "bg-dts-midgrey",
+    text: "text-dts-midgrey",
   },
   booked: {
     label: "Booked",
     badge: "bg-dts-blue/10 text-dts-blue ring-1 ring-inset ring-dts-blue/25",
     dot: "bg-dts-blue",
+    text: "text-dts-blue",
   },
   in_transit: {
     label: "In transit",
     badge: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20",
     dot: "bg-amber-500",
+    text: "text-amber-600",
   },
   delivered: {
     label: "Delivered",
     badge: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20",
     dot: "bg-emerald-500",
+    text: "text-emerald-600",
   },
   issue: {
     label: "Issue",
     badge: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20",
     dot: "bg-red-500",
+    text: "text-dts-maroon",
   },
 };
 
