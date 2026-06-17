@@ -17,6 +17,7 @@ import {
   formatShortDate,
   formatCountdown,
 } from "@/lib/format";
+import { AiSummaryCard } from "./ai-summary-card";
 
 export const dynamic = "force-dynamic";
 
@@ -164,27 +165,6 @@ function FeaturedShowCard({ data }: { data: Awaited<ReturnType<typeof loadDashbo
               </div>
             </div>
           ) : null}
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-function AiSummaryCard({ showName }: { showName: string | null }) {
-  return (
-    <Card className="flex h-full flex-col">
-      <CardHeader title="AI summary" icon="sparkles" />
-      <div className="flex flex-1 flex-col justify-center p-5">
-        <div className="rounded-xl border border-dashed border-dts-lightblue bg-dts-lightblue/10 p-4 text-sm text-slate-600">
-          {showName ? (
-            <>
-              Situational summary for{" "}
-              <span className="font-medium text-slate-700">{showName}</span> will
-              appear here once the Anthropic API layer is connected.
-            </>
-          ) : (
-            "Plain-English situational awareness will appear here once the Anthropic API layer is connected."
-          )}
         </div>
       </div>
     </Card>
