@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { SHOW_STATUS_META, type ShowStatus } from "@/lib/shows";
-import { formatDateRange } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -111,7 +111,8 @@ export default async function ShowsPage({
                 <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
                   <th className="px-5 py-3">Show</th>
                   <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Dates</th>
+                  <th className="px-5 py-3">Start</th>
+                  <th className="px-5 py-3">End</th>
                   <th className="px-5 py-3">Venue</th>
                 </tr>
               </thead>
@@ -146,7 +147,10 @@ export default async function ShowsPage({
                         </Badge>
                       </td>
                       <td className="px-5 py-3 text-slate-600">
-                        {formatDateRange(s.move_in_start, s.move_out_end)}
+                        {formatDate(s.move_in_start)}
+                      </td>
+                      <td className="px-5 py-3 text-slate-600">
+                        {formatDate(s.move_out_end)}
                       </td>
                       <td className="px-5 py-3 text-slate-600">
                         {venue ? (
