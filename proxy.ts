@@ -44,20 +44,24 @@ export async function proxy(request: NextRequest) {
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
 
-  // Unauthenticated visitors are sent to /login (except on public routes).
-  if (!user && !isPublic) {
+  // Build a redirect that preserves any auth cookies Supabase set/cleared
+  // during getUser() above. Returning a bare NextResponse.redirect would drop
+  // those Set-Cookie headers, so an expired/invalid session never clears and
+  // the browser loops ("page isn't redirecting properly").
+  const redirectTo = (pathname: string) => {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
+    url.pathname = pathname;
+    url.search = "";
+    const res = NextResponse.redirect(url);
+    for (const cookie of supabaseResponse.cookies.getAll()) res.cookies.set(cookie);
+    return res;
+  };
+
+  // Unauthenticated visitors are sent to /login (except on public routes).
+  if (!user && !isPublic) return redirectTo("/login");
 
   // Signed-in users hitting /login are sent to the dashboard.
-  if (user && pathname === "/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
+  if (user && pathname === "/login") return redirectTo("/");
 
   return supabaseResponse;
 }
