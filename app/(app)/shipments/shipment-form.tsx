@@ -33,6 +33,7 @@ export function ShipmentForm({
   submitLabel: string;
 }) {
   const [state, formAction] = useActionState(action, { error: null });
+  const err = state.fieldErrors ?? {};
   const d = shipment;
 
   const showId = d?.show_id ?? defaults?.show_id ?? "";
@@ -45,8 +46,17 @@ export function ShipmentForm({
       <Card>
         <FormSection
           title="Assignment"
-          description="Link this shipment to a show and exhibitor. Freight details — carrier, status, weight, dates, PRO — sync automatically from the TMS."
+          description="Link this shipment to a show and exhibitor, and enter its Brokerware load number. Freight details — carrier, status, weight, dates, PRO — then sync automatically from the TMS."
         >
+          <Field
+            label="Load number"
+            htmlFor="tms_reference_id"
+            hint="Brokerware load number — links this shipment to live TMS tracking."
+            error={err.tms_reference_id}
+            className="sm:col-span-2"
+          >
+            <input id="tms_reference_id" name="tms_reference_id" defaultValue={d?.tms_reference_id ?? ""} className={inputClass} placeholder="e.g. 109813" />
+          </Field>
           <Field label="Show" htmlFor="show_id">
             <select id="show_id" name="show_id" defaultValue={showId} className={inputClass}>
               <option value="">— Select show —</option>

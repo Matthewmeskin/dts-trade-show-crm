@@ -25,6 +25,7 @@ function enumOrNull<T extends string>(value: string | null, allowed: readonly T[
  */
 function operatorFields(fd: FormData) {
   return {
+    tms_reference_id: str(fd, "tms_reference_id"),
     show_id: str(fd, "show_id"),
     exhibitor_id: str(fd, "exhibitor_id"),
     destination_type: enumOrNull(
@@ -35,6 +36,11 @@ function operatorFields(fd: FormData) {
     notes: str(fd, "notes"),
   };
 }
+
+const DUP_LOAD = {
+  error: "That load number is already on another shipment.",
+  fieldErrors: { tms_reference_id: "Must be unique." },
+};
 
 export async function createShipment(
   _prev: ShipmentFormState,
@@ -53,7 +59,10 @@ export async function createShipment(
     .select("id")
     .single();
 
-  if (error) return { error: error.message };
+  if (error) {
+    if (error.code === "23505") return DUP_LOAD;
+    return { error: error.message };
+  }
 
   revalidatePath("/shipments");
   const showId = String(fd.get("show_id") ?? "");
@@ -72,7 +81,10 @@ export async function updateShipment(
   // Only the operator-owned fields — never the TMS-synced freight data.
   const payload: TablesUpdate<"shipments"> = operatorFields(fd);
   const { error } = await supabase.from("shipments").update(payload).eq("id", id);
-  if (error) return { error: error.message };
+  if (error) {
+    if (error.code === "23505") return DUP_LOAD;
+    return { error: error.message };
+  }
 
   revalidatePath("/shipments");
   revalidatePath(`/shipments/${id}`);
