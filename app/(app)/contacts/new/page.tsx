@@ -15,7 +15,7 @@ export default async function NewContactPage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="New contact" description="Add a contact and attach it to a record." />
+      <PageHeader title="New contact" description="Add a contact and attach it to a record." breadcrumbs={[{ label: "Contacts", href: "/contacts" }]} />
       <ContactForm
         action={createContact}
         options={options}

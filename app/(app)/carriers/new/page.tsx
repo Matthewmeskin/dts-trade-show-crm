@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default function NewCarrierPage() {
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="New carrier" description="Add a carrier to the directory." />
+      <PageHeader title="New carrier" description="Add a carrier to the directory." breadcrumbs={[{ label: "Carriers", href: "/carriers" }]} />
       <CarrierForm action={createCarrier} submitLabel="Create carrier" />
     </div>
   );

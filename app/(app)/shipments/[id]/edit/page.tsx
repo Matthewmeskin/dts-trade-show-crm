@@ -26,7 +26,7 @@ export default async function EditShipmentPage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Edit shipment" description="Update shipment details." />
+      <PageHeader title="Edit shipment" description="Update shipment details." breadcrumbs={[{ label: "Shipments", href: "/shipments" }, { label: shipment.pro_number ? "PRO " + shipment.pro_number : "Shipment", href: "/shipments/" + id }]} />
       <ShipmentForm
         action={updateShipment}
         shipment={shipment}

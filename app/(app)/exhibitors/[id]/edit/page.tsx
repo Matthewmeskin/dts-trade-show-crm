@@ -22,7 +22,7 @@ export default async function EditExhibitorPage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Edit exhibitor" description={exhibitor.company_name} />
+      <PageHeader title="Edit exhibitor" breadcrumbs={[{ label: "Exhibitors", href: "/exhibitors" }, { label: exhibitor.company_name, href: "/exhibitors/" + id }]} />
       <ExhibitorForm action={updateExhibitor} exhibitor={exhibitor} submitLabel="Save changes" />
     </div>
   );

@@ -17,7 +17,7 @@ export default async function NewShowPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="New show" description="Add a trade show to the CRM." />
+      <PageHeader title="New show" description="Add a trade show to the CRM." breadcrumbs={[{ label: "Shows", href: "/shows" }]} />
       <ShowForm
         action={createShow}
         venues={venues ?? []}

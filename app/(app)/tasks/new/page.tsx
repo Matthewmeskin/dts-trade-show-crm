@@ -21,7 +21,7 @@ export default async function NewTaskPage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="New task" description="Create and assign a task." />
+      <PageHeader title="New task" description="Create and assign a task." breadcrumbs={[{ label: "Tasks", href: "/tasks" }]} />
       <TaskForm
         action={createTask}
         profiles={profiles}

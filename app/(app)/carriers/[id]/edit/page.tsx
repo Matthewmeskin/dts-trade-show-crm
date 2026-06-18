@@ -18,7 +18,7 @@ export default async function EditCarrierPage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Edit carrier" description={carrier.carrier_name} />
+      <PageHeader title="Edit carrier" breadcrumbs={[{ label: "Carriers", href: "/carriers" }, { label: carrier.carrier_name, href: "/carriers/" + id }]} />
       <CarrierForm action={updateCarrier} carrier={carrier} submitLabel="Save changes" />
     </div>
   );

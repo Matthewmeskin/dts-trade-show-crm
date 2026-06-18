@@ -22,7 +22,7 @@ export default async function NewShipmentPage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Log shipment" description="Record a shipment for a show." />
+      <PageHeader title="Log shipment" description="Record a shipment for a show." breadcrumbs={[{ label: "Shipments", href: "/shipments" }]} />
       <ShipmentForm
         action={createShipment}
         shows={(shows ?? []).map((s) => ({

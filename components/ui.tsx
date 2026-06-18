@@ -2,27 +2,47 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "@/components/icons";
 
-/** Page heading with optional description and right-aligned actions. */
+export type Crumb = { label: string; href: string };
+
+/** Page heading with optional breadcrumbs, description and right-aligned actions. */
 export function PageHeader({
   title,
   description,
   actions,
+  breadcrumbs,
 }: {
   title: string;
   description?: string;
   actions?: ReactNode;
+  breadcrumbs?: Crumb[];
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-          {title}
-        </h1>
-        {description ? (
-          <p className="mt-1 text-sm text-slate-500">{description}</p>
+    <div className="mb-6">
+      {breadcrumbs && breadcrumbs.length > 0 ? (
+        <nav className="mb-1 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+          {breadcrumbs.map((c, i) => (
+            <span key={c.href} className="flex items-center gap-2">
+              {i > 0 ? <span aria-hidden="true">/</span> : null}
+              <Link href={c.href} className="hover:text-slate-700">
+                {c.label}
+              </Link>
+            </span>
+          ))}
+        </nav>
+      ) : null}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+            {title}
+          </h1>
+          {description ? (
+            <p className="mt-1 text-sm text-slate-500">{description}</p>
+          ) : null}
+        </div>
+        {actions ? (
+          <div className="flex items-center gap-2">{actions}</div>
         ) : null}
       </div>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
     </div>
   );
 }

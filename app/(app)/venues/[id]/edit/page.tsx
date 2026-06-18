@@ -18,7 +18,7 @@ export default async function EditVenuePage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Edit venue" description={venue.venue_name} />
+      <PageHeader title="Edit venue" breadcrumbs={[{ label: "Venues", href: "/venues" }, { label: venue.venue_name, href: "/venues/" + id }]} />
       <VenueForm action={updateVenue} venue={venue} submitLabel="Save changes" />
     </div>
   );

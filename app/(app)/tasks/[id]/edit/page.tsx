@@ -21,7 +21,7 @@ export default async function EditTaskPage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Edit task" description={task.title} />
+      <PageHeader title="Edit task" breadcrumbs={[{ label: "Tasks", href: "/tasks" }, { label: task.title, href: "/tasks/" + id }]} />
       <TaskForm
         action={updateTask}
         task={task}

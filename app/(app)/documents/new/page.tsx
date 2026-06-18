@@ -18,7 +18,7 @@ export default async function NewDocumentPage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Upload document" description="Attach a file to a show." />
+      <PageHeader title="Upload document" description="Attach a file to a show." breadcrumbs={[{ label: "Documents", href: "/documents" }]} />
       <UploadForm
         shows={(shows ?? []).map((s) => ({
           id: s.id,

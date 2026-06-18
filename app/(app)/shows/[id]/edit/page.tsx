@@ -29,9 +29,7 @@ export default async function EditShowPage({
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
-        title="Edit show"
-        description={show.show_name}
-      />
+        title="Edit show" breadcrumbs={[{ label: "Shows", href: "/shows" }, { label: show.show_name, href: "/shows/" + id }]} />
       <ShowForm
         action={updateShow}
         show={show}

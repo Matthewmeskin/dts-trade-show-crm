@@ -22,7 +22,7 @@ export default async function EditContactPage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Edit contact" description={name} />
+      <PageHeader title="Edit contact" breadcrumbs={[{ label: "Contacts", href: "/contacts" }, { label: name, href: "/contacts/" + id }]} />
       <ContactForm action={updateContact} contact={contact} options={options} submitLabel="Save changes" />
     </div>
   );

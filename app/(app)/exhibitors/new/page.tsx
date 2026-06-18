@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default function NewExhibitorPage() {
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="New exhibitor" description="Add an exhibitor to the directory." />
+      <PageHeader title="New exhibitor" description="Add an exhibitor to the directory." breadcrumbs={[{ label: "Exhibitors", href: "/exhibitors" }]} />
       <ExhibitorForm action={createExhibitor} submitLabel="Create exhibitor" />
     </div>
   );
