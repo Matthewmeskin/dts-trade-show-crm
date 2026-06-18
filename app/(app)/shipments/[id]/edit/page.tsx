@@ -14,12 +14,11 @@ export default async function EditShipmentPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: shipment }, { data: shows }, { data: exhibitors }, { data: carriers }] =
+  const [{ data: shipment }, { data: shows }, { data: exhibitors }] =
     await Promise.all([
       supabase.from("shipments").select("*").eq("id", id).single(),
       supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
       supabase.from("exhibitors").select("id, company_name").order("company_name"),
-      supabase.from("carriers").select("id, carrier_name").order("carrier_name"),
     ]);
 
   if (!shipment) notFound();
@@ -35,7 +34,6 @@ export default async function EditShipmentPage({
           label: `${s.show_name}${s.edition_year ? ` ${s.edition_year}` : ""}`,
         }))}
         exhibitors={(exhibitors ?? []).map((e) => ({ id: e.id, label: e.company_name }))}
-        carriers={(carriers ?? []).map((c) => ({ id: c.id, label: c.carrier_name }))}
         submitLabel="Save changes"
       />
     </div>
