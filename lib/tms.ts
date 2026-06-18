@@ -132,6 +132,7 @@ export function extractLoadNumber(item: Record<string, unknown>): string | undef
 export type ParsedLoad = {
   ref: string;
   carrierName?: string;
+  customerName?: string;
   fields: Partial<TablesInsert<"shipments">>;
 };
 
@@ -170,5 +171,10 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   set("special_requirements", str(item.special_requirements));
   set("notes", str(item.notes));
 
-  return { ref, carrierName: str(item.carrier_name ?? item.carrierName), fields };
+  return {
+    ref,
+    carrierName: str(item.carrier_name ?? item.carrierName),
+    customerName: str(item.customer_name ?? item.customerName ?? item.customerCompany),
+    fields,
+  };
 }

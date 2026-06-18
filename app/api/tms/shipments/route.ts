@@ -58,12 +58,45 @@ export async function POST(req: NextRequest) {
   const supabase = createAdminClient();
   const parsed = items.map(parseLoad);
 
-  // Which load numbers already exist? (drives inserted vs updated reporting)
+  // Which load numbers already exist, and are they already linked to an
+  // exhibitor? (drives inserted/updated reporting + don't-clobber-link logic)
   const refs = parsed.filter(Boolean).map((p) => p!.ref);
   const existing = new Set<string>();
+  const existingExhibitor = new Map<string, string | null>();
   if (refs.length) {
-    const { data } = await supabase.from("shipments").select("tms_reference_id").in("tms_reference_id", refs);
-    for (const r of data ?? []) if (r.tms_reference_id) existing.add(r.tms_reference_id);
+    const { data } = await supabase
+      .from("shipments")
+      .select("tms_reference_id, exhibitor_id")
+      .in("tms_reference_id", refs);
+    for (const r of data ?? [])
+      if (r.tms_reference_id) {
+        existing.add(r.tms_reference_id);
+        existingExhibitor.set(r.tms_reference_id, r.exhibitor_id);
+      }
+  }
+
+  // Resolve exhibitors by customer/company name (find-or-create), like carriers.
+  const exhibitorIds = new Map<string, string>();
+  const customerNames = [
+    ...new Set(parsed.filter((p) => p?.customerName).map((p) => p!.customerName!)),
+  ];
+  for (const name of customerNames) {
+    const found = await supabase
+      .from("exhibitors")
+      .select("id")
+      .ilike("company_name", name)
+      .limit(1)
+      .maybeSingle();
+    if (found.data?.id) {
+      exhibitorIds.set(name.toLowerCase(), found.data.id);
+    } else {
+      const created = await supabase
+        .from("exhibitors")
+        .insert({ company_name: name })
+        .select("id")
+        .single();
+      if (created.data?.id) exhibitorIds.set(name.toLowerCase(), created.data.id);
+    }
   }
 
   // Resolve carriers by name (find-or-create), case-insensitive.
@@ -89,12 +122,17 @@ export async function POST(req: NextRequest) {
       continue;
     }
     const carrier_id = p.carrierName ? carrierIds.get(p.carrierName.toLowerCase()) : undefined;
-    // Note: show_id / exhibitor_id are intentionally NOT set here — operator
-    // linking is preserved on update, and stays null on a fresh insert.
+    const exhibitor_id = p.customerName
+      ? exhibitorIds.get(p.customerName.toLowerCase())
+      : undefined;
+    // Link the exhibitor only when we resolved one AND the shipment isn't
+    // already linked — never clobber an operator's manual exhibitor/show link.
+    const alreadyLinked = existingExhibitor.get(p.ref);
     const row: TablesInsert<"shipments"> = {
       tms_reference_id: p.ref,
       ...p.fields,
       ...(carrier_id ? { carrier_id } : {}),
+      ...(exhibitor_id && !alreadyLinked ? { exhibitor_id } : {}),
       tms_sync_status: "synced",
       tms_last_synced_at: now,
     };
