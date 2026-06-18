@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LinkRow } from "@/components/link-row";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons";
@@ -121,7 +122,7 @@ export default async function ShowsPage({
                   const meta = SHOW_STATUS_META[s.status ?? "upcoming"];
                   const venue = s.venue_id ? venueById.get(s.venue_id) : null;
                   return (
-                    <tr key={s.id} className="group hover:bg-slate-50/60">
+                    <LinkRow key={s.id} href={`/shows/${s.id}`} className="group hover:bg-slate-50/60">
                       <td className="px-5 py-3">
                         <Link
                           href={`/shows/${s.id}`}
@@ -168,7 +169,7 @@ export default async function ShowsPage({
                           <span className="text-slate-300">—</span>
                         )}
                       </td>
-                    </tr>
+                    </LinkRow>
                   );
                 })}
               </tbody>

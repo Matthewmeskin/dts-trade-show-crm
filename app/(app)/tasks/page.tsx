@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LinkRow } from "@/components/link-row";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons";
@@ -130,7 +131,7 @@ export default async function TasksPage({
                     (daysUntil(t.due_date) ?? 0) < 0;
                   const related = relatedFor(t);
                   return (
-                    <tr key={t.id} className="group hover:bg-slate-50/60">
+                    <LinkRow key={t.id} href={`/tasks/${t.id}`} className="group hover:bg-slate-50/60">
                       <td className="px-5 py-3">
                         <Link href={`/tasks/${t.id}`} className="font-medium text-slate-900 group-hover:text-dts-maroon">
                           {t.title}
@@ -165,7 +166,7 @@ export default async function TasksPage({
                           <span className="text-slate-300">—</span>
                         )}
                       </td>
-                    </tr>
+                    </LinkRow>
                   );
                 })}
               </tbody>

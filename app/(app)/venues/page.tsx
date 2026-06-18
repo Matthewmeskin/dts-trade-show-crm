@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LinkRow } from "@/components/link-row";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/icons";
@@ -72,7 +73,7 @@ export default async function VenuesPage({
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {rows.map((v) => (
-                  <tr key={v.id} className="group hover:bg-slate-50/60">
+                  <LinkRow key={v.id} href={`/venues/${v.id}`} className="group hover:bg-slate-50/60">
                     <td className="px-5 py-3">
                       <Link
                         href={`/venues/${v.id}`}
@@ -92,7 +93,7 @@ export default async function VenuesPage({
                     <td className="px-5 py-3 text-slate-600">
                       {showCount.get(v.id) ?? 0}
                     </td>
-                  </tr>
+                  </LinkRow>
                 ))}
               </tbody>
             </table>

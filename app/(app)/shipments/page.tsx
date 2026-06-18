@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LinkRow } from "@/components/link-row";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons";
@@ -154,7 +155,7 @@ export default async function ShipmentsPage({
                   const sm = SHIPMENT_STATUS_META[s.status];
                   const tms = TMS_SYNC_META[s.tms_sync_status];
                   return (
-                    <tr key={s.id} className="group hover:bg-slate-50/60">
+                    <LinkRow key={s.id} href={`/shipments/${s.id}`} className="group hover:bg-slate-50/60">
                       <td className="px-5 py-3">
                         <Link href={`/shipments/${s.id}`} className="font-medium text-slate-900 group-hover:text-dts-maroon">
                           {s.exhibitor?.company_name ?? "—"}
@@ -179,7 +180,7 @@ export default async function ShipmentsPage({
                       <td className="px-5 py-3">
                         <Badge className={tms.badge}>{tms.label}</Badge>
                       </td>
-                    </tr>
+                    </LinkRow>
                   );
                 })}
               </tbody>

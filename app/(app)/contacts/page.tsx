@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LinkRow } from "@/components/link-row";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons";
@@ -101,7 +102,7 @@ export default async function ContactsPage({
                   const meta = c.contact_type ? CONTACT_TYPE_META[c.contact_type] : null;
                   const att = attachedTo(c);
                   return (
-                    <tr key={c.id} className="group hover:bg-slate-50/60">
+                    <LinkRow key={c.id} href={`/contacts/${c.id}`} className="group hover:bg-slate-50/60">
                       <td className="px-5 py-3">
                         <Link href={`/contacts/${c.id}`} className="font-medium text-slate-900 group-hover:text-dts-maroon">
                           {name}
@@ -126,7 +127,7 @@ export default async function ContactsPage({
                           <span className="text-slate-300">—</span>
                         )}
                       </td>
-                    </tr>
+                    </LinkRow>
                   );
                 })}
               </tbody>
