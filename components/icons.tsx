@@ -113,6 +113,15 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9z" />
     </>
   ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.3-4.3" />
+    </>
+  ),
+  menu: <path d="M3 6h18M3 12h18M3 18h18" />,
+  close: <path d="M6 6l12 12M18 6L6 18" />,
+  enter: <path d="M9 10l-4 4 4 4M5 14h11a4 4 0 0 0 4-4V6" />,
 };
 
 export type IconName = keyof typeof PATHS;

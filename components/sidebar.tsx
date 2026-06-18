@@ -15,10 +15,14 @@ export function Sidebar({
   userName,
   userEmail,
   role,
+  mobileOpen = false,
+  onNavigate,
 }: {
   userName: string;
   userEmail: string;
   role: string;
+  mobileOpen?: boolean;
+  onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const initials =
@@ -31,7 +35,11 @@ export function Sidebar({
       .toUpperCase() || "U";
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col bg-dts-blue text-white">
+    <aside
+      className={`fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col bg-dts-blue text-white transition-transform duration-200 md:static md:translate-x-0 ${
+        mobileOpen ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
       <div className="flex items-center gap-2.5 px-5 py-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-dts-maroon text-sm font-bold text-white">
           DTS
@@ -51,6 +59,7 @@ export function Sidebar({
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
                 active
                   ? "bg-dts-maroon text-white"
