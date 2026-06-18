@@ -4,14 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { ConfirmDelete } from "@/components/confirm-delete";
-import { Constants } from "@/lib/database.types";
 import {
   SHIPMENT_STATUS_META,
   TMS_SYNC_META,
   DESTINATION_LABELS,
 } from "@/lib/shipments";
 import { formatDate } from "@/lib/format";
-import { deleteShipment, updateShipmentStatus } from "../actions";
+import { deleteShipment } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +57,11 @@ export default async function ShipmentRecordPage({
               {sm.label}
             </Badge>
             <Badge className={tms.badge}>TMS: {tms.label}</Badge>
+            {s.accessorials_flagged ? (
+              <Badge className="bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                <Icon name="alert" className="h-3.5 w-3.5" /> Accessorials
+              </Badge>
+            ) : null}
           </div>
           <p className="mt-1 text-sm text-slate-500">
             {s.show?.show_name ?? "No show"}
@@ -79,34 +83,6 @@ export default async function ShipmentRecordPage({
         </div>
       </div>
 
-      {/* Quick status management */}
-      <Card className="mb-5 p-4">
-        <form action={updateShipmentStatus} className="flex flex-wrap items-center gap-3">
-          <input type="hidden" name="id" value={id} />
-          <span className="text-sm font-medium text-slate-700">Update status</span>
-          <select
-            name="status"
-            defaultValue={s.status}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon"
-          >
-            {Constants.public.Enums.shipment_status.map((st) => (
-              <option key={st} value={st}>{SHIPMENT_STATUS_META[st].label}</option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="rounded-lg bg-dts-blue px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-          >
-            Update
-          </button>
-          {s.accessorials_flagged ? (
-            <Badge className="ml-auto bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">
-              <Icon name="alert" className="h-3.5 w-3.5" /> Accessorials flagged
-            </Badge>
-          ) : null}
-        </form>
-      </Card>
-
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           <Card>
@@ -118,8 +94,24 @@ export default async function ShipmentRecordPage({
                 value={s.destination_type ? DESTINATION_LABELS[s.destination_type] : null}
               />
               <Row label="Mode" value={s.mode} />
-              <Row label="Pieces" value={s.pieces != null ? String(s.pieces) : null} />
+              <Row label="Total pieces" value={s.pieces != null ? String(s.pieces) : null} />
+              <Row label="Package type" value={s.package_type} />
               <Row label="Weight" value={s.weight != null ? `${s.weight} lbs` : null} />
+              <Row
+                label="Tracking"
+                value={
+                  s.tracking_url ? (
+                    <a
+                      href={s.tracking_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-dts-blue hover:underline"
+                    >
+                      Track on carrier site ↗
+                    </a>
+                  ) : null
+                }
+              />
             </dl>
           </Card>
 

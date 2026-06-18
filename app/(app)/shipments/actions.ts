@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Constants, type TablesInsert, type TablesUpdate } from "@/lib/database.types";
+import { syncLoadNumber } from "@/lib/tms-sync";
 
 export type ShipmentFormState = {
   error: string | null;
@@ -64,6 +65,9 @@ export async function createShipment(
     return { error: error.message };
   }
 
+  // Pull live tracking right away so freight details appear immediately.
+  if (payload.tms_reference_id) await syncLoadNumber(payload.tms_reference_id);
+
   revalidatePath("/shipments");
   const showId = String(fd.get("show_id") ?? "");
   if (showId) revalidatePath(`/shows/${showId}`);
@@ -85,6 +89,9 @@ export async function updateShipment(
     if (error.code === "23505") return DUP_LOAD;
     return { error: error.message };
   }
+
+  // Refresh live tracking when a load number is present.
+  if (payload.tms_reference_id) await syncLoadNumber(payload.tms_reference_id);
 
   revalidatePath("/shipments");
   revalidatePath(`/shipments/${id}`);

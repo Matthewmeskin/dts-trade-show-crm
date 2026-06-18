@@ -152,6 +152,8 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   set("actual_delivery_date", dateStr(item.actual_delivery_date ?? item.delivered_date ?? item.deliverStatusDate));
   set("pieces", intVal(item.pieces ?? item.totalPieces ?? item.piece_count));
   set("weight", numVal(item.weight ?? item.totalWeight ?? item.weight_lbs));
+  set("package_type", str(item.package_type ?? item.packaging ?? item.packageType));
+  set("tracking_url", str(item.tracking_url ?? item.carrierTrackingURL ?? item.carrier_tracking_url));
 
   // Origin: explicit fields win; otherwise parse pickupLocation.
   const loc = parseLocation(item.pickup_location ?? item.pickupLocation);

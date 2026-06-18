@@ -308,10 +308,12 @@ export type Database = {
           pro_number: string | null
           show_id: string | null
           special_requirements: string | null
+          package_type: string | null
           status: Database["public"]["Enums"]["shipment_status"]
           tms_last_synced_at: string | null
           tms_reference_id: string | null
           tms_sync_status: Database["public"]["Enums"]["tms_sync_status"]
+          tracking_url: string | null
           updated_at: string
           weight: number | null
         }
@@ -334,6 +336,7 @@ export type Database = {
           origin_zip?: string | null
           pickup_date?: string | null
           pieces?: number | null
+          package_type?: string | null
           pro_number?: string | null
           show_id?: string | null
           special_requirements?: string | null
@@ -341,6 +344,7 @@ export type Database = {
           tms_last_synced_at?: string | null
           tms_reference_id?: string | null
           tms_sync_status?: Database["public"]["Enums"]["tms_sync_status"]
+          tracking_url?: string | null
           updated_at?: string
           weight?: number | null
         }
@@ -363,6 +367,7 @@ export type Database = {
           origin_zip?: string | null
           pickup_date?: string | null
           pieces?: number | null
+          package_type?: string | null
           pro_number?: string | null
           show_id?: string | null
           special_requirements?: string | null
@@ -370,6 +375,7 @@ export type Database = {
           tms_last_synced_at?: string | null
           tms_reference_id?: string | null
           tms_sync_status?: Database["public"]["Enums"]["tms_sync_status"]
+          tracking_url?: string | null
           updated_at?: string
           weight?: number | null
         }
