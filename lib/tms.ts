@@ -25,7 +25,9 @@ const STATUS_MAP: Record<string, (typeof Constants.public.Enums.shipment_status)
 };
 
 const MODE_MAP: Record<string, (typeof Constants.public.Enums.shipment_mode)[number]> = {
-  ltl: "LTL", ftl: "FTL", tl: "FTL", "full truckload": "FTL",
+  ltl: "LTL", tradeshowltl: "LTL", "tradeshow ltl": "LTL",
+  ftl: "FTL", tl: "FTL", truckload: "FTL", "full truckload": "FTL",
+  tradeshowftl: "FTL", "tradeshow ftl": "FTL", "tradeshow truckload": "FTL",
   partial: "partial", "partial truckload": "partial", vptl: "partial",
   expedited: "expedited", hotshot: "expedited",
   specialized: "specialized", flatbed: "specialized",
@@ -154,6 +156,7 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   set("weight", numVal(item.weight ?? item.totalWeight ?? item.weight_lbs));
   set("package_type", str(item.package_type ?? item.packaging ?? item.packageType));
   set("tracking_url", str(item.tracking_url ?? item.carrierTrackingURL ?? item.carrier_tracking_url));
+  set("destination_address", str(item.destination_address ?? item.delivery_location ?? item.deliveryLocation));
 
   // Origin: explicit fields win; otherwise parse pickupLocation.
   const loc = parseLocation(item.pickup_location ?? item.pickupLocation);

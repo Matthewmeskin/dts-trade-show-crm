@@ -291,6 +291,7 @@ export type Database = {
           actual_delivery_date: string | null
           carrier_id: string | null
           created_at: string
+          destination_address: string | null
           destination_type:
             | Database["public"]["Enums"]["shipment_destination"]
             | null
@@ -322,6 +323,7 @@ export type Database = {
           actual_delivery_date?: string | null
           carrier_id?: string | null
           created_at?: string
+          destination_address?: string | null
           destination_type?:
             | Database["public"]["Enums"]["shipment_destination"]
             | null
@@ -353,6 +355,7 @@ export type Database = {
           actual_delivery_date?: string | null
           carrier_id?: string | null
           created_at?: string
+          destination_address?: string | null
           destination_type?:
             | Database["public"]["Enums"]["shipment_destination"]
             | null

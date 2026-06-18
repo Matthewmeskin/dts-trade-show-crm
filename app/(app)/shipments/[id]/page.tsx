@@ -89,10 +89,10 @@ export default async function ShipmentRecordPage({
             <CardHeader title="Route" icon="truck" />
             <dl className="divide-y divide-slate-100 text-sm">
               <Row label="Origin" value={origin || null} />
-              <Row
-                label="Destination"
-                value={s.destination_type ? DESTINATION_LABELS[s.destination_type] : null}
-              />
+              <Row label="Destination" value={s.destination_address} />
+              {s.destination_type ? (
+                <Row label="Receiving" value={DESTINATION_LABELS[s.destination_type]} />
+              ) : null}
               <Row label="Mode" value={s.mode} />
               <Row label="Total pieces" value={s.pieces != null ? String(s.pieces) : null} />
               <Row label="Package type" value={s.package_type} />
