@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { CommandPalette } from "@/components/command-palette";
+import { FlashToast } from "@/components/toast";
 import { Icon } from "@/components/icons";
 
 export function AppShell({
@@ -89,6 +90,9 @@ export function AppShell({
       </div>
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <Suspense fallback={null}>
+        <FlashToast />
+      </Suspense>
     </div>
   );
 }

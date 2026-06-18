@@ -95,7 +95,7 @@ export async function createShow(
   if (error) return { error: error.message };
 
   revalidatePath("/shows");
-  redirect(`/shows/${row.id}`);
+  redirect(`/shows/${row.id}?flash=created`);
 }
 
 export async function updateShow(
@@ -114,7 +114,7 @@ export async function updateShow(
 
   revalidatePath("/shows");
   revalidatePath(`/shows/${id}`);
-  redirect(`/shows/${id}`);
+  redirect(`/shows/${id}?flash=updated`);
 }
 
 export async function deleteShow(fd: FormData) {
@@ -123,7 +123,7 @@ export async function deleteShow(fd: FormData) {
   const supabase = await createClient();
   await supabase.from("shows").delete().eq("id", id);
   revalidatePath("/shows");
-  redirect("/shows");
+  redirect("/shows?flash=deleted");
 }
 
 export async function addExhibitorToShow(fd: FormData) {

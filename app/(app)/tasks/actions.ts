@@ -62,7 +62,7 @@ export async function createTask(
   if (error) return { error: error.message };
 
   revalidatePath("/tasks");
-  redirect(`/tasks/${row.id}`);
+  redirect(`/tasks/${row.id}?flash=created`);
 }
 
 export async function updateTask(
@@ -81,7 +81,7 @@ export async function updateTask(
 
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${id}`);
-  redirect(`/tasks/${id}`);
+  redirect(`/tasks/${id}?flash=updated`);
 }
 
 export async function updateTaskStatus(fd: FormData) {
@@ -101,5 +101,5 @@ export async function deleteTask(fd: FormData) {
   const supabase = await createClient();
   await supabase.from("tasks").delete().eq("id", id);
   revalidatePath("/tasks");
-  redirect("/tasks");
+  redirect("/tasks?flash=deleted");
 }

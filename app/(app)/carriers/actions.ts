@@ -40,7 +40,7 @@ export async function createCarrier(
   if (error) return { error: error.message };
 
   revalidatePath("/carriers");
-  redirect(`/carriers/${row.id}`);
+  redirect(`/carriers/${row.id}?flash=created`);
 }
 
 export async function updateCarrier(
@@ -59,7 +59,7 @@ export async function updateCarrier(
 
   revalidatePath("/carriers");
   revalidatePath(`/carriers/${id}`);
-  redirect(`/carriers/${id}`);
+  redirect(`/carriers/${id}?flash=updated`);
 }
 
 export async function deleteCarrier(fd: FormData) {
@@ -68,7 +68,7 @@ export async function deleteCarrier(fd: FormData) {
   const supabase = await createClient();
   await supabase.from("carriers").delete().eq("id", id);
   revalidatePath("/carriers");
-  redirect("/carriers");
+  redirect("/carriers?flash=deleted");
 }
 
 export async function addVenueToCarrier(fd: FormData) {

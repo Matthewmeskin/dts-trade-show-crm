@@ -72,7 +72,7 @@ export async function createExhibitor(
   if (error) return { error: error.message };
 
   revalidatePath("/exhibitors");
-  redirect(`/exhibitors/${row.id}`);
+  redirect(`/exhibitors/${row.id}?flash=created`);
 }
 
 export async function updateExhibitor(
@@ -91,7 +91,7 @@ export async function updateExhibitor(
 
   revalidatePath("/exhibitors");
   revalidatePath(`/exhibitors/${id}`);
-  redirect(`/exhibitors/${id}`);
+  redirect(`/exhibitors/${id}?flash=updated`);
 }
 
 export async function deleteExhibitor(fd: FormData) {
@@ -100,5 +100,5 @@ export async function deleteExhibitor(fd: FormData) {
   const supabase = await createClient();
   await supabase.from("exhibitors").delete().eq("id", id);
   revalidatePath("/exhibitors");
-  redirect("/exhibitors");
+  redirect("/exhibitors?flash=deleted");
 }

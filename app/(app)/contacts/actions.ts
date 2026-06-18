@@ -67,7 +67,7 @@ export async function createContact(
   revalidatePath("/contacts");
   const showId = String(fd.get("show_id") ?? "");
   if (showId) revalidatePath(`/shows/${showId}`);
-  redirect(`/contacts/${row.id}`);
+  redirect(`/contacts/${row.id}?flash=created`);
 }
 
 export async function updateContact(
@@ -86,7 +86,7 @@ export async function updateContact(
 
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${id}`);
-  redirect(`/contacts/${id}`);
+  redirect(`/contacts/${id}?flash=updated`);
 }
 
 export async function deleteContact(fd: FormData) {
@@ -95,5 +95,5 @@ export async function deleteContact(fd: FormData) {
   const supabase = await createClient();
   await supabase.from("contacts").delete().eq("id", id);
   revalidatePath("/contacts");
-  redirect("/contacts");
+  redirect("/contacts?flash=deleted");
 }

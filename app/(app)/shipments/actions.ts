@@ -86,7 +86,7 @@ export async function createShipment(
   revalidatePath("/shipments");
   const showId = String(fd.get("show_id") ?? "");
   if (showId) revalidatePath(`/shows/${showId}`);
-  redirect(`/shipments/${row.id}`);
+  redirect(`/shipments/${row.id}?flash=created`);
 }
 
 export async function updateShipment(
@@ -107,7 +107,7 @@ export async function updateShipment(
 
   revalidatePath("/shipments");
   revalidatePath(`/shipments/${id}`);
-  redirect(`/shipments/${id}`);
+  redirect(`/shipments/${id}?flash=updated`);
 }
 
 export async function updateShipmentStatus(fd: FormData) {
@@ -130,5 +130,5 @@ export async function deleteShipment(fd: FormData) {
   const supabase = await createClient();
   await supabase.from("shipments").delete().eq("id", id);
   revalidatePath("/shipments");
-  redirect("/shipments");
+  redirect("/shipments?flash=deleted");
 }

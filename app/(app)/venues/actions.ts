@@ -53,7 +53,7 @@ export async function createVenue(
   if (error) return { error: error.message };
 
   revalidatePath("/venues");
-  redirect(`/venues/${row.id}`);
+  redirect(`/venues/${row.id}?flash=created`);
 }
 
 export async function updateVenue(
@@ -72,7 +72,7 @@ export async function updateVenue(
 
   revalidatePath("/venues");
   revalidatePath(`/venues/${id}`);
-  redirect(`/venues/${id}`);
+  redirect(`/venues/${id}?flash=updated`);
 }
 
 export async function deleteVenue(fd: FormData) {
@@ -82,5 +82,5 @@ export async function deleteVenue(fd: FormData) {
   // shows.venue_id is ON DELETE SET NULL, so shows are preserved.
   await supabase.from("venues").delete().eq("id", id);
   revalidatePath("/venues");
-  redirect("/venues");
+  redirect("/venues?flash=deleted");
 }
