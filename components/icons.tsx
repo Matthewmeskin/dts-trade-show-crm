@@ -39,16 +39,15 @@ const PATHS: Record<string, React.ReactNode> = {
   ),
   shipments: (
     <>
-      <path d="M3 6h11v9H3zM14 9h4l3 3v3h-7z" />
-      <circle cx="7" cy="18" r="1.6" />
-      <circle cx="17" cy="18" r="1.6" />
+      <path d="M21 8.5l-9-5-9 5v7l9 5 9-5z" />
+      <path d="M3 8.5l9 5 9-5M12 13.5V21M7.5 6l9 5" />
     </>
   ),
   carriers: (
     <>
-      <path d="M2 7h13v10H2zM15 10h4l3 3v4h-7z" />
-      <circle cx="6.5" cy="18.5" r="1.5" />
-      <circle cx="18" cy="18.5" r="1.5" />
+      <path d="M3 6h11v9H3zM14 9h4l3 3v3h-7z" />
+      <circle cx="7" cy="18" r="1.6" />
+      <circle cx="17" cy="18" r="1.6" />
     </>
   ),
   contacts: (
@@ -122,6 +121,12 @@ const PATHS: Record<string, React.ReactNode> = {
   menu: <path d="M3 6h18M3 12h18M3 18h18" />,
   close: <path d="M6 6l12 12M18 6L6 18" />,
   check: <path d="M4 12l5 5L20 6" />,
+  "panel-left": (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16" />
+    </>
+  ),
   enter: <path d="M9 10l-4 4 4 4M5 14h11a4 4 0 0 0 4-4V6" />,
 };
 

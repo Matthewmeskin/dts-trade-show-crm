@@ -16,12 +16,14 @@ export function Sidebar({
   userEmail,
   role,
   mobileOpen = false,
+  desktopCollapsed = false,
   onNavigate,
 }: {
   userName: string;
   userEmail: string;
   role: string;
   mobileOpen?: boolean;
+  desktopCollapsed?: boolean;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -36,9 +38,9 @@ export function Sidebar({
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col bg-dts-blue text-white transition-transform duration-200 md:static md:translate-x-0 ${
+      className={`fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col bg-dts-blue text-white transition-transform duration-200 ${
         mobileOpen ? "translate-x-0" : "-translate-x-full"
-      }`}
+      } ${desktopCollapsed ? "md:hidden" : "md:static md:translate-x-0"}`}
     >
       <div className="flex items-center gap-2.5 px-5 py-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-dts-maroon text-sm font-bold text-white">
