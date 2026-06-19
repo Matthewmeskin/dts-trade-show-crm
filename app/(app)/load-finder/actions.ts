@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { syncLoadNumber } from "@/lib/tms-sync";
-import type { TablesUpdate } from "@/lib/database.types";
+import type { TablesInsert, TablesUpdate } from "@/lib/database.types";
 import type { ShipmentDirection } from "@/lib/shipments";
 
 const nowIso = () => new Date().toISOString();
@@ -242,13 +242,151 @@ export async function importCandidates(fd: FormData) {
   if (ids.length === 0) redirect("/load-finder");
 
   const supabase = await createClient();
-  // DB writes sequentially (keeps exhibitor find-or-create race-free), then run
-  // the slow live-tracking syncs in parallel.
-  const loadNumbers: string[] = [];
-  for (const id of ids) {
-    const { loadNumber } = await importOne(supabase, id);
-    if (loadNumber) loadNumbers.push(loadNumber);
+
+  const { data: candRows } = await supabase
+    .from("tms_load_candidates")
+    .select(
+      "id, load_number, customer_name, po_ref, shipper_number, billed_amount, cost_amount, matched_venue, pickup_location, delivery_location",
+    )
+    .in("id", ids);
+  const candidates = (candRows ?? []).filter((c) => c.load_number?.trim());
+  if (candidates.length === 0) redirect("/load-finder");
+
+  // Resolve exhibitors and venues in bulk (case-insensitive find-or-create) —
+  // far fewer round-trips than resolving each candidate one at a time.
+  const [{ data: exhRows }, { data: venueRows }] = await Promise.all([
+    supabase.from("exhibitors").select("id, company_name"),
+    supabase.from("venues").select("id, venue_name"),
+  ]);
+  const exhByName = new Map((exhRows ?? []).map((e) => [e.company_name.trim().toLowerCase(), e.id]));
+  const venueByName = new Map((venueRows ?? []).map((v) => [v.venue_name.trim().toLowerCase(), v.id]));
+
+  // Create any missing exhibitors in one insert.
+  const newExh = [
+    ...new Set(
+      candidates
+        .map((c) => c.customer_name?.trim())
+        .filter((n): n is string => !!n && !exhByName.has(n.toLowerCase())),
+    ),
+  ];
+  if (newExh.length) {
+    const { data: created } = await supabase
+      .from("exhibitors")
+      .insert(newExh.map((company_name) => ({ company_name })))
+      .select("id, company_name");
+    for (const e of created ?? []) exhByName.set(e.company_name.trim().toLowerCase(), e.id);
   }
+
+  // Per-candidate direction (venue at delivery = move-in, at pickup = move-out)
+  // and the set of venues to create.
+  const dirByLoad = new Map<string, ShipmentDirection | null>();
+  const toCreateVenue = new Map<string, { name: string } & ReturnType<typeof parseVenueAddress>>();
+  for (const c of candidates) {
+    const vname = c.matched_venue?.trim() || null;
+    if (!vname) {
+      dirByLoad.set(c.load_number!.trim(), null);
+      continue;
+    }
+    const pickup = c.pickup_location ?? "";
+    const delivery = c.delivery_location ?? "";
+    const atDelivery = venueScore(delivery, vname) >= venueScore(pickup, vname);
+    dirByLoad.set(c.load_number!.trim(), atDelivery ? "move_in" : "move_out");
+    const key = vname.toLowerCase();
+    if (!venueByName.has(key) && !toCreateVenue.has(key)) {
+      toCreateVenue.set(key, { name: vname, ...parseVenueAddress(atDelivery ? delivery : pickup) });
+    }
+  }
+  if (toCreateVenue.size) {
+    const { data: created } = await supabase
+      .from("venues")
+      .insert([...toCreateVenue.values()].map((v) => ({ venue_name: v.name, address: v.address, city: v.city, state: v.state })))
+      .select("id, venue_name");
+    for (const v of created ?? []) venueByName.set(v.venue_name.trim().toLowerCase(), v.id);
+  }
+
+  // Suggest a show per venue: link only when exactly one active/upcoming show.
+  const venueIds = [
+    ...new Set(
+      candidates
+        .map((c) => (c.matched_venue ? venueByName.get(c.matched_venue.trim().toLowerCase()) : undefined))
+        .filter((x): x is string => !!x),
+    ),
+  ];
+  const showByVenue = new Map<string, string>();
+  if (venueIds.length) {
+    const { data: showRows } = await supabase
+      .from("shows_with_status")
+      .select("id, venue_id, status")
+      .in("venue_id", venueIds)
+      .in("status", ["active", "upcoming"]);
+    const byVenue = new Map<string, string[]>();
+    for (const s of showRows ?? []) {
+      if (!s.venue_id || !s.id) continue;
+      (byVenue.get(s.venue_id) ?? byVenue.set(s.venue_id, []).get(s.venue_id)!).push(s.id);
+    }
+    for (const [vid, list] of byVenue) if (list.length === 1) showByVenue.set(vid, list[0]);
+  }
+
+  // Existing shipments for these load numbers (one query).
+  const loadNumbers = candidates.map((c) => c.load_number!.trim());
+  const { data: existingRows } = await supabase
+    .from("shipments")
+    .select("id, tms_reference_id, exhibitor_id, venue_id, show_id, direction, po_ref, shipper_number, billed_amount, cost_amount")
+    .in("tms_reference_id", loadNumbers);
+  const existingByLoad = new Map((existingRows ?? []).map((r) => [r.tms_reference_id!, r]));
+
+  // Build one bulk insert for new shipments; fill-empty updates for existing.
+  const inserts: TablesInsert<"shipments">[] = [];
+  const updates: PromiseLike<unknown>[] = [];
+  for (const c of candidates) {
+    const load_number = c.load_number!.trim();
+    const exhibitor_id = c.customer_name?.trim() ? exhByName.get(c.customer_name.trim().toLowerCase()) ?? null : null;
+    const venue_id = c.matched_venue ? venueByName.get(c.matched_venue.trim().toLowerCase()) ?? null : null;
+    const show_id = venue_id ? showByVenue.get(venue_id) ?? null : null;
+    const direction = dirByLoad.get(load_number) ?? null;
+    const po_ref = c.po_ref?.trim() || null;
+    const shipper_number = c.shipper_number?.trim() || null;
+    const billed_amount = c.billed_amount ?? null;
+    const cost_amount = c.cost_amount ?? null;
+
+    const existing = existingByLoad.get(load_number);
+    if (!existing) {
+      inserts.push({
+        tms_reference_id: load_number,
+        status: "booked",
+        tms_sync_status: "manual",
+        ...(exhibitor_id ? { exhibitor_id } : {}),
+        ...(venue_id ? { venue_id } : {}),
+        ...(show_id ? { show_id } : {}),
+        ...(direction ? { direction } : {}),
+        ...(po_ref ? { po_ref } : {}),
+        ...(shipper_number ? { shipper_number } : {}),
+        ...(billed_amount != null ? { billed_amount } : {}),
+        ...(cost_amount != null ? { cost_amount } : {}),
+      });
+    } else {
+      const patch: TablesUpdate<"shipments"> = {};
+      if (exhibitor_id && !existing.exhibitor_id) patch.exhibitor_id = exhibitor_id;
+      if (venue_id && !existing.venue_id) patch.venue_id = venue_id;
+      if (show_id && !existing.show_id) patch.show_id = show_id;
+      if (direction && !existing.direction) patch.direction = direction;
+      if (po_ref && !existing.po_ref) patch.po_ref = po_ref;
+      if (shipper_number && !existing.shipper_number) patch.shipper_number = shipper_number;
+      if (billed_amount != null && existing.billed_amount == null) patch.billed_amount = billed_amount;
+      if (cost_amount != null && existing.cost_amount == null) patch.cost_amount = cost_amount;
+      if (Object.keys(patch).length) updates.push(supabase.from("shipments").update(patch).eq("id", existing.id));
+    }
+  }
+
+  if (inserts.length) await supabase.from("shipments").insert(inserts);
+  if (updates.length) await Promise.all(updates);
+
+  await supabase
+    .from("tms_load_candidates")
+    .update({ review_status: "imported", updated_at: nowIso() })
+    .in("id", ids);
+
+  // Live-tracking syncs in parallel — the one remaining per-load network call.
   await Promise.allSettled(loadNumbers.map((ln) => syncLoadNumber(ln)));
 
   revalidatePath("/load-finder");
