@@ -11,6 +11,8 @@ import {
   deleteCarrier,
   addVenueToCarrier,
   removeVenueFromCarrier,
+  addShowToCarrier,
+  removeShowFromCarrier,
 } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -26,12 +28,17 @@ export default async function CarrierRecordPage({
   const { data: carrier } = await supabase.from("carriers").select("*").eq("id", id).single();
   if (!carrier) notFound();
 
-  const [linkRes, allVenuesRes, shipRes] = await Promise.all([
+  const [linkRes, allVenuesRes, showLinkRes, allShowsRes, shipRes] = await Promise.all([
     supabase
       .from("carrier_venues")
       .select("venue:venues(id, venue_name, city, state)")
       .eq("carrier_id", id),
     supabase.from("venues").select("id, venue_name").order("venue_name"),
+    supabase
+      .from("carrier_shows")
+      .select("show:shows(id, show_name, edition_year)")
+      .eq("carrier_id", id),
+    supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
     supabase
       .from("shipments")
       .select(
@@ -47,6 +54,14 @@ export default async function CarrierRecordPage({
     .sort((a, b) => a.venue_name.localeCompare(b.venue_name));
   const linkedIds = new Set(venues.map((v) => v.id));
   const available = (allVenuesRes.data ?? []).filter((v) => !linkedIds.has(v.id));
+
+  const shows = (showLinkRes.data ?? [])
+    .map((r) => r.show)
+    .filter((s): s is NonNullable<typeof s> => Boolean(s))
+    .sort((a, b) => a.show_name.localeCompare(b.show_name));
+  const linkedShowIds = new Set(shows.map((s) => s.id));
+  const availableShows = (allShowsRes.data ?? []).filter((s) => !linkedShowIds.has(s.id));
+
   const shipments = shipRes.data ?? [];
 
   return (
@@ -133,7 +148,53 @@ export default async function CarrierRecordPage({
           </Card>
         </div>
 
-        <div>
+        <div className="space-y-5">
+          <Card>
+            <CardHeader
+              title={`Shows serviced (${shows.length})`}
+              icon="shows"
+              action={
+                availableShows.length > 0 ? (
+                  <form action={addShowToCarrier} className="flex items-center gap-2">
+                    <input type="hidden" name="carrier_id" value={id} />
+                    <select name="show_id" required defaultValue="" className={`${inputClass} h-8 py-1 text-xs`}>
+                      <option value="" disabled>Link show…</option>
+                      {availableShows.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.show_name}{s.edition_year ? ` ${s.edition_year}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <button type="submit" className="rounded-lg bg-dts-maroon px-2.5 py-1 text-xs font-medium text-white hover:bg-dts-maroon-dark">
+                      Add
+                    </button>
+                  </form>
+                ) : null
+              }
+            />
+            {shows.length === 0 ? (
+              <EmptyState icon="shows" title="No shows linked" description="Link the shows this carrier services." />
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {shows.map((s) => (
+                  <li key={s.id} className="flex items-center justify-between px-5 py-3">
+                    <Link href={`/shows/${s.id}`} className="text-sm font-medium text-slate-900 hover:text-dts-maroon">
+                      {s.show_name}
+                      {s.edition_year ? <span className="ml-1 text-slate-400">{s.edition_year}</span> : null}
+                    </Link>
+                    <form action={removeShowFromCarrier}>
+                      <input type="hidden" name="carrier_id" value={id} />
+                      <input type="hidden" name="show_id" value={s.id} />
+                      <button type="submit" className="text-xs font-medium text-slate-400 hover:text-dts-maroon">
+                        Remove
+                      </button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
           <Card>
             <CardHeader
               title={`Venues serviced (${venues.length})`}

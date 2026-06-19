@@ -17,19 +17,21 @@ type ContactOpt = Pick<
 export function ShowForm({
   action,
   show,
+  defaults,
   venues,
   contacts,
   submitLabel,
 }: {
   action: (prev: ShowFormState, fd: FormData) => Promise<ShowFormState>;
   show?: ShowRow;
+  defaults?: Partial<ShowRow>;
   venues: VenueOpt[];
   contacts: ContactOpt[];
   submitLabel: string;
 }) {
   const [state, formAction] = useActionState(action, { error: null });
   const err = state.fieldErrors ?? {};
-  const d = show;
+  const d = show ?? defaults;
 
   return (
     <form action={formAction}>
