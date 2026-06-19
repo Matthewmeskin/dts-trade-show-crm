@@ -321,6 +321,7 @@ export type Database = {
           tms_sync_status: Database["public"]["Enums"]["tms_sync_status"]
           tracking_url: string | null
           updated_at: string
+          venue_id: string | null
           weight: number | null
         }
         Insert: {
@@ -357,6 +358,7 @@ export type Database = {
           tms_sync_status?: Database["public"]["Enums"]["tms_sync_status"]
           tracking_url?: string | null
           updated_at?: string
+          venue_id?: string | null
           weight?: number | null
         }
         Update: {
@@ -393,6 +395,7 @@ export type Database = {
           tms_sync_status?: Database["public"]["Enums"]["tms_sync_status"]
           tracking_url?: string | null
           updated_at?: string
+          venue_id?: string | null
           weight?: number | null
         }
         Relationships: [
@@ -401,6 +404,13 @@ export type Database = {
             columns: ["carrier_id"]
             isOneToOne: false
             referencedRelation: "carriers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
           {
