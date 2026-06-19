@@ -18,16 +18,27 @@ export default async function ExhibitorsPage({
   if (q.trim()) query = query.ilike("company_name", `%${q.trim()}%`);
   if (industry.trim()) query = query.eq("industry", industry);
 
-  const [{ data: exhibitors }, { data: links }, { data: allForFilter }] =
+  const [{ data: exhibitors }, { data: links }, { data: ships }, { data: allForFilter }] =
     await Promise.all([
       query,
-      supabase.from("show_exhibitors").select("exhibitor_id"),
+      supabase.from("show_exhibitors").select("exhibitor_id, show_id"),
+      supabase.from("shipments").select("exhibitor_id, show_id"),
       supabase.from("exhibitors").select("industry"),
     ]);
 
-  const showCount = new Map<string, number>();
-  for (const l of links ?? []) {
-    showCount.set(l.exhibitor_id, (showCount.get(l.exhibitor_id) ?? 0) + 1);
+  // Shows = distinct shows from manual links AND shipment show links.
+  const showSets = new Map<string, Set<string>>();
+  const loadCount = new Map<string, number>();
+  const addShow = (eid: string | null, sid: string | null) => {
+    if (!eid || !sid) return;
+    const set = showSets.get(eid) ?? new Set<string>();
+    set.add(sid);
+    showSets.set(eid, set);
+  };
+  for (const l of links ?? []) addShow(l.exhibitor_id, l.show_id);
+  for (const s of ships ?? []) {
+    addShow(s.exhibitor_id, s.show_id);
+    if (s.exhibitor_id) loadCount.set(s.exhibitor_id, (loadCount.get(s.exhibitor_id) ?? 0) + 1);
   }
   const industries = [
     ...new Set((allForFilter ?? []).map((e) => e.industry).filter(Boolean)),
@@ -98,6 +109,7 @@ export default async function ExhibitorsPage({
                   <th className="px-5 py-3">Company</th>
                   <th className="px-5 py-3">Industry</th>
                   <th className="px-5 py-3">Primary contact</th>
+                  <th className="px-5 py-3">Loads</th>
                   <th className="px-5 py-3">Shows</th>
                 </tr>
               </thead>
@@ -128,7 +140,10 @@ export default async function ExhibitorsPage({
                       )}
                     </td>
                     <td className="px-5 py-3 text-slate-600">
-                      {showCount.get(e.id) ?? 0}
+                      {loadCount.get(e.id) ?? 0}
+                    </td>
+                    <td className="px-5 py-3 text-slate-600">
+                      {showSets.get(e.id)?.size ?? 0}
                     </td>
                   </LinkRow>
                 ))}
