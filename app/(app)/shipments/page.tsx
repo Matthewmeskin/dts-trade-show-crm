@@ -32,7 +32,7 @@ export default async function ShipmentsPage({
   let query = supabase
     .from("shipments")
     .select(
-      "id, status, mode, destination_type, pickup_date, pro_number, margin, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name)",
+      "id, status, mode, destination_type, pickup_date, pro_number, margin, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name), venue:venues(venue_name)",
     )
     .order("pickup_date", { ascending: false, nullsFirst: false });
 
@@ -145,6 +145,7 @@ export default async function ShipmentsPage({
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Mode</th>
                   <th className="px-5 py-3">Carrier</th>
+                  <th className="px-5 py-3">Venue</th>
                   <th className="px-5 py-3">Destination</th>
                   <th className="px-5 py-3">Pickup</th>
                   <th className="px-5 py-3 text-right">Margin</th>
@@ -174,6 +175,7 @@ export default async function ShipmentsPage({
                       </td>
                       <td className="px-5 py-3 text-slate-600">{s.mode ?? "—"}</td>
                       <td className="px-5 py-3 text-slate-600">{s.carrier?.carrier_name ?? "—"}</td>
+                      <td className="px-5 py-3 text-slate-600">{s.venue?.venue_name ?? "—"}</td>
                       <td className="px-5 py-3 text-slate-600">
                         {s.destination_type ? DESTINATION_LABELS[s.destination_type] : "—"}
                       </td>
