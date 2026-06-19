@@ -42,7 +42,7 @@ export default async function ExhibitorRecordPage({
           .from("shows_with_status")
           .select("id, show_name, edition_year, status, move_in_start, move_out_end")
           .in("id", showIds)
-          .order("move_in_start", { ascending: false, nullsFirst: false })
+          .order("move_in_start", { ascending: true, nullsFirst: false })
       : Promise.resolve({ data: [] as never[] }),
     supabase
       .from("shipments")
@@ -50,7 +50,7 @@ export default async function ExhibitorRecordPage({
         "id, status, mode, pickup_date, pro_number, show:shows(show_name), carrier:carriers(carrier_name)",
       )
       .eq("exhibitor_id", id)
-      .order("pickup_date", { ascending: false, nullsFirst: false }),
+      .order("pickup_date", { ascending: true, nullsFirst: false }),
   ]);
 
   const shows = showsRes.data ?? [];

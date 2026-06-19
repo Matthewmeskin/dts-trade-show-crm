@@ -39,9 +39,9 @@ export default async function ShipmentsPage({
   let query = supabase
     .from("shipments")
     .select(
-      "id, status, mode, destination_type, direction, target_delivery_date, show_date, estimated_delivery_date, actual_delivery_date, pickup_date, pro_number, margin, weight, pieces, origin_city, origin_state, destination_address, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(carrier_name), venue:venues(venue_name)",
+      "id, status, mode, destination_type, direction, target_delivery_date, show_date, estimated_delivery_date, actual_delivery_date, pickup_date, pro_number, tms_reference_id, margin, weight, pieces, origin_city, origin_state, destination_address, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(carrier_name), venue:venues(venue_name)",
     )
-    .order("pickup_date", { ascending: false, nullsFirst: false });
+    .order("pickup_date", { ascending: true, nullsFirst: false });
 
   if (sp.status && (Constants.public.Enums.shipment_status as readonly string[]).includes(sp.status))
     query = query.eq("status", sp.status as ShipmentStatus);
@@ -51,7 +51,22 @@ export default async function ShipmentsPage({
     query = query.eq("direction", sp.direction as ShipmentDirection);
   if (sp.carrier) query = query.eq("carrier_id", sp.carrier);
   if (sp.show) query = query.eq("show_id", sp.show);
-  if (sp.q?.trim()) query = query.ilike("pro_number", `%${sp.q.trim()}%`);
+
+  // Search matches PRO #, load # (TMS reference), or customer (exhibitor name).
+  const term = sp.q?.trim();
+  if (term) {
+    // Resolve matching exhibitors first so we can search by company name.
+    const { data: matchedExh } = await supabase
+      .from("exhibitors")
+      .select("id")
+      .ilike("company_name", `%${term}%`);
+    const exhIds = (matchedExh ?? []).map((e) => e.id);
+    // Sanitize for PostgREST .or() syntax (commas/parens are delimiters).
+    const safe = term.replace(/[(),]/g, " ");
+    const ors = [`pro_number.ilike.%${safe}%`, `tms_reference_id.ilike.%${safe}%`];
+    if (exhIds.length) ors.push(`exhibitor_id.in.(${exhIds.join(",")})`);
+    query = query.or(ors.join(","));
+  }
 
   const [{ data: rows }, { data: carriers }, { data: shows }] = await Promise.all([
     query,
@@ -59,7 +74,8 @@ export default async function ShipmentsPage({
     supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
   ]);
 
-  // Enrich with delivery health, then surface the loads needing attention first.
+  // Enrich with delivery health, then sort chronologically (earliest first) by
+  // pickup date so the team works the schedule in order; undated loads last.
   const shipments = (rows ?? [])
     .map((s) => {
       const dir = effectiveDirection(s);
@@ -72,11 +88,9 @@ export default async function ShipmentsPage({
       });
       return { s, dir, target, health, rank: DELIVERY_HEALTH_META[health].rank };
     })
-    .sort((a, b) => {
-      if (b.rank !== a.rank) return b.rank - a.rank;
-      if (a.rank > 0) return (a.target ?? "9999-12-31").localeCompare(b.target ?? "9999-12-31");
-      return (b.s.pickup_date ?? "").localeCompare(a.s.pickup_date ?? "");
-    });
+    .sort((a, b) =>
+      (a.s.pickup_date ?? "9999-12-31").localeCompare(b.s.pickup_date ?? "9999-12-31"),
+    );
 
   // Build status tabs preserving other filters.
   const statusTabs = [{ label: "All", value: "" }].concat(
@@ -98,7 +112,7 @@ export default async function ShipmentsPage({
     <div>
       <PageHeader
         title="Shipments"
-        description="Every shipment across your shows. Loads at risk of missing their delivery target are surfaced first."
+        description="Every shipment across your shows, in schedule order (earliest pickup first)."
         actions={
           <Link
             href="/shipments/new"
@@ -154,7 +168,7 @@ export default async function ShipmentsPage({
             <option key={m} value={m}>{m}</option>
           ))}
         </select>
-        <input name="q" defaultValue={sp.q ?? ""} placeholder="PRO #…" className="w-32 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon" />
+        <input name="q" defaultValue={sp.q ?? ""} placeholder="Search PRO #, load #, customer…" className="w-56 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon" />
         <button type="submit" className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100">
           Filter
         </button>

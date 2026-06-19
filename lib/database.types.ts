@@ -592,6 +592,9 @@ export type Database = {
           edition_year: number | null
           estimated_revenue: number | null
           general_notes: string | null
+          exhibitor_list_url: string | null
+          exhibitor_manual_url: string | null
+          website_url: string | null
           gsc_contact_id: string | null
           id: string
           industry_vertical: string | null
@@ -618,6 +621,9 @@ export type Database = {
           edition_year?: number | null
           estimated_revenue?: number | null
           general_notes?: string | null
+          exhibitor_list_url?: string | null
+          exhibitor_manual_url?: string | null
+          website_url?: string | null
           gsc_contact_id?: string | null
           id?: string
           industry_vertical?: string | null
@@ -644,6 +650,9 @@ export type Database = {
           edition_year?: number | null
           estimated_revenue?: number | null
           general_notes?: string | null
+          exhibitor_list_url?: string | null
+          exhibitor_manual_url?: string | null
+          website_url?: string | null
           gsc_contact_id?: string | null
           id?: string
           industry_vertical?: string | null

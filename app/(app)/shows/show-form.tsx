@@ -131,6 +131,21 @@ export function ShowForm({
         </FormSection>
 
         <FormSection
+          title="Links"
+          description="Show website and exhibitor resources."
+        >
+          <Field label="Show website" htmlFor="website_url" className="sm:col-span-2">
+            <input id="website_url" name="website_url" type="url" inputMode="url" defaultValue={d?.website_url ?? ""} className={inputClass} placeholder="https://…" />
+          </Field>
+          <Field label="Exhibitor manual link" htmlFor="exhibitor_manual_url" className="sm:col-span-2">
+            <input id="exhibitor_manual_url" name="exhibitor_manual_url" type="url" inputMode="url" defaultValue={d?.exhibitor_manual_url ?? ""} className={inputClass} placeholder="https://…" />
+          </Field>
+          <Field label="Exhibitor list link" htmlFor="exhibitor_list_url" className="sm:col-span-2">
+            <input id="exhibitor_list_url" name="exhibitor_list_url" type="url" inputMode="url" defaultValue={d?.exhibitor_list_url ?? ""} className={inputClass} placeholder="https://…" />
+          </Field>
+        </FormSection>
+
+        <FormSection
           title="Show dates"
           description="The actual days the show is open — separate from the freight dates below."
         >

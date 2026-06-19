@@ -45,7 +45,7 @@ export default async function CarrierRecordPage({
         "id, status, mode, pickup_date, pro_number, show:shows(show_name), exhibitor:exhibitors(company_name)",
       )
       .eq("carrier_id", id)
-      .order("pickup_date", { ascending: false, nullsFirst: false }),
+      .order("pickup_date", { ascending: true, nullsFirst: false }),
   ]);
 
   const venues = (linkRes.data ?? [])

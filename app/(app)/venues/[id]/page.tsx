@@ -35,7 +35,7 @@ export default async function VenueRecordPage({
       .from("shows_with_status")
       .select("id, show_name, edition_year, status, move_in_start, move_out_end")
       .eq("venue_id", id)
-      .order("move_in_start", { ascending: false, nullsFirst: false }),
+      .order("move_in_start", { ascending: true, nullsFirst: false }),
     supabase
       .from("carrier_venues")
       .select("carrier:carriers(id, carrier_name)")
@@ -44,7 +44,7 @@ export default async function VenueRecordPage({
       .from("shipments")
       .select("id, status, direction, pickup_date, exhibitor:exhibitors(company_name), show:shows(show_name)")
       .eq("venue_id", id)
-      .order("pickup_date", { ascending: false, nullsFirst: false }),
+      .order("pickup_date", { ascending: true, nullsFirst: false }),
   ]);
 
   const shows = showsRes.data ?? [];
