@@ -721,6 +721,63 @@ export type Database = {
           },
         ]
       }
+      tms_load_candidates: {
+        Row: {
+          ai_confidence: string | null
+          ai_is_candidate: boolean
+          ai_reason: string | null
+          carrier_name: string | null
+          created_at: string
+          delivery_location: string | null
+          id: string
+          load_number: string
+          matched_venue: string | null
+          mode: string | null
+          pickup_location: string | null
+          pieces: number | null
+          review_status: string
+          tms_status: string | null
+          updated_at: string
+          weight: number | null
+        }
+        Insert: {
+          ai_confidence?: string | null
+          ai_is_candidate?: boolean
+          ai_reason?: string | null
+          carrier_name?: string | null
+          created_at?: string
+          delivery_location?: string | null
+          id?: string
+          load_number: string
+          matched_venue?: string | null
+          mode?: string | null
+          pickup_location?: string | null
+          pieces?: number | null
+          review_status?: string
+          tms_status?: string | null
+          updated_at?: string
+          weight?: number | null
+        }
+        Update: {
+          ai_confidence?: string | null
+          ai_is_candidate?: boolean
+          ai_reason?: string | null
+          carrier_name?: string | null
+          created_at?: string
+          delivery_location?: string | null
+          id?: string
+          load_number?: string
+          matched_venue?: string | null
+          mode?: string | null
+          pickup_location?: string | null
+          pieces?: number | null
+          review_status?: string
+          tms_status?: string | null
+          updated_at?: string
+          weight?: number | null
+        }
+        Relationships: []
+      }
       venues: {
         Row: {
           address: string | null
