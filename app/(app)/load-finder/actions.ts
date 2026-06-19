@@ -29,6 +29,25 @@ function pickVenueStop(venueName: string, pickup: string, delivery: string): str
   return venueScore(delivery, venueName) > venueScore(pickup, venueName) ? delivery : pickup;
 }
 
+// Matches a US street address ("1850 West St", "800 W Katella Ave").
+const STREET_RE =
+  /\b\d{1,6}\s+(?:[NSEW]\.?\s+)?[A-Za-z0-9'.\- ]*?\b(?:st|street|ave|avenue|blvd|boulevard|rd|road|dr|drive|way|hwy|highway|ln|lane|pkwy|parkway|ct|court|pl|place|sq|square|ter|terrace|cir|circle|pike|plaza|loop|trail|trl)\b\.?/i;
+
+/** Pull a clean street out of a messy stop line, dropping booth/suite noise. */
+function cleanStreet(part: string): string | null {
+  const street = part.match(STREET_RE)?.[0];
+  if (street) return street.replace(/\s+/g, " ").trim();
+  // No recognizable street — strip booth / suite / c-o / "- …" noise and use
+  // whatever's left.
+  const fallback = part
+    .replace(/\bc\/o\b.*/i, "")
+    .replace(/\bbooth\b.*/i, "")
+    .replace(/\b(?:ste|suite|unit|#).*/i, "")
+    .replace(/\s-\s.*/, "")
+    .trim();
+  return fallback || null;
+}
+
 /** Best-effort parse of "street…, city, ST zip" into venue address parts. */
 function parseVenueAddress(text: string): { address: string | null; city: string | null; state: string | null } {
   const s = (text ?? "").trim();
@@ -40,9 +59,8 @@ function parseVenueAddress(text: string): { address: string | null; city: string
     if (m) state = m[1].toUpperCase();
   }
   const city = parts.length >= 2 ? parts[parts.length - 2] : null;
-  const address =
-    parts.length >= 3 ? parts.slice(0, parts.length - 2).join(", ") : parts[0] ?? null;
-  return { address, city, state };
+  const streetPart = parts.length >= 3 ? parts.slice(0, parts.length - 2).join(", ") : parts[0] ?? "";
+  return { address: cleanStreet(streetPart), city, state };
 }
 
 /** Dismiss a candidate — it drops off the Load Finder. */
