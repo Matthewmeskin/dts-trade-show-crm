@@ -38,6 +38,16 @@ export async function syncLoadNumber(loadNumber: string): Promise<boolean> {
 
   const supabase = createAdminClient();
 
+  // No shipment for this load number? Nothing to sync — bail before resolving
+  // (and possibly creating) the carrier/exhibitor, so we never mint orphan
+  // records that can't be linked to anything.
+  const { data: current } = await supabase
+    .from("shipments")
+    .select("exhibitor_id")
+    .eq("tms_reference_id", parsed.ref)
+    .maybeSingle();
+  if (!current) return false;
+
   let carrier_id: string | undefined;
   if (parsed.carrierName) {
     const found = await supabase
@@ -61,14 +71,8 @@ export async function syncLoadNumber(loadNumber: string): Promise<boolean> {
   // shipment has no exhibitor yet — never overwrite a manual operator link
   // (and skip find-or-create entirely when already linked, so we don't mint
   // orphan exhibitor records).
-  const { data: current } = await supabase
-    .from("shipments")
-    .select("exhibitor_id")
-    .eq("tms_reference_id", parsed.ref)
-    .maybeSingle();
-
   let exhibitor_id: string | undefined;
-  if (!current?.exhibitor_id && parsed.customerName) {
+  if (!current.exhibitor_id && parsed.customerName) {
     const found = await supabase
       .from("exhibitors")
       .select("id")

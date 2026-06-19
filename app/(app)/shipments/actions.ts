@@ -15,12 +15,16 @@ const str = (fd: FormData, k: string) => {
   const v = String(fd.get(k) ?? "").trim();
   return v === "" ? null : v;
 };
-/** Parse a money/number field, tolerating "$" and thousands separators. */
+/**
+ * Parse a money/number field, tolerating "$" and thousands separators.
+ * Negatives are rejected (billed/cost are non-negative) — the form's
+ * `min="0"` is client-only, so we guard server-side too.
+ */
 const num = (fd: FormData, k: string) => {
   const v = String(fd.get(k) ?? "").trim();
   if (v === "") return null;
   const n = Number(v.replace(/[$,\s]/g, ""));
-  return Number.isFinite(n) ? n : null;
+  return Number.isFinite(n) && n >= 0 ? n : null;
 };
 function enumOrNull<T extends string>(value: string | null, allowed: readonly T[]): T | null {
   return value && (allowed as readonly string[]).includes(value) ? (value as T) : null;
