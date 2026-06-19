@@ -180,24 +180,28 @@ export async function loadDashboard(): Promise<DashboardData> {
         .eq("show_id", featuredBase.id),
       supabase
         .from("shipments")
-        .select("id, exhibitor_id, status")
+        .select("status, exhibitor:exhibitors(id, company_name, industry)")
         .eq("show_id", featuredBase.id),
     ]);
 
-    const featuredShipments = shipRes.data ?? [];
-
-    // Exhibitor traffic-light rollup.
+    // Exhibitor traffic-light rollup. Sourced from the show's SHIPMENTS (where
+    // the exhibitor link actually lives), supplemented by any manual
+    // show_exhibitors entries that have no freight yet.
+    type ExhInfo = { id: string; company_name: string; industry: string | null };
+    const exhInfo = new Map<string, ExhInfo>();
     const byExhibitor = new Map<string, ShipmentStatus[]>();
-    for (const s of featuredShipments) {
-      if (!s.exhibitor_id) continue;
-      const list = byExhibitor.get(s.exhibitor_id) ?? [];
+    for (const s of shipRes.data ?? []) {
+      if (!s.exhibitor) continue;
+      exhInfo.set(s.exhibitor.id, s.exhibitor);
+      const list = byExhibitor.get(s.exhibitor.id) ?? [];
       list.push(s.status);
-      byExhibitor.set(s.exhibitor_id, list);
+      byExhibitor.set(s.exhibitor.id, list);
+    }
+    for (const row of exhRes.data ?? []) {
+      if (row.exhibitor && !exhInfo.has(row.exhibitor.id)) exhInfo.set(row.exhibitor.id, row.exhibitor);
     }
 
-    exhibitorStatuses = (exhRes.data ?? [])
-      .map((row) => row.exhibitor)
-      .filter((e): e is NonNullable<typeof e> => Boolean(e))
+    exhibitorStatuses = [...exhInfo.values()]
       .map((e) => {
         const statuses = byExhibitor.get(e.id) ?? [];
         return {
