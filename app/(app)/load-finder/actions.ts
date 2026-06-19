@@ -8,6 +8,43 @@ import type { TablesUpdate } from "@/lib/database.types";
 
 const nowIso = () => new Date().toISOString();
 
+// Convention-center signals used to decide which stop is the show site.
+const VENUE_KEYWORDS = [
+  "convention", "conv ctr", "conv center", "expo", "exhibit", "fairground",
+  "civic center", "conference center", "pavilion", "arena", " center", " ctr", " hall",
+];
+
+/** Score how strongly a stop address looks like the matched venue. */
+function venueScore(text: string, venueName: string): number {
+  const t = text.toLowerCase();
+  let score = 0;
+  for (const k of VENUE_KEYWORDS) if (t.includes(k)) score += 1;
+  for (const tok of venueName.toLowerCase().split(/\s+/))
+    if (tok.length > 3 && t.includes(tok)) score += 2;
+  return score;
+}
+
+/** Pick the stop (pickup vs delivery) that names the convention center. */
+function pickVenueStop(venueName: string, pickup: string, delivery: string): string {
+  return venueScore(delivery, venueName) > venueScore(pickup, venueName) ? delivery : pickup;
+}
+
+/** Best-effort parse of "street…, city, ST zip" into venue address parts. */
+function parseVenueAddress(text: string): { address: string | null; city: string | null; state: string | null } {
+  const s = (text ?? "").trim();
+  if (!s) return { address: null, city: null, state: null };
+  const parts = s.split(",").map((x) => x.trim()).filter(Boolean);
+  let state: string | null = null;
+  if (parts.length) {
+    const m = parts[parts.length - 1].match(/^([A-Za-z]{2})\s+\d{5}/);
+    if (m) state = m[1].toUpperCase();
+  }
+  const city = parts.length >= 2 ? parts[parts.length - 2] : null;
+  const address =
+    parts.length >= 3 ? parts.slice(0, parts.length - 2).join(", ") : parts[0] ?? null;
+  return { address, city, state };
+}
+
 /** Dismiss a candidate — it drops off the Load Finder. */
 export async function dismissCandidate(fd: FormData) {
   const id = String(fd.get("id") ?? "");
@@ -38,7 +75,9 @@ async function importOne(
   // these, so import is the only place we can seed them onto the shipment.
   const { data: cand } = await supabase
     .from("tms_load_candidates")
-    .select("load_number, customer_name, po_ref, shipper_number, billed_amount, cost_amount")
+    .select(
+      "load_number, customer_name, po_ref, shipper_number, billed_amount, cost_amount, matched_venue, pickup_location, delivery_location",
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -66,6 +105,33 @@ async function importOne(
       null;
   }
 
+  // Convention center: find-or-create the venue the AI matched, parsing its
+  // address from whichever stop names it.
+  let venue_id: string | null = null;
+  const venueName = cand?.matched_venue?.trim();
+  if (venueName) {
+    const { data: foundVenue } = await supabase
+      .from("venues")
+      .select("id")
+      .ilike("venue_name", venueName)
+      .limit(1)
+      .maybeSingle();
+    if (foundVenue?.id) {
+      venue_id = foundVenue.id;
+    } else {
+      const stop = pickVenueStop(venueName, cand?.pickup_location ?? "", cand?.delivery_location ?? "");
+      const addr = parseVenueAddress(stop);
+      venue_id =
+        (
+          await supabase
+            .from("venues")
+            .insert({ venue_name: venueName, address: addr.address, city: addr.city, state: addr.state })
+            .select("id")
+            .single()
+        ).data?.id ?? null;
+    }
+  }
+
   // Reference numbers + financials from the candidate (operator-owned: seed on
   // import, but never clobber a value already on the shipment).
   const po_ref = cand?.po_ref?.trim() || null;
@@ -76,7 +142,7 @@ async function importOne(
   // Reuse an existing shipment for this load number, else create one.
   const { data: existing } = await supabase
     .from("shipments")
-    .select("id, exhibitor_id, po_ref, shipper_number, billed_amount, cost_amount")
+    .select("id, exhibitor_id, venue_id, po_ref, shipper_number, billed_amount, cost_amount")
     .eq("tms_reference_id", load_number)
     .maybeSingle();
 
@@ -89,6 +155,7 @@ async function importOne(
         status: "booked",
         tms_sync_status: "manual",
         ...(exhibitor_id ? { exhibitor_id } : {}),
+        ...(venue_id ? { venue_id } : {}),
         ...(po_ref ? { po_ref } : {}),
         ...(shipper_number ? { shipper_number } : {}),
         ...(billed_amount != null ? { billed_amount } : {}),
@@ -101,6 +168,7 @@ async function importOne(
     // Fill only the operator-owned fields the shipment doesn't already have.
     const patch: TablesUpdate<"shipments"> = {};
     if (exhibitor_id && !existing.exhibitor_id) patch.exhibitor_id = exhibitor_id;
+    if (venue_id && !existing.venue_id) patch.venue_id = venue_id;
     if (po_ref && !existing.po_ref) patch.po_ref = po_ref;
     if (shipper_number && !existing.shipper_number) patch.shipper_number = shipper_number;
     if (billed_amount != null && existing.billed_amount == null) patch.billed_amount = billed_amount;

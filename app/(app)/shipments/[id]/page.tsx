@@ -25,7 +25,7 @@ export default async function ShipmentRecordPage({
   const { data: s } = await supabase
     .from("shipments")
     .select(
-      "*, exhibitor:exhibitors(id, company_name), show:shows(id, show_name, edition_year), carrier:carriers(id, carrier_name)",
+      "*, exhibitor:exhibitors(id, company_name), show:shows(id, show_name, edition_year), carrier:carriers(id, carrier_name), venue:venues(id, venue_name)",
     )
     .eq("id", id)
     .single();
@@ -205,6 +205,16 @@ export default async function ShipmentRecordPage({
                   s.carrier ? (
                     <Link href={`/carriers/${s.carrier.id}`} className="text-dts-blue hover:underline">
                       {s.carrier.carrier_name}
+                    </Link>
+                  ) : null
+                }
+              />
+              <Row
+                label="Venue"
+                value={
+                  s.venue ? (
+                    <Link href={`/venues/${s.venue.id}`} className="text-dts-blue hover:underline">
+                      {s.venue.venue_name}
                     </Link>
                   ) : null
                 }
