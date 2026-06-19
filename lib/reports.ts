@@ -51,6 +51,13 @@ export const REPORTS: ReportDef[] = [
     scoped: false,
     icon: "reports",
   },
+  {
+    slug: "financials",
+    title: "Financials by show & carrier",
+    description: "Billed, cost, and margin per show, broken down by carrier.",
+    scoped: false,
+    icon: "reports",
+  },
 ];
 
 export function getReport(slug: string): ReportDef | undefined {
