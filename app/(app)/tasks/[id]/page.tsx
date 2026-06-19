@@ -11,6 +11,8 @@ import {
 } from "@/lib/tasks";
 import { formatDate, formatCountdown, daysUntil } from "@/lib/format";
 import { deleteTask, updateTaskStatus } from "../actions";
+import { loadTaskOptions } from "../options";
+import { QuickEditTask } from "./quick-edit";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +33,8 @@ export default async function TaskRecordPage({
     .single();
 
   if (!t) notFound();
+
+  const { profiles, related } = await loadTaskOptions();
 
   const sm = TASK_STATUS_META[t.status];
   const pm = TASK_PRIORITY_META[t.priority];
@@ -62,12 +66,7 @@ export default async function TaskRecordPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/tasks/${id}/edit`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3.5 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark"
-          >
-            <Icon name="tasks" className="h-4 w-4" /> Edit
-          </Link>
+          <QuickEditTask task={t} profiles={profiles} related={related} />
           <ConfirmDelete action={deleteTask} id={id} message="Delete this task? This cannot be undone." />
         </div>
       </div>

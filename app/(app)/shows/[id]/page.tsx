@@ -27,6 +27,8 @@ import { DeleteDocButton } from "@/app/(app)/documents/delete-doc-button";
 import { DOCUMENT_TYPE_META } from "@/lib/documents";
 import { DebriefForm } from "./debrief-form";
 import { DeleteShowButton } from "./delete-show-button";
+import { QuickEditShow } from "./quick-edit";
+import type { Tables } from "@/lib/database.types";
 
 export const dynamic = "force-dynamic";
 
@@ -56,13 +58,28 @@ export default async function ShowRecordPage({
     (TABS.find((t) => t.key === tab)?.key as TabKey) ?? "overview";
 
   const supabase = await createClient();
-  const [{ data: show }, { data: links }] = await Promise.all([
+  const [
+    { data: show },
+    { data: links },
+    { data: editRow },
+    { data: venues },
+    { data: contacts },
+  ] = await Promise.all([
     supabase.from("shows_with_status").select("*").eq("id", id).single(),
     supabase
       .from("shows")
       .select("website_url, exhibitor_manual_url, exhibitor_list_url")
       .eq("id", id)
       .single(),
+    supabase.from("shows").select("*").eq("id", id).single(),
+    supabase
+      .from("venues")
+      .select("id, venue_name, city, state")
+      .order("venue_name"),
+    supabase
+      .from("contacts")
+      .select("id, first_name, last_name, company")
+      .order("last_name"),
   ]);
 
   if (!show) notFound();
@@ -104,12 +121,13 @@ export default async function ShowRecordPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/shows/${id}/edit`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3.5 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark"
-          >
-            <Icon name="shows" className="h-4 w-4" /> Edit
-          </Link>
+          {editRow ? (
+            <QuickEditShow
+              show={editRow as Tables<"shows">}
+              venues={venues ?? []}
+              contacts={contacts ?? []}
+            />
+          ) : null}
           <DeleteShowButton id={id} showName={show.show_name ?? "this show"} />
         </div>
       </div>

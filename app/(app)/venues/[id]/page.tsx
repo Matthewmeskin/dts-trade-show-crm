@@ -2,12 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
-import { Icon } from "@/components/icons";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { SHOW_STATUS_META } from "@/lib/shows";
 import { SHIPMENT_STATUS_META, DIRECTION_META } from "@/lib/shipments";
 import { formatDateRange, formatDate } from "@/lib/format";
 import { deleteVenue } from "../actions";
+import { QuickEditVenue } from "./quick-edit";
 
 export const dynamic = "force-dynamic";
 
@@ -75,12 +75,7 @@ export default async function VenueRecordPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/venues/${id}/edit`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3.5 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark"
-          >
-            <Icon name="venues" className="h-4 w-4" /> Edit
-          </Link>
+          <QuickEditVenue venue={venue} />
           <ConfirmDelete
             action={deleteVenue}
             id={id}

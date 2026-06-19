@@ -2,9 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
-import { Icon } from "@/components/icons";
 import { inputClass } from "@/components/form";
 import { ConfirmDelete } from "@/components/confirm-delete";
+import { QuickEditCarrier } from "./quick-edit";
 import { SHIPMENT_STATUS_META } from "@/lib/shipments";
 import { formatDate } from "@/lib/format";
 import {
@@ -76,12 +76,7 @@ export default async function CarrierRecordPage({
           {carrier.carrier_name}
         </h1>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/carriers/${id}/edit`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3.5 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark"
-          >
-            <Icon name="carriers" className="h-4 w-4" /> Edit
-          </Link>
+          <QuickEditCarrier carrier={carrier} />
           <ConfirmDelete
             action={deleteCarrier}
             id={id}
