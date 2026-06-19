@@ -17,6 +17,7 @@ import {
 } from "@/lib/shipments";
 import { formatDate, formatCurrency, formatCountdown, daysUntil } from "@/lib/format";
 import { deleteShipment } from "../actions";
+import { QuickEditShipment } from "./quick-edit";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,16 @@ export default async function ShipmentRecordPage({
     .single();
 
   if (!s) notFound();
+
+  const [{ data: showsData }, { data: exhibitorsData }] = await Promise.all([
+    supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
+    supabase.from("exhibitors").select("id, company_name").order("company_name"),
+  ]);
+  const showOptions = (showsData ?? []).map((x) => ({
+    id: x.id,
+    label: `${x.show_name}${x.edition_year ? ` ${x.edition_year}` : ""}`,
+  }));
+  const exhibitorOptions = (exhibitorsData ?? []).map((x) => ({ id: x.id, label: x.company_name }));
 
   const sm = SHIPMENT_STATUS_META[s.status];
   const tms = TMS_SYNC_META[s.tms_sync_status];
@@ -87,12 +98,7 @@ export default async function ShipmentRecordPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/shipments/${id}/edit`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3.5 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark"
-          >
-            <Icon name="shipments" className="h-4 w-4" /> Edit
-          </Link>
+          <QuickEditShipment shipment={s} shows={showOptions} exhibitors={exhibitorOptions} />
           <ConfirmDelete
             action={deleteShipment}
             id={id}
@@ -133,6 +139,22 @@ export default async function ShipmentRecordPage({
           </Card>
 
           <Card>
+            <CardHeader title="Schedule" icon="calendar" />
+            <dl className="divide-y divide-slate-100 text-sm">
+              <Row label="Direction" value={dir ? DIRECTION_META[dir].label : null} />
+              <Row
+                label="Target delivery"
+                value={target ? formatDate(target) : null}
+              />
+              <Row label="Delivery health" value={<Badge className={hm.badge}>{hm.label}</Badge>} />
+              <Row label="Show date" value={showDate ? formatDate(showDate) : null} />
+              <Row label="Pickup" value={formatDate(s.pickup_date)} />
+              <Row label="Estimated delivery" value={formatDate(s.estimated_delivery_date)} />
+              <Row label="Actual delivery" value={formatDate(s.actual_delivery_date)} />
+            </dl>
+          </Card>
+
+          <Card>
             <CardHeader title="Route" icon="truck" />
             <dl className="divide-y divide-slate-100 text-sm">
               <Row label="Origin" value={origin || null} />
@@ -159,22 +181,6 @@ export default async function ShipmentRecordPage({
                   ) : null
                 }
               />
-            </dl>
-          </Card>
-
-          <Card>
-            <CardHeader title="Schedule" icon="calendar" />
-            <dl className="divide-y divide-slate-100 text-sm">
-              <Row label="Direction" value={dir ? DIRECTION_META[dir].label : null} />
-              <Row
-                label="Target delivery"
-                value={target ? formatDate(target) : null}
-              />
-              <Row label="Delivery health" value={<Badge className={hm.badge}>{hm.label}</Badge>} />
-              <Row label="Show date" value={showDate ? formatDate(showDate) : null} />
-              <Row label="Pickup" value={formatDate(s.pickup_date)} />
-              <Row label="Estimated delivery" value={formatDate(s.estimated_delivery_date)} />
-              <Row label="Actual delivery" value={formatDate(s.actual_delivery_date)} />
             </dl>
           </Card>
 
