@@ -45,6 +45,10 @@ function buildSnapshot(data: DashboardData): string {
         advance_warehouse_cutoffs: data.alerts.cutoffs.map(
           (c) => `${c.showName}: cutoff ${formatCountdown(c.days)}`,
         ),
+        move_in_delivery_risks: data.alerts.deliveryRisks.map(
+          (d) =>
+            `${d.exhibitor ?? "shipment"} move-in ${d.health}${d.show ? ` for ${d.show}` : ""} (due ${formatCountdown(d.days)})`,
+        ),
         flagged_issues: data.alerts.issues.map((s) => `${s.exhibitor ?? "shipment"} on ${s.show ?? "?"}`),
         quoted_near_pickup: data.alerts.quotedNearPickup.map(
           (s) => `${s.exhibitor ?? "shipment"} pickup ${formatCountdown(s.days)}`,

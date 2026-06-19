@@ -9,8 +9,13 @@ import {
 } from "@/lib/shows";
 import {
   rollupShipmentStatus,
+  effectiveDirection,
+  effectiveTargetDate,
+  deliveryHealth,
+  DELIVERY_HEALTH_META,
   type RollupColor,
   type ShipmentStatus,
+  type DeliveryHealth,
 } from "@/lib/shipments";
 
 /** Local YYYY-MM-DD for `today` (avoids UTC drift from toISOString). */
@@ -61,6 +66,15 @@ export type CutoffAlert = {
   days: number;
 };
 
+export type DeliveryRiskAlert = {
+  id: string;
+  exhibitor: string | null;
+  show: string | null;
+  health: DeliveryHealth;
+  target: string | null;
+  days: number | null;
+};
+
 export type OpenTask = {
   id: string;
   title: string;
@@ -82,6 +96,7 @@ export type DashboardData = {
   shipmentSummary: ShipmentSummary;
   alerts: {
     cutoffs: CutoffAlert[];
+    deliveryRisks: DeliveryRiskAlert[];
     quotedNearPickup: AttentionShipment[];
     issues: AttentionShipment[];
     total: number;
@@ -94,7 +109,7 @@ export async function loadDashboard(): Promise<DashboardData> {
   const supabase = await createClient();
   const iso = todayISO();
 
-  const [showsRes, venuesRes, attentionRes, tasksRes] = await Promise.all([
+  const [showsRes, venuesRes, attentionRes, deliveryRes, tasksRes] = await Promise.all([
     supabase.from("shows_with_status").select("*"),
     supabase.from("venues").select("id, venue_name, city, state"),
     supabase
@@ -103,6 +118,12 @@ export async function loadDashboard(): Promise<DashboardData> {
         "id, status, pickup_date, pro_number, exhibitor:exhibitors(company_name), show:shows(show_name)",
       )
       .in("status", ["issue", "quoted"]),
+    supabase
+      .from("shipments")
+      .select(
+        "id, status, direction, destination_type, target_delivery_date, estimated_delivery_date, actual_delivery_date, exhibitor:exhibitors(company_name), show:shows(show_name, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff)",
+      )
+      .neq("status", "delivered"),
     supabase
       .from("tasks")
       .select(
@@ -122,7 +143,7 @@ export async function loadDashboard(): Promise<DashboardData> {
   const featuredBase = pickFeaturedShow(shows);
   let featured: FeaturedShow | null = null;
   let exhibitorStatuses: ExhibitorStatusRow[] = [];
-  let shipmentSummary: ShipmentSummary = {
+  const shipmentSummary: ShipmentSummary = {
     total: 0,
     booked: 0,
     in_transit: 0,
@@ -223,6 +244,34 @@ export async function loadDashboard(): Promise<DashboardData> {
     )
     .sort((a, b) => (a.days ?? 0) - (b.days ?? 0));
 
+  // Move-in deliveries at risk of missing their target — on-time delivery
+  // matters most for getting freight to the show.
+  const deliveryRisks: DeliveryRiskAlert[] = (deliveryRes.data ?? [])
+    .filter((s) => effectiveDirection(s) === "move_in")
+    .map((s) => {
+      const target = effectiveTargetDate(s, s.show);
+      return {
+        id: s.id,
+        exhibitor: s.exhibitor?.company_name ?? null,
+        show: s.show?.show_name ?? null,
+        health: deliveryHealth({
+          status: s.status,
+          estimatedDelivery: s.estimated_delivery_date,
+          actualDelivery: s.actual_delivery_date,
+          target,
+        }),
+        target,
+        days: daysUntil(target),
+      };
+    })
+    .filter((r) => r.health === "overdue" || r.health === "at_risk" || r.health === "due_soon")
+    .sort(
+      (a, b) =>
+        DELIVERY_HEALTH_META[b.health].rank - DELIVERY_HEALTH_META[a.health].rank ||
+        (a.target ?? "9999-12-31").localeCompare(b.target ?? "9999-12-31"),
+    )
+    .slice(0, 8);
+
   // ---- Open tasks (due today or overdue) -----------------------------------
   const openTasks: OpenTask[] = (tasksRes.data ?? []).map((t) => ({
     id: t.id,
@@ -249,9 +298,10 @@ export async function loadDashboard(): Promise<DashboardData> {
     shipmentSummary,
     alerts: {
       cutoffs,
+      deliveryRisks,
       quotedNearPickup,
       issues,
-      total: cutoffs.length + quotedNearPickup.length + issues.length,
+      total: cutoffs.length + deliveryRisks.length + quotedNearPickup.length + issues.length,
     },
     openTasks,
     upcomingShows,

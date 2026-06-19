@@ -7,11 +7,16 @@ import { Constants } from "@/lib/database.types";
 import {
   SHIPMENT_STATUS_META,
   TMS_SYNC_META,
-  DESTINATION_LABELS,
+  DIRECTION_META,
+  DELIVERY_HEALTH_META,
+  effectiveDirection,
+  effectiveTargetDate,
+  deliveryHealth,
   type ShipmentStatus,
   type ShipmentMode,
+  type ShipmentDirection,
 } from "@/lib/shipments";
-import { formatDate, formatCurrency } from "@/lib/format";
+import { formatDate, formatShortDate, formatCurrency } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +28,7 @@ export default async function ShipmentsPage({
     mode?: string;
     carrier?: string;
     show?: string;
+    direction?: string;
     q?: string;
   }>;
 }) {
@@ -32,7 +38,7 @@ export default async function ShipmentsPage({
   let query = supabase
     .from("shipments")
     .select(
-      "id, status, mode, destination_type, pickup_date, pro_number, margin, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name), venue:venues(venue_name)",
+      "id, status, mode, destination_type, direction, target_delivery_date, show_date, estimated_delivery_date, actual_delivery_date, pickup_date, pro_number, margin, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(carrier_name), venue:venues(venue_name)",
     )
     .order("pickup_date", { ascending: false, nullsFirst: false });
 
@@ -40,6 +46,8 @@ export default async function ShipmentsPage({
     query = query.eq("status", sp.status as ShipmentStatus);
   if (sp.mode && (Constants.public.Enums.shipment_mode as readonly string[]).includes(sp.mode))
     query = query.eq("mode", sp.mode as ShipmentMode);
+  if (sp.direction && (Constants.public.Enums.shipment_direction as readonly string[]).includes(sp.direction))
+    query = query.eq("direction", sp.direction as ShipmentDirection);
   if (sp.carrier) query = query.eq("carrier_id", sp.carrier);
   if (sp.show) query = query.eq("show_id", sp.show);
   if (sp.q?.trim()) query = query.ilike("pro_number", `%${sp.q.trim()}%`);
@@ -50,7 +58,24 @@ export default async function ShipmentsPage({
     supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
   ]);
 
-  const shipments = rows ?? [];
+  // Enrich with delivery health, then surface the loads needing attention first.
+  const shipments = (rows ?? [])
+    .map((s) => {
+      const dir = effectiveDirection(s);
+      const target = effectiveTargetDate(s, s.show);
+      const health = deliveryHealth({
+        status: s.status,
+        estimatedDelivery: s.estimated_delivery_date,
+        actualDelivery: s.actual_delivery_date,
+        target,
+      });
+      return { s, dir, target, health, rank: DELIVERY_HEALTH_META[health].rank };
+    })
+    .sort((a, b) => {
+      if (b.rank !== a.rank) return b.rank - a.rank;
+      if (a.rank > 0) return (a.target ?? "9999-12-31").localeCompare(b.target ?? "9999-12-31");
+      return (b.s.pickup_date ?? "").localeCompare(a.s.pickup_date ?? "");
+    });
 
   // Build status tabs preserving other filters.
   const statusTabs = [{ label: "All", value: "" }].concat(
@@ -62,7 +87,7 @@ export default async function ShipmentsPage({
   const tabHref = (value: string) => {
     const p = new URLSearchParams();
     if (value) p.set("status", value);
-    for (const k of ["mode", "carrier", "show", "q"] as const) {
+    for (const k of ["mode", "carrier", "show", "direction", "q"] as const) {
       if (sp[k]) p.set(k, sp[k]!);
     }
     return `/shipments${p.toString() ? `?${p}` : ""}`;
@@ -72,7 +97,7 @@ export default async function ShipmentsPage({
     <div>
       <PageHeader
         title="Shipments"
-        description="Every shipment across your shows, with live TMS sync state."
+        description="Every shipment across your shows. Loads at risk of missing their delivery target are surfaced first."
         actions={
           <Link
             href="/shipments/new"
@@ -102,6 +127,12 @@ export default async function ShipmentsPage({
 
       <form className="mb-4 flex flex-wrap items-center gap-2">
         {sp.status ? <input type="hidden" name="status" value={sp.status} /> : null}
+        <select name="direction" defaultValue={sp.direction ?? ""} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon">
+          <option value="">Move-in & out</option>
+          {Constants.public.Enums.shipment_direction.map((dir) => (
+            <option key={dir} value={dir}>{DIRECTION_META[dir].label}</option>
+          ))}
+        </select>
         <select name="show" defaultValue={sp.show ?? ""} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon">
           <option value="">All shows</option>
           {(shows ?? []).map((s) => (
@@ -142,20 +173,20 @@ export default async function ShipmentsPage({
                 <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
                   <th className="px-5 py-3">Exhibitor</th>
                   <th className="px-5 py-3">Show</th>
+                  <th className="px-5 py-3">Delivery</th>
                   <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Mode</th>
                   <th className="px-5 py-3">Carrier</th>
                   <th className="px-5 py-3">Venue</th>
-                  <th className="px-5 py-3">Destination</th>
                   <th className="px-5 py-3">Pickup</th>
                   <th className="px-5 py-3 text-right">Margin</th>
                   <th className="px-5 py-3">TMS</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {shipments.map((s) => {
+                {shipments.map(({ s, dir, target, health }) => {
                   const sm = SHIPMENT_STATUS_META[s.status];
                   const tms = TMS_SYNC_META[s.tms_sync_status];
+                  const hm = DELIVERY_HEALTH_META[health];
                   return (
                     <LinkRow key={s.id} href={`/shipments/${s.id}`} className="group hover:bg-slate-50/60">
                       <td className="px-5 py-3">
@@ -168,17 +199,24 @@ export default async function ShipmentsPage({
                       </td>
                       <td className="px-5 py-3 text-slate-600">{s.show?.show_name ?? "—"}</td>
                       <td className="px-5 py-3">
+                        <Badge className={hm.badge}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${hm.dot}`} />
+                          {hm.label}
+                        </Badge>
+                        <div className="mt-0.5 text-xs text-slate-400">
+                          {dir ? DIRECTION_META[dir].label : ""}
+                          {dir && target ? " · " : ""}
+                          {target ? `by ${formatShortDate(target)}` : ""}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3">
                         <Badge className={sm.badge}>
                           <span className={`h-1.5 w-1.5 rounded-full ${sm.dot}`} />
                           {sm.label}
                         </Badge>
                       </td>
-                      <td className="px-5 py-3 text-slate-600">{s.mode ?? "—"}</td>
                       <td className="px-5 py-3 text-slate-600">{s.carrier?.carrier_name ?? "—"}</td>
                       <td className="px-5 py-3 text-slate-600">{s.venue?.venue_name ?? "—"}</td>
-                      <td className="px-5 py-3 text-slate-600">
-                        {s.destination_type ? DESTINATION_LABELS[s.destination_type] : "—"}
-                      </td>
                       <td className="px-5 py-3 text-slate-600">{formatDate(s.pickup_date)}</td>
                       <td className="px-5 py-3 text-right tabular-nums">
                         {s.margin != null ? (

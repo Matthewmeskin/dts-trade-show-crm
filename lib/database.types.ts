@@ -297,10 +297,13 @@ export type Database = {
           destination_type:
             | Database["public"]["Enums"]["shipment_destination"]
             | null
+          direction: Database["public"]["Enums"]["shipment_direction"] | null
           estimated_delivery_date: string | null
           exhibitor_id: string | null
           id: string
           margin: number | null
+          show_date: string | null
+          target_delivery_date: string | null
           mode: Database["public"]["Enums"]["shipment_mode"] | null
           notes: string | null
           origin_city: string | null
@@ -335,7 +338,10 @@ export type Database = {
           destination_type?:
             | Database["public"]["Enums"]["shipment_destination"]
             | null
+          direction?: Database["public"]["Enums"]["shipment_direction"] | null
           estimated_delivery_date?: string | null
+          show_date?: string | null
+          target_delivery_date?: string | null
           exhibitor_id?: string | null
           id?: string
           mode?: Database["public"]["Enums"]["shipment_mode"] | null
@@ -372,7 +378,10 @@ export type Database = {
           destination_type?:
             | Database["public"]["Enums"]["shipment_destination"]
             | null
+          direction?: Database["public"]["Enums"]["shipment_direction"] | null
           estimated_delivery_date?: string | null
+          show_date?: string | null
+          target_delivery_date?: string | null
           exhibitor_id?: string | null
           id?: string
           mode?: Database["public"]["Enums"]["shipment_mode"] | null
@@ -984,6 +993,7 @@ export type Database = {
         | "advance_warehouse_form"
         | "other"
       shipment_destination: "advance_warehouse" | "direct_to_show"
+      shipment_direction: "move_in" | "move_out"
       shipment_mode: "LTL" | "FTL" | "partial" | "expedited" | "specialized"
       shipment_status:
         | "quoted"
@@ -1138,6 +1148,7 @@ export const Constants = {
         "other",
       ],
       shipment_destination: ["advance_warehouse", "direct_to_show"],
+      shipment_direction: ["move_in", "move_out"],
       shipment_mode: ["LTL", "FTL", "partial", "expedited", "specialized"],
       shipment_status: ["quoted", "booked", "in_transit", "delivered", "issue"],
       show_status: ["upcoming", "active", "completed", "archived"],
