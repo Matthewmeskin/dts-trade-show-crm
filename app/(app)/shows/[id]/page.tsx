@@ -27,6 +27,8 @@ import { DeleteDocButton } from "@/app/(app)/documents/delete-doc-button";
 import { DOCUMENT_TYPE_META } from "@/lib/documents";
 import { DebriefForm } from "./debrief-form";
 import { DeleteShowButton } from "./delete-show-button";
+import { QuickEditShow } from "./quick-edit";
+import type { Tables } from "@/lib/database.types";
 
 export const dynamic = "force-dynamic";
 
@@ -56,11 +58,29 @@ export default async function ShowRecordPage({
     (TABS.find((t) => t.key === tab)?.key as TabKey) ?? "overview";
 
   const supabase = await createClient();
-  const { data: show } = await supabase
-    .from("shows_with_status")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const [
+    { data: show },
+    { data: links },
+    { data: editRow },
+    { data: venues },
+    { data: contacts },
+  ] = await Promise.all([
+    supabase.from("shows_with_status").select("*").eq("id", id).single(),
+    supabase
+      .from("shows")
+      .select("website_url, exhibitor_manual_url, exhibitor_list_url")
+      .eq("id", id)
+      .single(),
+    supabase.from("shows").select("*").eq("id", id).single(),
+    supabase
+      .from("venues")
+      .select("id, venue_name, city, state")
+      .order("venue_name"),
+    supabase
+      .from("contacts")
+      .select("id, first_name, last_name, company")
+      .order("last_name"),
+  ]);
 
   if (!show) notFound();
 
@@ -101,12 +121,13 @@ export default async function ShowRecordPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/shows/${id}/edit`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3.5 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark"
-          >
-            <Icon name="shows" className="h-4 w-4" /> Edit
-          </Link>
+          {editRow ? (
+            <QuickEditShow
+              show={editRow as Tables<"shows">}
+              venues={venues ?? []}
+              contacts={contacts ?? []}
+            />
+          ) : null}
           <DeleteShowButton id={id} showName={show.show_name ?? "this show"} />
         </div>
       </div>
@@ -131,7 +152,7 @@ export default async function ShowRecordPage({
         })}
       </div>
 
-      {active === "overview" && <OverviewTab show={show} />}
+      {active === "overview" && <OverviewTab show={show} links={links} />}
       {active === "exhibitors" && <ExhibitorsTab showId={id} />}
       {active === "shipments" && <ShipmentsTab showId={id} />}
       {active === "carriers" && <CarriersTab showId={id} />}
@@ -147,7 +168,13 @@ export default async function ShowRecordPage({
 /* Overview                                                                    */
 /* -------------------------------------------------------------------------- */
 
-async function OverviewTab({ show }: { show: ShowWithStatus }) {
+type ShowLinks = {
+  website_url: string | null;
+  exhibitor_manual_url: string | null;
+  exhibitor_list_url: string | null;
+} | null;
+
+async function OverviewTab({ show, links }: { show: ShowWithStatus; links: ShowLinks }) {
   const supabase = await createClient();
   const [venueRes, contactRes] = await Promise.all([
     show.venue_id
@@ -262,6 +289,17 @@ async function OverviewTab({ show }: { show: ShowWithStatus }) {
           </dl>
         </Card>
 
+        {links && (links.website_url || links.exhibitor_manual_url || links.exhibitor_list_url) ? (
+          <Card>
+            <CardHeader title="Links" icon="documents" />
+            <dl className="divide-y divide-slate-100 text-sm">
+              <LinkDetailRow label="Show website" href={links.website_url} />
+              <LinkDetailRow label="Exhibitor manual" href={links.exhibitor_manual_url} />
+              <LinkDetailRow label="Exhibitor list" href={links.exhibitor_list_url} />
+            </dl>
+          </Card>
+        ) : null}
+
         <Card>
           <CardHeader title="Revenue" icon="reports" />
           <dl className="divide-y divide-slate-100 text-sm">
@@ -290,6 +328,32 @@ function DateCell({ label, value }: { label: string; value: string | null }) {
     <div className="bg-white px-4 py-3">
       <div className="text-xs font-medium text-slate-400">{label}</div>
       <div className="mt-0.5 text-sm text-slate-800">{formatDate(value)}</div>
+    </div>
+  );
+}
+
+function LinkDetailRow({ label, href }: { label: string; href: string | null }) {
+  if (!href) return null;
+  let display = href;
+  try {
+    display = new URL(href).hostname.replace(/^www\./, "");
+  } catch {
+    /* keep raw href if it doesn't parse */
+  }
+  return (
+    <div className="flex items-start justify-between gap-4 px-5 py-3">
+      <dt className="text-slate-400">{label}</dt>
+      <dd className="min-w-0 text-right">
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 truncate font-medium text-dts-blue hover:underline"
+        >
+          {display}
+          <Icon name="external" className="h-3.5 w-3.5 shrink-0" />
+        </a>
+      </dd>
     </div>
   );
 }

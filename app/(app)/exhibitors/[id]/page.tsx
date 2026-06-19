@@ -2,12 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
-import { Icon } from "@/components/icons";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { SHOW_STATUS_META } from "@/lib/shows";
 import { SHIPMENT_STATUS_META } from "@/lib/shipments";
 import { formatDate, formatDateRange } from "@/lib/format";
 import { deleteExhibitor } from "../actions";
+import { QuickEditExhibitor } from "./quick-edit";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +42,7 @@ export default async function ExhibitorRecordPage({
           .from("shows_with_status")
           .select("id, show_name, edition_year, status, move_in_start, move_out_end")
           .in("id", showIds)
-          .order("move_in_start", { ascending: false, nullsFirst: false })
+          .order("move_in_start", { ascending: true, nullsFirst: false })
       : Promise.resolve({ data: [] as never[] }),
     supabase
       .from("shipments")
@@ -50,7 +50,7 @@ export default async function ExhibitorRecordPage({
         "id, status, mode, pickup_date, pro_number, show:shows(show_name), carrier:carriers(carrier_name)",
       )
       .eq("exhibitor_id", id)
-      .order("pickup_date", { ascending: false, nullsFirst: false }),
+      .order("pickup_date", { ascending: true, nullsFirst: false }),
   ]);
 
   const shows = showsRes.data ?? [];
@@ -78,12 +78,7 @@ export default async function ExhibitorRecordPage({
           ) : null}
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/exhibitors/${id}/edit`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3.5 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark"
-          >
-            <Icon name="exhibitors" className="h-4 w-4" /> Edit
-          </Link>
+          <QuickEditExhibitor exhibitor={e} />
           <ConfirmDelete
             action={deleteExhibitor}
             id={id}

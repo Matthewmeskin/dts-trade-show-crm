@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
-import { Icon } from "@/components/icons";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { CONTACT_TYPE_META } from "@/lib/contacts";
 import { deleteContact } from "../actions";
+import { loadContactOptions } from "../options";
+import { QuickEditContact } from "./quick-edit";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export default async function ContactRecordPage({
 
   if (!c) notFound();
 
+  const options = await loadContactOptions();
   const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed contact";
   const meta = c.contact_type ? CONTACT_TYPE_META[c.contact_type] : null;
 
@@ -59,12 +61,7 @@ export default async function ContactRecordPage({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/contacts/${id}/edit`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3.5 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark"
-          >
-            <Icon name="contacts" className="h-4 w-4" /> Edit
-          </Link>
+          <QuickEditContact contact={c} options={options} />
           <ConfirmDelete action={deleteContact} id={id} message={`Delete "${name}"? This cannot be undone.`} />
         </div>
       </div>

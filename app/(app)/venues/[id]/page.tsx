@@ -2,12 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
-import { Icon } from "@/components/icons";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { SHOW_STATUS_META } from "@/lib/shows";
 import { SHIPMENT_STATUS_META, DIRECTION_META } from "@/lib/shipments";
 import { formatDateRange, formatDate } from "@/lib/format";
 import { deleteVenue } from "../actions";
+import { QuickEditVenue } from "./quick-edit";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +35,7 @@ export default async function VenueRecordPage({
       .from("shows_with_status")
       .select("id, show_name, edition_year, status, move_in_start, move_out_end")
       .eq("venue_id", id)
-      .order("move_in_start", { ascending: false, nullsFirst: false }),
+      .order("move_in_start", { ascending: true, nullsFirst: false }),
     supabase
       .from("carrier_venues")
       .select("carrier:carriers(id, carrier_name)")
@@ -44,7 +44,7 @@ export default async function VenueRecordPage({
       .from("shipments")
       .select("id, status, direction, pickup_date, exhibitor:exhibitors(company_name), show:shows(show_name)")
       .eq("venue_id", id)
-      .order("pickup_date", { ascending: false, nullsFirst: false }),
+      .order("pickup_date", { ascending: true, nullsFirst: false }),
   ]);
 
   const shows = showsRes.data ?? [];
@@ -75,12 +75,7 @@ export default async function VenueRecordPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/venues/${id}/edit`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3.5 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark"
-          >
-            <Icon name="venues" className="h-4 w-4" /> Edit
-          </Link>
+          <QuickEditVenue venue={venue} />
           <ConfirmDelete
             action={deleteVenue}
             id={id}
