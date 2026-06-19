@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { SubmitButton } from "@/components/form";
+import { formatCurrency } from "@/lib/format";
 import { importCandidate, dismissCandidate, triggerScan } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -100,6 +101,31 @@ export default async function LoadFinderPage() {
                       <div className="flex gap-1.5">
                         <dt className="shrink-0 text-slate-400">Weight:</dt>
                         <dd>{c.weight} lbs{c.pieces != null ? ` · ${c.pieces} pcs` : ""}</dd>
+                      </div>
+                    ) : null}
+                    {c.po_ref ? (
+                      <div className="flex gap-1.5">
+                        <dt className="shrink-0 text-slate-400">PO ref:</dt>
+                        <dd className="truncate">{c.po_ref}</dd>
+                      </div>
+                    ) : null}
+                    {c.shipper_number ? (
+                      <div className="flex gap-1.5">
+                        <dt className="shrink-0 text-slate-400">Shipper #:</dt>
+                        <dd className="truncate">{c.shipper_number}</dd>
+                      </div>
+                    ) : null}
+                    {c.billed_amount != null || c.cost_amount != null ? (
+                      <div className="flex gap-1.5">
+                        <dt className="shrink-0 text-slate-400">Financials:</dt>
+                        <dd className="truncate">
+                          {formatCurrency(c.billed_amount, { cents: true })} billed
+                          {" · "}
+                          {formatCurrency(c.cost_amount, { cents: true })} cost
+                          {c.billed_amount != null && c.cost_amount != null
+                            ? ` · ${formatCurrency(c.billed_amount - c.cost_amount, { cents: true })} margin`
+                            : ""}
+                        </dd>
                       </div>
                     ) : null}
                   </dl>
