@@ -20,22 +20,30 @@ export async function dismissCandidate(fd: FormData) {
   revalidatePath("/load-finder");
 }
 
-/** Turn a candidate into a tracked shipment and pull its live freight detail. */
-export async function importCandidate(fd: FormData) {
-  const id = String(fd.get("id") ?? "");
-  const load_number = String(fd.get("load_number") ?? "").trim();
-  if (!id || !load_number) return;
+type Sb = Awaited<ReturnType<typeof createClient>>;
 
-  const supabase = await createClient();
-
+/**
+ * Convert one candidate into a tracked shipment: find-or-create the exhibitor
+ * from the captured customer name, seed the operator-owned reference/financial
+ * fields, and mark the candidate imported. Returns the shipment id and load
+ * number. The live-tracking sync is left to the caller so bulk imports can run
+ * the (slow, network-bound) syncs in parallel.
+ */
+async function importOne(
+  supabase: Sb,
+  id: string,
+): Promise<{ shipmentId: string | null; loadNumber: string | null }> {
   // The candidate carries the GetLoads customer name, reference numbers, and
   // financials captured at scan time — the live tracking feed omits all of
   // these, so import is the only place we can seed them onto the shipment.
   const { data: cand } = await supabase
     .from("tms_load_candidates")
-    .select("customer_name, po_ref, shipper_number, billed_amount, cost_amount")
+    .select("load_number, customer_name, po_ref, shipper_number, billed_amount, cost_amount")
     .eq("id", id)
     .maybeSingle();
+
+  const load_number = cand?.load_number?.trim();
+  if (!load_number) return { shipmentId: null, loadNumber: null };
 
   let exhibitor_id: string | null = null;
   const customerName = cand?.customer_name?.trim();
@@ -105,13 +113,43 @@ export async function importCandidate(fd: FormData) {
     .update({ review_status: "imported", updated_at: nowIso() })
     .eq("id", id);
 
+  return { shipmentId, loadNumber: load_number };
+}
+
+/** Turn a candidate into a tracked shipment and pull its live freight detail. */
+export async function importCandidate(fd: FormData) {
+  const id = String(fd.get("id") ?? "");
+  if (!id) return;
+
+  const supabase = await createClient();
+  const { shipmentId, loadNumber } = await importOne(supabase, id);
   // Pull live tracking now so freight detail is populated immediately.
-  await syncLoadNumber(load_number);
+  if (loadNumber) await syncLoadNumber(loadNumber);
 
   revalidatePath("/load-finder");
   revalidatePath("/shipments");
   if (shipmentId) redirect(`/shipments/${shipmentId}?flash=created`);
   redirect("/load-finder");
+}
+
+/** Bulk-import several candidates (checkbox selection or "Add all"). */
+export async function importCandidates(fd: FormData) {
+  const ids = [...new Set(fd.getAll("ids").map((v) => String(v)).filter(Boolean))];
+  if (ids.length === 0) redirect("/load-finder");
+
+  const supabase = await createClient();
+  // DB writes sequentially (keeps exhibitor find-or-create race-free), then run
+  // the slow live-tracking syncs in parallel.
+  const loadNumbers: string[] = [];
+  for (const id of ids) {
+    const { loadNumber } = await importOne(supabase, id);
+    if (loadNumber) loadNumbers.push(loadNumber);
+  }
+  await Promise.allSettled(loadNumbers.map((ln) => syncLoadNumber(ln)));
+
+  revalidatePath("/load-finder");
+  revalidatePath("/shipments");
+  redirect("/load-finder?flash=imported");
 }
 
 /** Kick off an on-demand scan by triggering the n8n scanner webhook. */
