@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      carrier_shows: {
+        Row: {
+          carrier_id: string
+          id: string
+          show_id: string
+        }
+        Insert: {
+          carrier_id: string
+          id?: string
+          show_id: string
+        }
+        Update: {
+          carrier_id?: string
+          id?: string
+          show_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "carrier_shows_carrier_id_fkey"
+            columns: ["carrier_id"]
+            isOneToOne: false
+            referencedRelation: "carriers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "carrier_shows_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       carrier_venues: {
         Row: {
           carrier_id: string

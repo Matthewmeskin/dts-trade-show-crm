@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui";
-import { ShowForm } from "../show-form";
-import { createShow } from "../actions";
+import { ImportableShowForm } from "../importable-show-form";
 
 export const dynamic = "force-dynamic";
 
@@ -18,12 +17,7 @@ export default async function NewShowPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader title="New show" description="Add a trade show to the CRM." breadcrumbs={[{ label: "Shows", href: "/shows" }]} />
-      <ShowForm
-        action={createShow}
-        venues={venues ?? []}
-        contacts={contacts ?? []}
-        submitLabel="Create show"
-      />
+      <ImportableShowForm venues={venues ?? []} contacts={contacts ?? []} />
     </div>
   );
 }

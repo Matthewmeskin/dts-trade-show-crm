@@ -94,3 +94,27 @@ export async function removeVenueFromCarrier(fd: FormData) {
     .eq("venue_id", venue_id);
   revalidatePath(`/carriers/${carrier_id}`);
 }
+
+export async function addShowToCarrier(fd: FormData) {
+  const carrier_id = String(fd.get("carrier_id") ?? "");
+  const show_id = String(fd.get("show_id") ?? "");
+  if (!carrier_id || !show_id) return;
+  const supabase = await createClient();
+  await supabase
+    .from("carrier_shows")
+    .upsert({ carrier_id, show_id }, { onConflict: "carrier_id,show_id" });
+  revalidatePath(`/carriers/${carrier_id}`);
+}
+
+export async function removeShowFromCarrier(fd: FormData) {
+  const carrier_id = String(fd.get("carrier_id") ?? "");
+  const show_id = String(fd.get("show_id") ?? "");
+  if (!carrier_id || !show_id) return;
+  const supabase = await createClient();
+  await supabase
+    .from("carrier_shows")
+    .delete()
+    .eq("carrier_id", carrier_id)
+    .eq("show_id", show_id);
+  revalidatePath(`/carriers/${carrier_id}`);
+}
