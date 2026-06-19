@@ -27,10 +27,41 @@ export async function importCandidate(fd: FormData) {
 
   const supabase = await createClient();
 
+  // The customer name captured from GetLoads at scan time is the exhibitor.
+  // Find-or-create the exhibitor so the imported shipment is linked — the live
+  // tracking feed used by syncLoadNumber omits the customer name, so this is
+  // the only place we can resolve it on import.
+  const { data: cand } = await supabase
+    .from("tms_load_candidates")
+    .select("customer_name")
+    .eq("id", id)
+    .maybeSingle();
+
+  let exhibitor_id: string | null = null;
+  const customerName = cand?.customer_name?.trim();
+  if (customerName) {
+    const { data: found } = await supabase
+      .from("exhibitors")
+      .select("id")
+      .ilike("company_name", customerName)
+      .limit(1)
+      .maybeSingle();
+    exhibitor_id =
+      found?.id ??
+      (
+        await supabase
+          .from("exhibitors")
+          .insert({ company_name: customerName })
+          .select("id")
+          .single()
+      ).data?.id ??
+      null;
+  }
+
   // Reuse an existing shipment for this load number, else create one.
   const { data: existing } = await supabase
     .from("shipments")
-    .select("id")
+    .select("id, exhibitor_id")
     .eq("tms_reference_id", load_number)
     .maybeSingle();
 
@@ -38,10 +69,18 @@ export async function importCandidate(fd: FormData) {
   if (!shipmentId) {
     const { data: row } = await supabase
       .from("shipments")
-      .insert({ tms_reference_id: load_number, status: "booked", tms_sync_status: "manual" })
+      .insert({
+        tms_reference_id: load_number,
+        status: "booked",
+        tms_sync_status: "manual",
+        ...(exhibitor_id ? { exhibitor_id } : {}),
+      })
       .select("id")
       .single();
     shipmentId = row?.id ?? null;
+  } else if (exhibitor_id && !existing?.exhibitor_id) {
+    // Link the exhibitor only when the existing shipment has none.
+    await supabase.from("shipments").update({ exhibitor_id }).eq("id", shipmentId);
   }
 
   await supabase

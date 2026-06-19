@@ -741,6 +741,7 @@ export type Database = {
           ai_reason: string | null
           carrier_name: string | null
           created_at: string
+          customer_name: string | null
           delivery_location: string | null
           id: string
           load_number: string
@@ -759,6 +760,7 @@ export type Database = {
           ai_reason?: string | null
           carrier_name?: string | null
           created_at?: string
+          customer_name?: string | null
           delivery_location?: string | null
           id?: string
           load_number: string
@@ -777,6 +779,7 @@ export type Database = {
           ai_reason?: string | null
           carrier_name?: string | null
           created_at?: string
+          customer_name?: string | null
           delivery_location?: string | null
           id?: string
           load_number?: string

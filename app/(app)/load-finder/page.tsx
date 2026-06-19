@@ -76,6 +76,12 @@ export default async function LoadFinderPage() {
                   <p className="text-sm text-slate-600">{c.ai_reason}</p>
 
                   <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 text-xs text-slate-500 sm:grid-cols-2">
+                    {c.customer_name ? (
+                      <div className="flex gap-1.5">
+                        <dt className="shrink-0 text-slate-400">Customer:</dt>
+                        <dd className="truncate font-medium text-slate-600">{c.customer_name}</dd>
+                      </div>
+                    ) : null}
                     <div className="flex gap-1.5">
                       <dt className="shrink-0 text-slate-400">Pickup:</dt>
                       <dd className="truncate">{c.pickup_location ?? "—"}</dd>
