@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "@/lib/nav";
 import { Icon } from "@/components/icons";
+import { DtsLogo } from "@/components/dts-logo";
 import { signOut } from "@/app/login/actions";
 
 function isActive(pathname: string, href: string): boolean {
@@ -42,15 +43,10 @@ export function Sidebar({
         mobileOpen ? "translate-x-0" : "-translate-x-full"
       } ${desktopCollapsed ? "md:hidden" : "md:static md:translate-x-0"}`}
     >
-      <div className="flex items-center gap-2.5 px-5 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-dts-maroon text-sm font-bold text-white">
-          DTS
-        </div>
-        <div className="leading-tight">
-          <div className="font-heading text-sm font-semibold text-white">
-            Trade Show
-          </div>
-          <div className="text-xs text-white/60">CRM</div>
+      <div className="px-5 py-5">
+        <DtsLogo variant="light" className="h-7 w-auto" />
+        <div className="mt-1.5 font-heading text-[11px] font-semibold uppercase tracking-wider text-white/70">
+          Trade Show CRM
         </div>
       </div>
 
