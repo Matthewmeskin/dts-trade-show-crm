@@ -57,7 +57,7 @@ export default async function DashboardPage() {
 
         {/* Shipment summary tiles */}
         <div className="lg:col-span-3">
-          <ShipmentTiles summary={data.shipmentSummary} hasFeatured={!!featured} />
+          <ShipmentTiles summary={data.shipmentSummary} />
         </div>
 
         {/* Exhibitor status list */}
@@ -176,10 +176,8 @@ function FeaturedShowCard({ data }: { data: Awaited<ReturnType<typeof loadDashbo
 
 function ShipmentTiles({
   summary,
-  hasFeatured,
 }: {
   summary: { total: number; booked: number; in_transit: number; delivered: number; issue: number };
-  hasFeatured: boolean;
 }) {
   const tiles = [
     { label: "Total", value: summary.total, accent: "text-slate-900" },
@@ -193,9 +191,7 @@ function ShipmentTiles({
       {tiles.map((t) => (
         <Card key={t.label} className="p-4">
           <div className="text-xs font-medium text-slate-500">{t.label}</div>
-          <div className={`mt-1 text-2xl font-semibold ${t.accent}`}>
-            {hasFeatured ? t.value : "—"}
-          </div>
+          <div className={`mt-1 text-2xl font-semibold ${t.accent}`}>{t.value}</div>
         </Card>
       ))}
     </div>
