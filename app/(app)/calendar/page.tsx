@@ -21,6 +21,9 @@ const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 type View = "month" | "week" | "shows";
 type Basis = "pickup" | "delivery";
 type LabelMode = "pro" | "exhibitor";
+type ColorMode = "status" | "direction";
+
+const NEUTRAL_META = { dot: "bg-slate-300", text: "text-slate-400" };
 
 function ymd(d: Date): string {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -53,22 +56,24 @@ type CalEvent = {
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; date?: string; by?: string; label?: string }>;
+  searchParams: Promise<{ view?: string; date?: string; by?: string; label?: string; color?: string }>;
 }) {
   const sp = await searchParams;
   const view: View = sp.view === "week" || sp.view === "shows" ? sp.view : "month";
   const basis: Basis = sp.by === "delivery" ? "delivery" : "pickup";
   const labelMode: LabelMode = sp.label === "exhibitor" ? "exhibitor" : "pro";
+  const colorMode: ColorMode = sp.color === "direction" ? "direction" : "status";
   const today = todayDate();
   const anchor = parseDate(sp.date) ?? today;
 
   // Preserve params when building control links.
-  const href = (over: Partial<{ view: View; date: string; by: Basis; label: LabelMode }>) => {
+  const href = (over: Partial<{ view: View; date: string; by: Basis; label: LabelMode; color: ColorMode }>) => {
     const p = new URLSearchParams();
     p.set("view", over.view ?? view);
     p.set("date", over.date ?? ymd(anchor));
     p.set("by", over.by ?? basis);
     p.set("label", over.label ?? labelMode);
+    p.set("color", over.color ?? colorMode);
     return `/calendar?${p.toString()}`;
   };
 
@@ -118,6 +123,12 @@ export default async function CalendarPage({
                   { label: "Exhibitor", href: href({ label: "exhibitor" }), active: labelMode === "exhibitor" },
                 ]}
               />
+              <Segmented
+                options={[
+                  { label: "Status", href: href({ color: "status" }), active: colorMode === "status" },
+                  { label: "Direction", href: href({ color: "direction" }), active: colorMode === "direction" },
+                ]}
+              />
             </>
           ) : null}
           <Segmented
@@ -139,10 +150,17 @@ export default async function CalendarPage({
           today={today}
           basis={basis}
           labelMode={labelMode}
+          colorMode={colorMode}
         />
       )}
 
-      {view !== "shows" ? <ShipmentLegend /> : <ShowLegend />}
+      {view === "shows" ? (
+        <ShowLegend />
+      ) : colorMode === "direction" ? (
+        <DirectionLegend />
+      ) : (
+        <ShipmentLegend />
+      )}
     </div>
   );
 }
@@ -170,12 +188,14 @@ async function ShipmentCalendar({
   today,
   basis,
   labelMode,
+  colorMode,
 }: {
   view: "month" | "week";
   anchor: Date;
   today: Date;
   basis: Basis;
   labelMode: LabelMode;
+  colorMode: ColorMode;
 }) {
   const supabase = await createClient();
 
@@ -283,7 +303,13 @@ async function ShipmentCalendar({
               </div>
               <div className="space-y-0.5">
                 {events.slice(0, cap).map((e) => {
-                  const meta = SHIPMENT_STATUS_META[e.status];
+                  const statusMeta = SHIPMENT_STATUS_META[e.status];
+                  const meta =
+                    colorMode === "direction"
+                      ? e.direction
+                        ? DIRECTION_META[e.direction]
+                        : NEUTRAL_META
+                      : statusMeta;
                   return (
                     <HoverPreview
                       key={e.id}
@@ -301,7 +327,7 @@ async function ShipmentCalendar({
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-slate-900">{e.exhibitor ?? e.label}</span>
-                          <Badge className={meta.badge}>{meta.label}</Badge>
+                          <Badge className={statusMeta.badge}>{statusMeta.label}</Badge>
                         </div>
                         <dl className="space-y-1 text-xs">
                           {e.show ? <CalRow label="Show" value={e.show} /> : null}
@@ -336,6 +362,26 @@ async function ShipmentCalendar({
         </div>
       ) : null}
     </Card>
+  );
+}
+
+function DirectionLegend() {
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-4">
+      {(["move_in", "move_out"] as const).map((d) => {
+        const meta = DIRECTION_META[d];
+        return (
+          <span key={d} className="flex items-center gap-1.5 text-xs text-slate-500">
+            <span className={`h-2.5 w-2.5 rounded-full ${meta.dot}`} />
+            {meta.label}
+          </span>
+        );
+      })}
+      <span className="flex items-center gap-1.5 text-xs text-slate-500">
+        <span className={`h-2.5 w-2.5 rounded-full ${NEUTRAL_META.dot}`} />
+        Unset
+      </span>
+    </div>
   );
 }
 

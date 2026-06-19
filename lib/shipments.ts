@@ -13,14 +13,21 @@ export const DESTINATION_LABELS: Record<ShipmentDestination, string> = {
 };
 
 /** Move-in (freight into the show) vs move-out (back from it). */
-export const DIRECTION_META: Record<ShipmentDirection, { label: string; badge: string }> = {
+export const DIRECTION_META: Record<
+  ShipmentDirection,
+  { label: string; badge: string; dot: string; text: string }
+> = {
   move_in: {
     label: "Move-in",
     badge: "bg-dts-blue/10 text-dts-blue ring-1 ring-inset ring-dts-blue/25",
+    dot: "bg-dts-blue",
+    text: "text-dts-blue",
   },
   move_out: {
     label: "Move-out",
-    badge: "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-500/20",
+    badge: "bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-600/20",
+    dot: "bg-purple-500",
+    text: "text-purple-600",
   },
 };
 
