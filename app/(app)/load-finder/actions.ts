@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { syncLoadNumber } from "@/lib/tms-sync";
 import type { TablesUpdate } from "@/lib/database.types";
+import type { ShipmentDirection } from "@/lib/shipments";
 
 const nowIso = () => new Date().toISOString();
 
@@ -22,11 +23,6 @@ function venueScore(text: string, venueName: string): number {
   for (const tok of venueName.toLowerCase().split(/\s+/))
     if (tok.length > 3 && t.includes(tok)) score += 2;
   return score;
-}
-
-/** Pick the stop (pickup vs delivery) that names the convention center. */
-function pickVenueStop(venueName: string, pickup: string, delivery: string): string {
-  return venueScore(delivery, venueName) > venueScore(pickup, venueName) ? delivery : pickup;
 }
 
 // Matches a US street address ("1850 West St", "800 W Katella Ave").
@@ -124,10 +120,17 @@ async function importOne(
   }
 
   // Convention center: find-or-create the venue the AI matched, parsing its
-  // address from whichever stop names it.
+  // address from whichever stop names it. The stop that names the venue also
+  // tells us the direction — venue at delivery = move-in, at pickup = move-out.
   let venue_id: string | null = null;
+  let direction: ShipmentDirection | null = null;
   const venueName = cand?.matched_venue?.trim();
   if (venueName) {
+    const pickup = cand?.pickup_location ?? "";
+    const delivery = cand?.delivery_location ?? "";
+    const venueAtDelivery = venueScore(delivery, venueName) >= venueScore(pickup, venueName);
+    direction = venueAtDelivery ? "move_in" : "move_out";
+
     const { data: foundVenue } = await supabase
       .from("venues")
       .select("id")
@@ -137,8 +140,7 @@ async function importOne(
     if (foundVenue?.id) {
       venue_id = foundVenue.id;
     } else {
-      const stop = pickVenueStop(venueName, cand?.pickup_location ?? "", cand?.delivery_location ?? "");
-      const addr = parseVenueAddress(stop);
+      const addr = parseVenueAddress(venueAtDelivery ? delivery : pickup);
       venue_id =
         (
           await supabase
@@ -160,7 +162,7 @@ async function importOne(
   // Reuse an existing shipment for this load number, else create one.
   const { data: existing } = await supabase
     .from("shipments")
-    .select("id, exhibitor_id, venue_id, po_ref, shipper_number, billed_amount, cost_amount")
+    .select("id, exhibitor_id, venue_id, direction, po_ref, shipper_number, billed_amount, cost_amount")
     .eq("tms_reference_id", load_number)
     .maybeSingle();
 
@@ -174,6 +176,7 @@ async function importOne(
         tms_sync_status: "manual",
         ...(exhibitor_id ? { exhibitor_id } : {}),
         ...(venue_id ? { venue_id } : {}),
+        ...(direction ? { direction } : {}),
         ...(po_ref ? { po_ref } : {}),
         ...(shipper_number ? { shipper_number } : {}),
         ...(billed_amount != null ? { billed_amount } : {}),
@@ -187,6 +190,7 @@ async function importOne(
     const patch: TablesUpdate<"shipments"> = {};
     if (exhibitor_id && !existing.exhibitor_id) patch.exhibitor_id = exhibitor_id;
     if (venue_id && !existing.venue_id) patch.venue_id = venue_id;
+    if (direction && !existing.direction) patch.direction = direction;
     if (po_ref && !existing.po_ref) patch.po_ref = po_ref;
     if (shipper_number && !existing.shipper_number) patch.shipper_number = shipper_number;
     if (billed_amount != null && existing.billed_amount == null) patch.billed_amount = billed_amount;

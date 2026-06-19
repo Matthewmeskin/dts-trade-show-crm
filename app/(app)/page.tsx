@@ -10,7 +10,7 @@ import {
 } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { SHOW_STATUS_META } from "@/lib/shows";
-import { ROLLUP_META, SHIPMENT_STATUS_META } from "@/lib/shipments";
+import { ROLLUP_META, DELIVERY_HEALTH_META } from "@/lib/shipments";
 import {
   formatDateRange,
   formatDate,
@@ -284,6 +284,27 @@ function AlertsCard({
         <EmptyState icon="alert" title="All clear" description="Nothing needs attention right now." />
       ) : (
         <ul className="divide-y divide-slate-100">
+          {alerts.deliveryRisks.map((d) => {
+            const hm = DELIVERY_HEALTH_META[d.health];
+            return (
+              <li key={`delrisk-${d.id}`} className="flex items-start gap-3 px-5 py-3">
+                <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${d.health === "due_soon" ? "bg-amber-100 text-amber-600" : "bg-red-100 text-red-600"}`}>
+                  <Icon name="truck" className="h-3.5 w-3.5" />
+                </span>
+                <div className="text-sm">
+                  <Link href={`/shipments/${d.id}`} className="font-medium text-slate-900 hover:text-dts-maroon">
+                    {d.exhibitor ?? "Shipment"}
+                  </Link>
+                  <span className="text-slate-500">
+                    {" "}
+                    move-in delivery {hm.label.toLowerCase()}
+                    {d.show ? ` · ${d.show}` : ""}
+                    {d.days != null ? ` · due ${formatCountdown(d.days)}` : ""}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
           {alerts.cutoffs.map((c) => (
             <li key={`cutoff-${c.showId}`} className="flex items-start gap-3 px-5 py-3">
               <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">

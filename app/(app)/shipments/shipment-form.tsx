@@ -5,7 +5,7 @@ import { useActionState, useState } from "react";
 import { Card } from "@/components/ui";
 import { Field, FormSection, SubmitButton, inputClass } from "@/components/form";
 import { Constants, type Tables } from "@/lib/database.types";
-import { DESTINATION_LABELS } from "@/lib/shipments";
+import { DESTINATION_LABELS, DIRECTION_META, deriveDirection } from "@/lib/shipments";
 import { formatCurrency } from "@/lib/format";
 import type { ShipmentFormState } from "./actions";
 
@@ -96,6 +96,26 @@ export function ShipmentForm({
           </Field>
           <Field label="Shipper number" htmlFor="shipper_number" hint="Shipper's own reference number.">
             <input id="shipper_number" name="shipper_number" defaultValue={d?.shipper_number ?? ""} className={inputClass} />
+          </Field>
+        </FormSection>
+
+        <FormSection
+          title="Move-in & deadline"
+          description="Direction and the must-deliver-by target drive the on-track indicators. Leave a date blank to inherit it from the linked show."
+        >
+          <Field label="Direction" htmlFor="direction" hint="Move-in = into the show; move-out = back from it.">
+            <select id="direction" name="direction" defaultValue={d?.direction ?? deriveDirection(d?.destination_type) ?? ""} className={inputClass}>
+              <option value="">— Select —</option>
+              {Constants.public.Enums.shipment_direction.map((dir) => (
+                <option key={dir} value={dir}>{DIRECTION_META[dir].label}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Target delivery date" htmlFor="target_delivery_date" hint="Must-arrive-by deadline. Blank = use the show's date.">
+            <input id="target_delivery_date" name="target_delivery_date" type="date" defaultValue={d?.target_delivery_date ?? ""} className={inputClass} />
+          </Field>
+          <Field label="Show date" htmlFor="show_date" hint="Move-in / move-out date. Blank = use the show's date.">
+            <input id="show_date" name="show_date" type="date" defaultValue={d?.show_date ?? ""} className={inputClass} />
           </Field>
         </FormSection>
 

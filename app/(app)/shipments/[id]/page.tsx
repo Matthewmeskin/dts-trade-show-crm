@@ -8,6 +8,12 @@ import {
   SHIPMENT_STATUS_META,
   TMS_SYNC_META,
   DESTINATION_LABELS,
+  DIRECTION_META,
+  DELIVERY_HEALTH_META,
+  effectiveDirection,
+  effectiveTargetDate,
+  effectiveShowDate,
+  deliveryHealth,
 } from "@/lib/shipments";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { deleteShipment } from "../actions";
@@ -25,7 +31,7 @@ export default async function ShipmentRecordPage({
   const { data: s } = await supabase
     .from("shipments")
     .select(
-      "*, exhibitor:exhibitors(id, company_name), show:shows(id, show_name, edition_year), carrier:carriers(id, carrier_name), venue:venues(id, venue_name)",
+      "*, exhibitor:exhibitors(id, company_name), show:shows(id, show_name, edition_year, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(id, carrier_name), venue:venues(id, venue_name)",
     )
     .eq("id", id)
     .single();
@@ -34,6 +40,16 @@ export default async function ShipmentRecordPage({
 
   const sm = SHIPMENT_STATUS_META[s.status];
   const tms = TMS_SYNC_META[s.tms_sync_status];
+  const dir = effectiveDirection(s);
+  const target = effectiveTargetDate(s, s.show);
+  const showDate = effectiveShowDate(s, s.show);
+  const health = deliveryHealth({
+    status: s.status,
+    estimatedDelivery: s.estimated_delivery_date,
+    actualDelivery: s.actual_delivery_date,
+    target,
+  });
+  const hm = DELIVERY_HEALTH_META[health];
   const title = s.exhibitor?.company_name ?? "Shipment";
   const origin = [s.origin_street, s.origin_city, s.origin_state, s.origin_zip]
     .filter(Boolean)
@@ -56,6 +72,8 @@ export default async function ShipmentRecordPage({
               <span className={`h-1.5 w-1.5 rounded-full ${sm.dot}`} />
               {sm.label}
             </Badge>
+            {dir ? <Badge className={DIRECTION_META[dir].badge}>{DIRECTION_META[dir].label}</Badge> : null}
+            {health !== "no_target" ? <Badge className={hm.badge}>{hm.label}</Badge> : null}
             <Badge className={tms.badge}>TMS: {tms.label}</Badge>
             {s.accessorials_flagged ? (
               <Badge className="bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">
@@ -118,6 +136,13 @@ export default async function ShipmentRecordPage({
           <Card>
             <CardHeader title="Schedule" icon="calendar" />
             <dl className="divide-y divide-slate-100 text-sm">
+              <Row label="Direction" value={dir ? DIRECTION_META[dir].label : null} />
+              <Row
+                label="Target delivery"
+                value={target ? formatDate(target) : null}
+              />
+              <Row label="Delivery health" value={<Badge className={hm.badge}>{hm.label}</Badge>} />
+              <Row label="Show date" value={showDate ? formatDate(showDate) : null} />
               <Row label="Pickup" value={formatDate(s.pickup_date)} />
               <Row label="Estimated delivery" value={formatDate(s.estimated_delivery_date)} />
               <Row label="Actual delivery" value={formatDate(s.actual_delivery_date)} />
