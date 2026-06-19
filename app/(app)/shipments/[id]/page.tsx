@@ -9,7 +9,7 @@ import {
   TMS_SYNC_META,
   DESTINATION_LABELS,
 } from "@/lib/shipments";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatCurrency } from "@/lib/format";
 import { deleteShipment } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -124,6 +124,32 @@ export default async function ShipmentRecordPage({
             </dl>
           </Card>
 
+          {(s.billed_amount != null || s.cost_amount != null) && (
+            <Card>
+              <CardHeader title="Financials" icon="reports" />
+              <dl className="divide-y divide-slate-100 text-sm">
+                <Row
+                  label="Billed (customer)"
+                  value={s.billed_amount != null ? formatCurrency(s.billed_amount, { cents: true }) : null}
+                />
+                <Row
+                  label="Cost (carrier)"
+                  value={s.cost_amount != null ? formatCurrency(s.cost_amount, { cents: true }) : null}
+                />
+                <Row
+                  label="Margin"
+                  value={
+                    s.margin != null ? (
+                      <span className={s.margin < 0 ? "text-dts-maroon" : "text-emerald-600"}>
+                        {formatCurrency(s.margin, { cents: true })}
+                      </span>
+                    ) : null
+                  }
+                />
+              </dl>
+            </Card>
+          )}
+
           {(s.special_requirements || s.notes) && (
             <Card>
               <CardHeader title="Notes" icon="documents" />
@@ -185,6 +211,16 @@ export default async function ShipmentRecordPage({
               />
             </dl>
           </Card>
+
+          {(s.po_ref || s.shipper_number) && (
+            <Card>
+              <CardHeader title="References" icon="documents" />
+              <dl className="divide-y divide-slate-100 text-sm">
+                <Row label="PO reference" value={s.po_ref} />
+                <Row label="Shipper number" value={s.shipper_number} />
+              </dl>
+            </Card>
+          )}
 
           <Card>
             <CardHeader title="TMS / BrokerWareLite" icon="sparkles" />

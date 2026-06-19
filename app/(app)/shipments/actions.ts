@@ -15,6 +15,13 @@ const str = (fd: FormData, k: string) => {
   const v = String(fd.get(k) ?? "").trim();
   return v === "" ? null : v;
 };
+/** Parse a money/number field, tolerating "$" and thousands separators. */
+const num = (fd: FormData, k: string) => {
+  const v = String(fd.get(k) ?? "").trim();
+  if (v === "") return null;
+  const n = Number(v.replace(/[$,\s]/g, ""));
+  return Number.isFinite(n) ? n : null;
+};
 function enumOrNull<T extends string>(value: string | null, allowed: readonly T[]): T | null {
   return value && (allowed as readonly string[]).includes(value) ? (value as T) : null;
 }
@@ -22,7 +29,9 @@ function enumOrNull<T extends string>(value: string | null, allowed: readonly T[
 /**
  * Only the operator-owned fields. Freight details (carrier, status, mode,
  * weight, dates, PRO, origin) belong to the TMS sync and are never written
- * from this form, so an operator edit can't clobber synced data.
+ * from this form, so an operator edit can't clobber synced data. Financials
+ * (billed/cost) and the PO / shipper reference numbers are operator-owned too;
+ * `margin` is a generated column, so it's never written here.
  */
 function operatorFields(fd: FormData) {
   return {
@@ -33,6 +42,10 @@ function operatorFields(fd: FormData) {
       str(fd, "destination_type"),
       Constants.public.Enums.shipment_destination,
     ),
+    po_ref: str(fd, "po_ref"),
+    shipper_number: str(fd, "shipper_number"),
+    billed_amount: num(fd, "billed_amount"),
+    cost_amount: num(fd, "cost_amount"),
     special_requirements: str(fd, "special_requirements"),
     notes: str(fd, "notes"),
   };

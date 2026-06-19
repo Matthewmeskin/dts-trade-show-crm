@@ -289,7 +289,9 @@ export type Database = {
         Row: {
           accessorials_flagged: boolean
           actual_delivery_date: string | null
+          billed_amount: number | null
           carrier_id: string | null
+          cost_amount: number | null
           created_at: string
           destination_address: string | null
           destination_type:
@@ -298,6 +300,7 @@ export type Database = {
           estimated_delivery_date: string | null
           exhibitor_id: string | null
           id: string
+          margin: number | null
           mode: Database["public"]["Enums"]["shipment_mode"] | null
           notes: string | null
           origin_city: string | null
@@ -306,7 +309,9 @@ export type Database = {
           origin_zip: string | null
           pickup_date: string | null
           pieces: number | null
+          po_ref: string | null
           pro_number: string | null
+          shipper_number: string | null
           show_id: string | null
           special_requirements: string | null
           package_type: string | null
@@ -321,7 +326,9 @@ export type Database = {
         Insert: {
           accessorials_flagged?: boolean
           actual_delivery_date?: string | null
+          billed_amount?: number | null
           carrier_id?: string | null
+          cost_amount?: number | null
           created_at?: string
           destination_address?: string | null
           destination_type?:
@@ -338,8 +345,10 @@ export type Database = {
           origin_zip?: string | null
           pickup_date?: string | null
           pieces?: number | null
+          po_ref?: string | null
           package_type?: string | null
           pro_number?: string | null
+          shipper_number?: string | null
           show_id?: string | null
           special_requirements?: string | null
           status?: Database["public"]["Enums"]["shipment_status"]
@@ -353,7 +362,9 @@ export type Database = {
         Update: {
           accessorials_flagged?: boolean
           actual_delivery_date?: string | null
+          billed_amount?: number | null
           carrier_id?: string | null
+          cost_amount?: number | null
           created_at?: string
           destination_address?: string | null
           destination_type?:
@@ -370,8 +381,10 @@ export type Database = {
           origin_zip?: string | null
           pickup_date?: string | null
           pieces?: number | null
+          po_ref?: string | null
           package_type?: string | null
           pro_number?: string | null
+          shipper_number?: string | null
           show_id?: string | null
           special_requirements?: string | null
           status?: Database["public"]["Enums"]["shipment_status"]
