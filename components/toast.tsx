@@ -11,6 +11,7 @@ const MESSAGES: Record<string, string> = {
   deleted: "Deleted",
   uploaded: "Document uploaded",
   scan: "Scan started — candidates appear in about a minute.",
+  imported: "Loads added as shipments.",
   scan_unconfigured: "Scan webhook isn't configured yet (set N8N_SCAN_WEBHOOK_URL).",
 };
 
