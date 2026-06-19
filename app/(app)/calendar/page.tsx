@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader, Card, EmptyState } from "@/components/ui";
-import { Icon } from "@/components/icons";
+import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
+import { HoverPreview } from "@/components/hover-preview";
 import { SHOW_STATUS_META, type ShowWithStatus, type ShowStatus } from "@/lib/shows";
 import {
   SHIPMENT_STATUS_META,
+  DIRECTION_META,
   type ShipmentStatus,
+  type ShipmentDirection,
 } from "@/lib/shipments";
-import { parseDate, today as todayDate, formatDateRange } from "@/lib/format";
+import { parseDate, today as todayDate, formatDateRange, formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +43,11 @@ type CalEvent = {
   status: ShipmentStatus;
   exhibitor: string | null;
   show: string | null;
+  direction: ShipmentDirection | null;
+  carrier: string | null;
+  venue: string | null;
+  pickup: string | null;
+  delivery: string | null;
 };
 
 export default async function CalendarPage({
@@ -186,7 +193,7 @@ async function ShipmentCalendar({
   let query = supabase
     .from("shipments")
     .select(
-      "id, status, pickup_date, estimated_delivery_date, actual_delivery_date, pro_number, exhibitor:exhibitors(company_name), show:shows(show_name)",
+      "id, status, direction, pickup_date, estimated_delivery_date, actual_delivery_date, pro_number, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name), venue:venues(venue_name)",
     );
   if (basis === "pickup") {
     query = query.gte("pickup_date", startISO).lte("pickup_date", endISO);
@@ -213,7 +220,18 @@ async function ShipmentCalendar({
         ? exhibitor || (s.pro_number ? `PRO ${s.pro_number}` : "Shipment")
         : s.pro_number || exhibitor || "Shipment";
     const list = byDay.get(key) ?? [];
-    list.push({ id: s.id, label, status: s.status, exhibitor, show: s.show?.show_name ?? null });
+    list.push({
+      id: s.id,
+      label,
+      status: s.status,
+      exhibitor,
+      show: s.show?.show_name ?? null,
+      direction: s.direction,
+      carrier: s.carrier?.carrier_name ?? null,
+      venue: s.venue?.venue_name ?? null,
+      pickup: s.pickup_date,
+      delivery: s.actual_delivery_date ?? s.estimated_delivery_date,
+    });
     byDay.set(key, list);
   }
 
@@ -267,15 +285,34 @@ async function ShipmentCalendar({
                 {events.slice(0, cap).map((e) => {
                   const meta = SHIPMENT_STATUS_META[e.status];
                   return (
-                    <Link
+                    <HoverPreview
                       key={e.id}
-                      href={`/shipments/${e.id}`}
-                      title={`${e.label} · ${meta.label}${e.exhibitor ? ` · ${e.exhibitor}` : ""}${e.show ? ` · ${e.show}` : ""}`}
-                      className="flex items-center gap-1.5 rounded px-1 py-0.5 hover:bg-slate-50"
+                      className="block"
+                      label={
+                        <Link
+                          href={`/shipments/${e.id}`}
+                          className="flex items-center gap-1.5 rounded px-1 py-0.5 hover:bg-slate-50"
+                        >
+                          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${meta.dot}`} />
+                          <span className={`truncate text-xs font-medium ${meta.text}`}>{e.label}</span>
+                        </Link>
+                      }
                     >
-                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${meta.dot}`} />
-                      <span className={`truncate text-xs font-medium ${meta.text}`}>{e.label}</span>
-                    </Link>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-slate-900">{e.exhibitor ?? e.label}</span>
+                          <Badge className={meta.badge}>{meta.label}</Badge>
+                        </div>
+                        <dl className="space-y-1 text-xs">
+                          {e.show ? <CalRow label="Show" value={e.show} /> : null}
+                          {e.direction ? <CalRow label="Direction" value={DIRECTION_META[e.direction].label} /> : null}
+                          {e.venue ? <CalRow label="Venue" value={e.venue} /> : null}
+                          {e.carrier ? <CalRow label="Carrier" value={e.carrier} /> : null}
+                          <CalRow label="Pickup" value={formatDate(e.pickup)} />
+                          <CalRow label="Delivery" value={formatDate(e.delivery)} />
+                        </dl>
+                      </div>
+                    </HoverPreview>
                   );
                 })}
                 {events.length > cap ? (
@@ -299,6 +336,15 @@ async function ShipmentCalendar({
         </div>
       ) : null}
     </Card>
+  );
+}
+
+function CalRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <dt className="shrink-0 text-slate-400">{label}</dt>
+      <dd className="truncate text-right text-slate-700">{value}</dd>
+    </div>
   );
 }
 

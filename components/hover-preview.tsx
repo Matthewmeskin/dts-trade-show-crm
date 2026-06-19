@@ -11,9 +11,11 @@ import { createPortal } from "react-dom";
 export function HoverPreview({
   label,
   children,
+  className = "inline-block",
 }: {
   label: ReactNode;
   children: ReactNode;
+  className?: string;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -32,7 +34,7 @@ export function HoverPreview({
       ref={ref}
       onMouseEnter={open}
       onMouseLeave={() => setPos(null)}
-      className="inline-block"
+      className={className}
     >
       {label}
       {pos
