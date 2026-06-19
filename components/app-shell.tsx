@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { CommandPalette } from "@/components/command-palette";
 import { FlashToast } from "@/components/toast";
-import { DtsLogo } from "@/components/dts-logo";
 import { Icon } from "@/components/icons";
 
 const COLLAPSE_KEY = "dts:sidebarCollapsed";
@@ -110,8 +109,6 @@ export function AppShell({
               </kbd>
             </button>
           </div>
-
-          <DtsLogo className="h-7 w-auto shrink-0" />
         </header>
 
         <main className="flex-1 overflow-y-auto">
