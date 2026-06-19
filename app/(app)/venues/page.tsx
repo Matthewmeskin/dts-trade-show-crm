@@ -17,14 +17,19 @@ export default async function VenuesPage({
   let query = supabase.from("venues").select("*").order("venue_name");
   if (q.trim()) query = query.ilike("venue_name", `%${q.trim()}%`);
 
-  const [{ data: venues }, { data: shows }] = await Promise.all([
+  const [{ data: venues }, { data: shows }, { data: ships }] = await Promise.all([
     query,
     supabase.from("shows").select("venue_id"),
+    supabase.from("shipments").select("venue_id"),
   ]);
 
   const showCount = new Map<string, number>();
   for (const s of shows ?? []) {
     if (s.venue_id) showCount.set(s.venue_id, (showCount.get(s.venue_id) ?? 0) + 1);
+  }
+  const loadCount = new Map<string, number>();
+  for (const s of ships ?? []) {
+    if (s.venue_id) loadCount.set(s.venue_id, (loadCount.get(s.venue_id) ?? 0) + 1);
   }
   const rows = venues ?? [];
 
@@ -68,6 +73,7 @@ export default async function VenuesPage({
                 <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
                   <th className="px-5 py-3">Venue</th>
                   <th className="px-5 py-3">Location</th>
+                  <th className="px-5 py-3">Loads</th>
                   <th className="px-5 py-3">Shows</th>
                 </tr>
               </thead>
@@ -89,6 +95,9 @@ export default async function VenuesPage({
                       {[v.city, v.state].filter(Boolean).join(", ") || (
                         <span className="text-slate-300">—</span>
                       )}
+                    </td>
+                    <td className="px-5 py-3 text-slate-600">
+                      {loadCount.get(v.id) ?? 0}
                     </td>
                     <td className="px-5 py-3 text-slate-600">
                       {showCount.get(v.id) ?? 0}

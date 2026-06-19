@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LinkRow } from "@/components/link-row";
+import { HoverPreview } from "@/components/hover-preview";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons";
@@ -38,7 +39,7 @@ export default async function ShipmentsPage({
   let query = supabase
     .from("shipments")
     .select(
-      "id, status, mode, destination_type, direction, target_delivery_date, show_date, estimated_delivery_date, actual_delivery_date, pickup_date, pro_number, margin, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(carrier_name), venue:venues(venue_name)",
+      "id, status, mode, destination_type, direction, target_delivery_date, show_date, estimated_delivery_date, actual_delivery_date, pickup_date, pro_number, margin, weight, pieces, origin_city, origin_state, destination_address, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(carrier_name), venue:venues(venue_name)",
     )
     .order("pickup_date", { ascending: false, nullsFirst: false });
 
@@ -190,9 +191,29 @@ export default async function ShipmentsPage({
                   return (
                     <LinkRow key={s.id} href={`/shipments/${s.id}`} className="group hover:bg-slate-50/60">
                       <td className="px-5 py-3">
-                        <Link href={`/shipments/${s.id}`} className="font-medium text-slate-900 group-hover:text-dts-maroon">
-                          {s.exhibitor?.company_name ?? "—"}
-                        </Link>
+                        <HoverPreview
+                          label={
+                            <Link href={`/shipments/${s.id}`} className="font-medium text-slate-900 group-hover:text-dts-maroon">
+                              {s.exhibitor?.company_name ?? "—"}
+                            </Link>
+                          }
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-slate-900">{s.exhibitor?.company_name ?? "Shipment"}</span>
+                              <Badge className={hm.badge}>{hm.label}</Badge>
+                            </div>
+                            <dl className="space-y-1 text-xs">
+                              <PreviewRow label="Route" value={`${[s.origin_city, s.origin_state].filter(Boolean).join(", ") || "—"} → ${s.destination_address || "—"}`} />
+                              <PreviewRow label="Direction" value={dir ? DIRECTION_META[dir].label : "—"} />
+                              <PreviewRow label="Target" value={target ? formatDate(target) : "—"} />
+                              <PreviewRow label="ETA" value={formatDate(s.estimated_delivery_date)} />
+                              <PreviewRow label="Carrier" value={s.carrier?.carrier_name ?? "—"} />
+                              <PreviewRow label="Freight" value={`${s.mode ?? "—"}${s.weight != null ? ` · ${s.weight} lbs` : ""}${s.pieces != null ? ` · ${s.pieces} pcs` : ""}`} />
+                              <PreviewRow label="Margin" value={s.margin != null ? formatCurrency(s.margin, { cents: true }) : "—"} />
+                            </dl>
+                          </div>
+                        </HoverPreview>
                         {s.pro_number ? (
                           <div className="text-xs text-slate-400">PRO {s.pro_number}</div>
                         ) : null}
@@ -238,6 +259,15 @@ export default async function ShipmentsPage({
           </div>
         )}
       </Card>
+    </div>
+  );
+}
+
+function PreviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <dt className="shrink-0 text-slate-400">{label}</dt>
+      <dd className="truncate text-right text-slate-700">{value}</dd>
     </div>
   );
 }
