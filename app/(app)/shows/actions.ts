@@ -151,6 +151,30 @@ export async function removeExhibitorFromShow(fd: FormData) {
   revalidatePath(`/shows/${show_id}`);
 }
 
+/** Link an already-logged shipment to this show. */
+export async function attachShipmentToShow(fd: FormData) {
+  const show_id = String(fd.get("show_id") ?? "");
+  const shipment_id = String(fd.get("shipment_id") ?? "");
+  if (!show_id || !shipment_id) return;
+  const supabase = await createClient();
+  await supabase.from("shipments").update({ show_id }).eq("id", shipment_id);
+  revalidatePath(`/shows/${show_id}`);
+  revalidatePath("/shipments");
+  revalidatePath(`/shipments/${shipment_id}`);
+}
+
+/** Unlink a shipment from this show (keeps the shipment). */
+export async function detachShipmentFromShow(fd: FormData) {
+  const show_id = String(fd.get("show_id") ?? "");
+  const shipment_id = String(fd.get("shipment_id") ?? "");
+  if (!shipment_id) return;
+  const supabase = await createClient();
+  await supabase.from("shipments").update({ show_id: null }).eq("id", shipment_id);
+  if (show_id) revalidatePath(`/shows/${show_id}`);
+  revalidatePath("/shipments");
+  revalidatePath(`/shipments/${shipment_id}`);
+}
+
 export type DebriefState = { error: string | null; ok?: boolean };
 
 export async function saveDebrief(

@@ -16,7 +16,12 @@ import {
   formatCurrency,
   formatCountdown,
 } from "@/lib/format";
-import { addExhibitorToShow, removeExhibitorFromShow } from "../actions";
+import {
+  addExhibitorToShow,
+  removeExhibitorFromShow,
+  attachShipmentToShow,
+  detachShipmentFromShow,
+} from "../actions";
 import { documentDownload } from "@/app/(app)/documents/actions";
 import { DeleteDocButton } from "@/app/(app)/documents/delete-doc-button";
 import { DOCUMENT_TYPE_META } from "@/lib/documents";
@@ -395,15 +400,23 @@ async function ExhibitorsTab({ showId }: { showId: string }) {
 
 async function ShipmentsTab({ showId }: { showId: string }) {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("shipments")
-    .select(
-      "id, status, mode, destination_type, pickup_date, pro_number, tms_sync_status, exhibitor:exhibitors(company_name), carrier:carriers(carrier_name)",
-    )
-    .eq("show_id", showId)
-    .order("pickup_date", { ascending: true, nullsFirst: false });
+  const [{ data }, { data: unlinkedData }] = await Promise.all([
+    supabase
+      .from("shipments")
+      .select(
+        "id, status, mode, destination_type, pickup_date, pro_number, tms_sync_status, exhibitor:exhibitors(company_name), carrier:carriers(carrier_name)",
+      )
+      .eq("show_id", showId)
+      .order("pickup_date", { ascending: true, nullsFirst: false }),
+    supabase
+      .from("shipments")
+      .select("id, tms_reference_id, exhibitor:exhibitors(company_name)")
+      .is("show_id", null)
+      .order("tms_reference_id", { nullsFirst: false }),
+  ]);
 
   const rows = data ?? [];
+  const unlinked = unlinkedData ?? [];
 
   return (
     <Card>
@@ -411,12 +424,31 @@ async function ShipmentsTab({ showId }: { showId: string }) {
         title={`Shipments (${rows.length})`}
         icon="shipments"
         action={
-          <Link
-            href={`/shipments/new?show=${showId}`}
-            className="rounded-lg bg-dts-maroon px-2.5 py-1 text-xs font-medium text-white hover:bg-dts-maroon-dark"
-          >
-            Log shipment
-          </Link>
+          <div className="flex items-center gap-2">
+            {unlinked.length > 0 ? (
+              <form action={attachShipmentToShow} className="flex items-center gap-1.5">
+                <input type="hidden" name="show_id" value={showId} />
+                <select name="shipment_id" required defaultValue="" className={`${inputClass} h-8 py-1 text-xs`}>
+                  <option value="" disabled>Attach existing…</option>
+                  {unlinked.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.exhibitor?.company_name ?? "Shipment"}
+                      {s.tms_reference_id ? ` · ${s.tms_reference_id}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <button type="submit" className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                  Add
+                </button>
+              </form>
+            ) : null}
+            <Link
+              href={`/shipments/new?show=${showId}`}
+              className="rounded-lg bg-dts-maroon px-2.5 py-1 text-xs font-medium text-white hover:bg-dts-maroon-dark"
+            >
+              Log shipment
+            </Link>
+          </div>
         }
       />
       {rows.length === 0 ? (
@@ -437,6 +469,7 @@ async function ShipmentsTab({ showId }: { showId: string }) {
                 <th className="px-5 py-3">Pickup</th>
                 <th className="px-5 py-3">PRO #</th>
                 <th className="px-5 py-3">TMS</th>
+                <th className="px-5 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -463,6 +496,15 @@ async function ShipmentsTab({ showId }: { showId: string }) {
                     <td className="px-5 py-3 text-slate-600">{formatDate(s.pickup_date)}</td>
                     <td className="px-5 py-3 text-slate-600">{s.pro_number ?? "—"}</td>
                     <td className="px-5 py-3 text-xs text-slate-400">{s.tms_sync_status}</td>
+                    <td className="px-5 py-3 text-right">
+                      <form action={detachShipmentFromShow}>
+                        <input type="hidden" name="show_id" value={showId} />
+                        <input type="hidden" name="shipment_id" value={s.id} />
+                        <button type="submit" className="text-xs font-medium text-slate-400 hover:text-dts-maroon">
+                          Remove
+                        </button>
+                      </form>
+                    </td>
                   </tr>
                 );
               })}
