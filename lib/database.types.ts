@@ -739,7 +739,9 @@ export type Database = {
           ai_confidence: string | null
           ai_is_candidate: boolean
           ai_reason: string | null
+          billed_amount: number | null
           carrier_name: string | null
+          cost_amount: number | null
           created_at: string
           customer_name: string | null
           delivery_location: string | null
@@ -749,7 +751,9 @@ export type Database = {
           mode: string | null
           pickup_location: string | null
           pieces: number | null
+          po_ref: string | null
           review_status: string
+          shipper_number: string | null
           tms_status: string | null
           updated_at: string
           weight: number | null
@@ -758,7 +762,9 @@ export type Database = {
           ai_confidence?: string | null
           ai_is_candidate?: boolean
           ai_reason?: string | null
+          billed_amount?: number | null
           carrier_name?: string | null
+          cost_amount?: number | null
           created_at?: string
           customer_name?: string | null
           delivery_location?: string | null
@@ -768,7 +774,9 @@ export type Database = {
           mode?: string | null
           pickup_location?: string | null
           pieces?: number | null
+          po_ref?: string | null
           review_status?: string
+          shipper_number?: string | null
           tms_status?: string | null
           updated_at?: string
           weight?: number | null
@@ -777,7 +785,9 @@ export type Database = {
           ai_confidence?: string | null
           ai_is_candidate?: boolean
           ai_reason?: string | null
+          billed_amount?: number | null
           carrier_name?: string | null
+          cost_amount?: number | null
           created_at?: string
           customer_name?: string | null
           delivery_location?: string | null
@@ -787,7 +797,9 @@ export type Database = {
           mode?: string | null
           pickup_location?: string | null
           pieces?: number | null
+          po_ref?: string | null
           review_status?: string
+          shipper_number?: string | null
           tms_status?: string | null
           updated_at?: string
           weight?: number | null

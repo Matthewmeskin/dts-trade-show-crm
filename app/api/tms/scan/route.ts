@@ -38,6 +38,10 @@ type Normalized = {
   delivery_location: string | null;
   carrier_name: string | null;
   customer_name: string | null;
+  po_ref: string | null;
+  shipper_number: string | null;
+  billed_amount: number | null;
+  cost_amount: number | null;
   pieces: number | null;
   weight: number | null;
 };
@@ -64,6 +68,10 @@ function normalize(load: RawLoad): Normalized | null {
     delivery_location: str(dropStop?.fullAddress ?? dropStop?.addressLine ?? load.deliveryLocation ?? load.delivery_location),
     carrier_name: str(primary?.carrierName ?? load.carrierName ?? load.carrier_name),
     customer_name: str(load.customerName ?? load.customer_name ?? load.customerCompany),
+    po_ref: str(load.poReference ?? load.po_ref ?? load.poReferenceNo),
+    shipper_number: str(load.shipperNum ?? load.shipperNumber ?? load.shipper_number),
+    billed_amount: items.length ? sum("billed") || null : num(load.billed ?? load.totalBilled),
+    cost_amount: items.length ? sum("cost") || null : num(load.cost ?? load.totalCost),
     pieces: items.length ? sum("pieces") || null : num(load.totalPieces ?? load.pieces),
     weight: items.length ? sum("weight") || null : num(load.totalWeight ?? load.weight),
   };
@@ -159,6 +167,10 @@ export async function POST(req: NextRequest) {
         delivery_location: n.delivery_location,
         carrier_name: n.carrier_name,
         customer_name: n.customer_name,
+        po_ref: n.po_ref,
+        shipper_number: n.shipper_number,
+        billed_amount: n.billed_amount,
+        cost_amount: n.cost_amount,
         pieces: n.pieces,
         weight: n.weight,
         ai_is_candidate: true,
