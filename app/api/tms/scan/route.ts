@@ -1,10 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { classifyTradeShowLoads, type LoadInput } from "@/lib/ai";
+import {
+  classifyTradeShowLoads,
+  type LoadInput,
+  type LoadVerdict,
+  type ClassifyResult,
+} from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.TMS_WEBHOOK_SECRET;
@@ -87,6 +92,31 @@ const KEYWORDS = [
 
 const MAX_AI = 120;
 
+/** Classify loads in parallel chunks, merging verdicts; tolerant of a chunk failing. */
+async function classifyInChunks(
+  input: LoadInput[],
+  venues: string[],
+  size: number,
+): Promise<ClassifyResult> {
+  if (input.length <= size) return classifyTradeShowLoads(input, venues);
+  const chunks: LoadInput[][] = [];
+  for (let i = 0; i < input.length; i += size) chunks.push(input.slice(i, i + size));
+  const results = await Promise.all(chunks.map((c) => classifyTradeShowLoads(c, venues)));
+  const verdicts: LoadVerdict[] = [];
+  let sawOk = false;
+  let firstBad: ClassifyResult | null = null;
+  for (const r of results) {
+    if (r.status === "ok") {
+      sawOk = true;
+      verdicts.push(...r.verdicts);
+    } else if (!firstBad) {
+      firstBad = r;
+    }
+  }
+  if (!sawOk && firstBad) return firstBad;
+  return { status: "ok", verdicts };
+}
+
 export async function POST(req: NextRequest) {
   if (!process.env.TMS_WEBHOOK_SECRET) {
     return NextResponse.json({ ok: false, error: "Not configured (set TMS_WEBHOOK_SECRET)." }, { status: 503 });
@@ -132,7 +162,9 @@ export async function POST(req: NextRequest) {
     delivery_location: n.delivery_location,
   }));
 
-  const result = await classifyTradeShowLoads(aiInput, venueNames);
+  // Classify in parallel chunks so a large batch doesn't run past the function
+  // budget (one big AI call for 120 loads can take over a minute).
+  const result = await classifyInChunks(aiInput, venueNames, 40);
   if (result.status === "unconfigured") {
     return NextResponse.json({ ok: false, error: "AI not configured (set ANTHROPIC_API_KEY)." }, { status: 503 });
   }
