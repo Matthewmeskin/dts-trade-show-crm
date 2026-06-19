@@ -5,7 +5,8 @@ import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { SHOW_STATUS_META } from "@/lib/shows";
-import { formatDateRange } from "@/lib/format";
+import { SHIPMENT_STATUS_META, DIRECTION_META } from "@/lib/shipments";
+import { formatDateRange, formatDate } from "@/lib/format";
 import { deleteVenue } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +30,7 @@ export default async function VenueRecordPage({
   const { data: venue } = await supabase.from("venues").select("*").eq("id", id).single();
   if (!venue) notFound();
 
-  const [showsRes, carrierRes] = await Promise.all([
+  const [showsRes, carrierRes, shipRes] = await Promise.all([
     supabase
       .from("shows_with_status")
       .select("id, show_name, edition_year, status, move_in_start, move_out_end")
@@ -39,9 +40,15 @@ export default async function VenueRecordPage({
       .from("carrier_venues")
       .select("carrier:carriers(id, carrier_name)")
       .eq("venue_id", id),
+    supabase
+      .from("shipments")
+      .select("id, status, direction, pickup_date, exhibitor:exhibitors(company_name), show:shows(show_name)")
+      .eq("venue_id", id)
+      .order("pickup_date", { ascending: false, nullsFirst: false }),
   ]);
 
   const shows = showsRes.data ?? [];
+  const shipments = shipRes.data ?? [];
   const carriers = (carrierRes.data ?? [])
     .map((r) => r.carrier)
     .filter((c): c is NonNullable<typeof c> => Boolean(c));
@@ -105,6 +112,52 @@ export default async function VenueRecordPage({
                     </p>
                   </div>
                 ))}
+              </div>
+            )}
+          </Card>
+
+          <Card className="mt-5">
+            <CardHeader title={`Loads at this venue (${shipments.length})`} icon="shipments" />
+            {shipments.length === 0 ? (
+              <EmptyState icon="shipments" title="No shipments routed through this venue yet" />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
+                      <th className="px-5 py-3">Exhibitor</th>
+                      <th className="px-5 py-3">Direction</th>
+                      <th className="px-5 py-3">Status</th>
+                      <th className="px-5 py-3">Show</th>
+                      <th className="px-5 py-3">Pickup</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {shipments.map((s) => {
+                      const meta = SHIPMENT_STATUS_META[s.status];
+                      return (
+                        <tr key={s.id} className="hover:bg-slate-50/60">
+                          <td className="px-5 py-3">
+                            <Link href={`/shipments/${s.id}`} className="font-medium text-slate-900 hover:text-dts-maroon">
+                              {s.exhibitor?.company_name ?? "Shipment"}
+                            </Link>
+                          </td>
+                          <td className="px-5 py-3 text-slate-600">
+                            {s.direction ? DIRECTION_META[s.direction].label : "—"}
+                          </td>
+                          <td className="px-5 py-3">
+                            <Badge className={meta.badge}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                              {meta.label}
+                            </Badge>
+                          </td>
+                          <td className="px-5 py-3 text-slate-600">{s.show?.show_name ?? "—"}</td>
+                          <td className="px-5 py-3 text-slate-600">{formatDate(s.pickup_date)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </Card>
