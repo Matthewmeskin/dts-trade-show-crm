@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Card } from "@/components/ui";
 import { Field, FormSection, SubmitButton, inputClass } from "@/components/form";
 import { Constants, type Tables } from "@/lib/database.types";
 import { DESTINATION_LABELS } from "@/lib/shipments";
+import { formatCurrency } from "@/lib/format";
 import type { ShipmentFormState } from "./actions";
 
 type ShipmentRow = Tables<"shipments">;
@@ -38,6 +39,15 @@ export function ShipmentForm({
 
   const showId = d?.show_id ?? defaults?.show_id ?? "";
   const exhibitorId = d?.exhibitor_id ?? defaults?.exhibitor_id ?? "";
+
+  // Live margin preview as the operator types billed/cost (the DB also stores
+  // margin as a generated column, so this is just an instant readout).
+  const [billed, setBilled] = useState(d?.billed_amount != null ? String(d.billed_amount) : "");
+  const [cost, setCost] = useState(d?.cost_amount != null ? String(d.cost_amount) : "");
+  const billedNum = Number.parseFloat(billed.replace(/[$,\s]/g, ""));
+  const costNum = Number.parseFloat(cost.replace(/[$,\s]/g, ""));
+  const margin =
+    Number.isFinite(billedNum) && Number.isFinite(costNum) ? billedNum - costNum : null;
 
   return (
     <form action={formAction}>
@@ -80,6 +90,55 @@ export function ShipmentForm({
                 <option key={dst} value={dst}>{DESTINATION_LABELS[dst]}</option>
               ))}
             </select>
+          </Field>
+          <Field label="PO reference" htmlFor="po_ref" hint="Show / exhibitor purchase-order number.">
+            <input id="po_ref" name="po_ref" defaultValue={d?.po_ref ?? ""} className={inputClass} />
+          </Field>
+          <Field label="Shipper number" htmlFor="shipper_number" hint="Shipper's own reference number.">
+            <input id="shipper_number" name="shipper_number" defaultValue={d?.shipper_number ?? ""} className={inputClass} />
+          </Field>
+        </FormSection>
+
+        <FormSection
+          title="Financials"
+          description="Customer billing and carrier cost for this shipment. Margin is calculated automatically from billed minus cost."
+        >
+          <Field label="Billed (customer)" htmlFor="billed_amount">
+            <input
+              id="billed_amount"
+              name="billed_amount"
+              type="number"
+              step="0.01"
+              min="0"
+              inputMode="decimal"
+              value={billed}
+              onChange={(e) => setBilled(e.target.value)}
+              className={inputClass}
+              placeholder="0.00"
+            />
+          </Field>
+          <Field label="Cost (carrier)" htmlFor="cost_amount">
+            <input
+              id="cost_amount"
+              name="cost_amount"
+              type="number"
+              step="0.01"
+              min="0"
+              inputMode="decimal"
+              value={cost}
+              onChange={(e) => setCost(e.target.value)}
+              className={inputClass}
+              placeholder="0.00"
+            />
+          </Field>
+          <Field label="Margin" htmlFor="margin_display" hint="Billed minus cost — saved automatically." className="sm:col-span-2">
+            <input
+              id="margin_display"
+              disabled
+              value={margin == null ? "" : formatCurrency(margin, { cents: true })}
+              placeholder="—"
+              className={inputClass}
+            />
           </Field>
         </FormSection>
 

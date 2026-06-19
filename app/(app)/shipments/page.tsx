@@ -11,7 +11,7 @@ import {
   type ShipmentStatus,
   type ShipmentMode,
 } from "@/lib/shipments";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatCurrency } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +32,7 @@ export default async function ShipmentsPage({
   let query = supabase
     .from("shipments")
     .select(
-      "id, status, mode, destination_type, pickup_date, pro_number, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name)",
+      "id, status, mode, destination_type, pickup_date, pro_number, margin, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name)",
     )
     .order("pickup_date", { ascending: false, nullsFirst: false });
 
@@ -147,6 +147,7 @@ export default async function ShipmentsPage({
                   <th className="px-5 py-3">Carrier</th>
                   <th className="px-5 py-3">Destination</th>
                   <th className="px-5 py-3">Pickup</th>
+                  <th className="px-5 py-3 text-right">Margin</th>
                   <th className="px-5 py-3">TMS</th>
                 </tr>
               </thead>
@@ -177,6 +178,15 @@ export default async function ShipmentsPage({
                         {s.destination_type ? DESTINATION_LABELS[s.destination_type] : "—"}
                       </td>
                       <td className="px-5 py-3 text-slate-600">{formatDate(s.pickup_date)}</td>
+                      <td className="px-5 py-3 text-right tabular-nums">
+                        {s.margin != null ? (
+                          <span className={s.margin < 0 ? "text-dts-maroon" : "text-slate-700"}>
+                            {formatCurrency(s.margin, { cents: true })}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </td>
                       <td className="px-5 py-3">
                         <Badge className={tms.badge}>{tms.label}</Badge>
                       </td>

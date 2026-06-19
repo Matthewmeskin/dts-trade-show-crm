@@ -72,13 +72,20 @@ export function formatDateRange(
   return "Dates TBD";
 }
 
-/** "$1,250,000" (whole dollars). Returns "—" for null. */
-export function formatCurrency(value: number | null | undefined): string {
+/**
+ * "$1,250,000" (whole dollars) by default, or "$1,250.50" with `{ cents: true }`.
+ * Returns "—" for null.
+ */
+export function formatCurrency(
+  value: number | null | undefined,
+  opts?: { cents?: boolean },
+): string {
   if (value == null) return "—";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: opts?.cents ? 2 : 0,
+    maximumFractionDigits: opts?.cents ? 2 : 0,
   }).format(value);
 }
 

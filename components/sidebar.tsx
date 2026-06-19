@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "@/lib/nav";
 import { Icon } from "@/components/icons";
-import { DtsLogo } from "@/components/dts-logo";
 import { signOut } from "@/app/login/actions";
 
 function isActive(pathname: string, href: string): boolean {
@@ -44,8 +43,7 @@ export function Sidebar({
       } ${desktopCollapsed ? "md:hidden" : "md:static md:translate-x-0"}`}
     >
       <div className="px-5 py-5">
-        <DtsLogo variant="light" className="h-7 w-auto" />
-        <div className="mt-1.5 font-heading text-[11px] font-semibold uppercase tracking-wider text-white/70">
+        <div className="font-heading text-[11px] font-semibold uppercase tracking-wider text-white/70">
           Trade Show CRM
         </div>
       </div>

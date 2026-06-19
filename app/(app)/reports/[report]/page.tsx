@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -74,6 +75,7 @@ export default async function ReportPage({
           {def.slug === "exhibitor-history" && <ExhibitorHistory />}
           {def.slug === "carrier-usage" && <CarrierUsage />}
           {def.slug === "revenue" && <Revenue />}
+          {def.slug === "financials" && <Financials />}
         </>
       )}
     </div>
@@ -153,6 +155,152 @@ async function Revenue() {
                 <span className={totAct - totEst >= 0 ? "text-emerald-600" : "text-dts-maroon"}>
                   {totAct - totEst >= 0 ? "+" : "−"}{formatCurrency(Math.abs(totAct - totEst))}
                 </span>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
+/* ---- Financials by show & carrier (global) ------------------------------ */
+
+async function Financials() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("shipments")
+    .select(
+      "show_id, carrier_id, billed_amount, cost_amount, show:shows(show_name, edition_year), carrier:carriers(carrier_name)",
+    );
+  const ships = data ?? [];
+
+  type Car = { id: string | null; name: string; count: number; billed: number; cost: number };
+  type Sh = {
+    id: string | null;
+    name: string;
+    edition: number | null;
+    count: number;
+    billed: number;
+    cost: number;
+    carriers: Map<string, Car>;
+  };
+
+  const shows = new Map<string, Sh>();
+  for (const s of ships) {
+    // Only shipments that carry a billed or cost figure contribute.
+    if (s.billed_amount == null && s.cost_amount == null) continue;
+    const billed = s.billed_amount ?? 0;
+    const cost = s.cost_amount ?? 0;
+
+    const showKey = s.show_id ?? "__none__";
+    let sh = shows.get(showKey);
+    if (!sh) {
+      sh = {
+        id: s.show_id ?? null,
+        name: s.show?.show_name ?? "Unassigned",
+        edition: s.show?.edition_year ?? null,
+        count: 0,
+        billed: 0,
+        cost: 0,
+        carriers: new Map(),
+      };
+      shows.set(showKey, sh);
+    }
+    sh.count += 1;
+    sh.billed += billed;
+    sh.cost += cost;
+
+    const carKey = s.carrier_id ?? "__none__";
+    let car = sh.carriers.get(carKey);
+    if (!car) {
+      car = { id: s.carrier_id ?? null, name: s.carrier?.carrier_name ?? "No carrier", count: 0, billed: 0, cost: 0 };
+      sh.carriers.set(carKey, car);
+    }
+    car.count += 1;
+    car.billed += billed;
+    car.cost += cost;
+  }
+
+  if (shows.size === 0)
+    return <EmptyCard icon="reports" label="No billed or cost figures on any shipment yet." />;
+
+  // Unassigned (no show) sorts last; everything else alphabetical.
+  const byName = <T extends { id: string | null; name: string }>(a: T, b: T) =>
+    a.id === null ? 1 : b.id === null ? -1 : a.name.localeCompare(b.name);
+  const showList = [...shows.values()].sort(byName);
+  const grand = showList.reduce(
+    (acc, s) => ({ billed: acc.billed + s.billed, cost: acc.cost + s.cost }),
+    { billed: 0, cost: 0 },
+  );
+
+  const money = (n: number) => formatCurrency(n, { cents: true });
+  const marginClass = (n: number) => (n < 0 ? "text-dts-maroon" : "text-emerald-600");
+
+  return (
+    <Card>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-100">
+              <Th>Show / Carrier</Th><Th right>Shipments</Th><Th right>Billed</Th><Th right>Cost</Th><Th right>Margin</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {showList.map((s) => {
+              const carriers = [...s.carriers.values()].sort(byName);
+              const showMargin = s.billed - s.cost;
+              return (
+                <Fragment key={s.id ?? "__none__"}>
+                  <tr className="bg-slate-50/50">
+                    <td className="px-5 py-3 font-semibold text-slate-900">
+                      {s.id ? (
+                        <Link href={`/shows/${s.id}`} className="hover:text-dts-maroon">
+                          {s.name}{s.edition ? <span className="ml-1 text-slate-400">{s.edition}</span> : null}
+                        </Link>
+                      ) : (
+                        <span className="text-slate-500">{s.name}</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 text-right font-medium text-slate-700">{s.count}</td>
+                    <td className="px-5 py-3 text-right font-medium text-slate-700">{money(s.billed)}</td>
+                    <td className="px-5 py-3 text-right font-medium text-slate-700">{money(s.cost)}</td>
+                    <td className="px-5 py-3 text-right font-semibold">
+                      <span className={marginClass(showMargin)}>{money(showMargin)}</span>
+                    </td>
+                  </tr>
+                  {carriers.map((c) => {
+                    const cm = c.billed - c.cost;
+                    return (
+                      <tr key={`${s.id ?? "__none__"}-${c.id ?? "__none__"}`} className="hover:bg-slate-50/60">
+                        <td className="py-2.5 pl-10 pr-5 text-slate-600">
+                          {c.id ? (
+                            <Link href={`/carriers/${c.id}`} className="hover:text-dts-maroon">{c.name}</Link>
+                          ) : (
+                            <span className="text-slate-400">{c.name}</span>
+                          )}
+                        </td>
+                        <Td right>{c.count}</Td>
+                        <Td right>{money(c.billed)}</Td>
+                        <Td right>{money(c.cost)}</Td>
+                        <td className="px-5 py-2.5 text-right">
+                          <span className={cm < 0 ? "text-dts-maroon" : "text-slate-700"}>{money(cm)}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </Fragment>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-slate-200 font-semibold text-slate-900">
+              <td className="px-5 py-3">Total</td>
+              <td className="px-5 py-3" />
+              <td className="px-5 py-3 text-right">{money(grand.billed)}</td>
+              <td className="px-5 py-3 text-right">{money(grand.cost)}</td>
+              <td className="px-5 py-3 text-right">
+                <span className={marginClass(grand.billed - grand.cost)}>{money(grand.billed - grand.cost)}</span>
               </td>
             </tr>
           </tfoot>
