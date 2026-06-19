@@ -109,7 +109,7 @@ export async function loadDashboard(): Promise<DashboardData> {
   const supabase = await createClient();
   const iso = todayISO();
 
-  const [showsRes, venuesRes, attentionRes, deliveryRes, tasksRes] = await Promise.all([
+  const [showsRes, venuesRes, attentionRes, deliveryRes, allShipRes, tasksRes] = await Promise.all([
     supabase.from("shows_with_status").select("*"),
     supabase.from("venues").select("id, venue_name, city, state"),
     supabase
@@ -124,6 +124,7 @@ export async function loadDashboard(): Promise<DashboardData> {
         "id, status, direction, destination_type, target_delivery_date, estimated_delivery_date, actual_delivery_date, exhibitor:exhibitors(company_name), show:shows(show_name, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff)",
       )
       .neq("status", "delivered"),
+    supabase.from("shipments").select("status"),
     supabase
       .from("tasks")
       .select(
@@ -143,6 +144,8 @@ export async function loadDashboard(): Promise<DashboardData> {
   const featuredBase = pickFeaturedShow(shows);
   let featured: FeaturedShow | null = null;
   let exhibitorStatuses: ExhibitorStatusRow[] = [];
+  // Shipment tiles count every shipment, not just the featured show's — most
+  // TMS-imported loads aren't linked to a show yet.
   const shipmentSummary: ShipmentSummary = {
     total: 0,
     booked: 0,
@@ -150,6 +153,13 @@ export async function loadDashboard(): Promise<DashboardData> {
     delivered: 0,
     issue: 0,
   };
+  for (const s of allShipRes.data ?? []) {
+    shipmentSummary.total += 1;
+    if (s.status === "booked") shipmentSummary.booked += 1;
+    else if (s.status === "in_transit") shipmentSummary.in_transit += 1;
+    else if (s.status === "delivered") shipmentSummary.delivered += 1;
+    else if (s.status === "issue") shipmentSummary.issue += 1;
+  }
 
   if (featuredBase?.id) {
     const venue = featuredBase.venue_id
@@ -175,15 +185,6 @@ export async function loadDashboard(): Promise<DashboardData> {
     ]);
 
     const featuredShipments = shipRes.data ?? [];
-
-    // Shipment summary tiles for the featured show.
-    for (const s of featuredShipments) {
-      shipmentSummary.total += 1;
-      if (s.status === "booked") shipmentSummary.booked += 1;
-      else if (s.status === "in_transit") shipmentSummary.in_transit += 1;
-      else if (s.status === "delivered") shipmentSummary.delivered += 1;
-      else if (s.status === "issue") shipmentSummary.issue += 1;
-    }
 
     // Exhibitor traffic-light rollup.
     const byExhibitor = new Map<string, ShipmentStatus[]>();

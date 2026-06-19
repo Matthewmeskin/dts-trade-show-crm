@@ -15,7 +15,7 @@ import {
   effectiveShowDate,
   deliveryHealth,
 } from "@/lib/shipments";
-import { formatDate, formatCurrency } from "@/lib/format";
+import { formatDate, formatCurrency, formatCountdown, daysUntil } from "@/lib/format";
 import { deleteShipment } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -103,6 +103,35 @@ export default async function ShipmentRecordPage({
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
+          {/* Delivery target — the thing to watch, especially for move-ins. */}
+          <Card className="p-5">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Target delivery{dir ? ` · ${DIRECTION_META[dir].label}` : ""}
+                </div>
+                <div className="mt-0.5 text-xl font-semibold text-slate-900">
+                  {target ? formatDate(target) : "Not set"}
+                  {target ? (
+                    <span className="ml-2 text-sm font-normal text-slate-400">
+                      {formatCountdown(daysUntil(target))}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              <div className="text-right">
+                <Badge className={hm.badge}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${hm.dot}`} />
+                  {hm.label}
+                </Badge>
+                <div className="mt-1 text-xs text-slate-400">
+                  ETA {formatDate(s.estimated_delivery_date)}
+                  {s.actual_delivery_date ? ` · Delivered ${formatDate(s.actual_delivery_date)}` : ""}
+                </div>
+              </div>
+            </div>
+          </Card>
+
           <Card>
             <CardHeader title="Route" icon="truck" />
             <dl className="divide-y divide-slate-100 text-sm">

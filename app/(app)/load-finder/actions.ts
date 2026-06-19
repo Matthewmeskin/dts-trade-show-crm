@@ -152,6 +152,18 @@ async function importOne(
     }
   }
 
+  // Suggest the trade show: if exactly one active/upcoming show sits at this
+  // venue, link it so its move-in dates & deadlines flow through. Never clobber.
+  let show_id: string | null = null;
+  if (venue_id) {
+    const { data: showMatches } = await supabase
+      .from("shows_with_status")
+      .select("id, status")
+      .eq("venue_id", venue_id)
+      .in("status", ["active", "upcoming"]);
+    if (showMatches && showMatches.length === 1) show_id = showMatches[0].id ?? null;
+  }
+
   // Reference numbers + financials from the candidate (operator-owned: seed on
   // import, but never clobber a value already on the shipment).
   const po_ref = cand?.po_ref?.trim() || null;
@@ -162,7 +174,7 @@ async function importOne(
   // Reuse an existing shipment for this load number, else create one.
   const { data: existing } = await supabase
     .from("shipments")
-    .select("id, exhibitor_id, venue_id, direction, po_ref, shipper_number, billed_amount, cost_amount")
+    .select("id, exhibitor_id, venue_id, show_id, direction, po_ref, shipper_number, billed_amount, cost_amount")
     .eq("tms_reference_id", load_number)
     .maybeSingle();
 
@@ -176,6 +188,7 @@ async function importOne(
         tms_sync_status: "manual",
         ...(exhibitor_id ? { exhibitor_id } : {}),
         ...(venue_id ? { venue_id } : {}),
+        ...(show_id ? { show_id } : {}),
         ...(direction ? { direction } : {}),
         ...(po_ref ? { po_ref } : {}),
         ...(shipper_number ? { shipper_number } : {}),
@@ -190,6 +203,7 @@ async function importOne(
     const patch: TablesUpdate<"shipments"> = {};
     if (exhibitor_id && !existing.exhibitor_id) patch.exhibitor_id = exhibitor_id;
     if (venue_id && !existing.venue_id) patch.venue_id = venue_id;
+    if (show_id && !existing.show_id) patch.show_id = show_id;
     if (direction && !existing.direction) patch.direction = direction;
     if (po_ref && !existing.po_ref) patch.po_ref = po_ref;
     if (shipper_number && !existing.shipper_number) patch.shipper_number = shipper_number;
