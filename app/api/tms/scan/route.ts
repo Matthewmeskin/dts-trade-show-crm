@@ -37,6 +37,7 @@ type Normalized = {
   pickup_location: string | null;
   delivery_location: string | null;
   carrier_name: string | null;
+  customer_name: string | null;
   pieces: number | null;
   weight: number | null;
 };
@@ -62,6 +63,7 @@ function normalize(load: RawLoad): Normalized | null {
     pickup_location: str(pickStop?.fullAddress ?? pickStop?.addressLine ?? load.pickupLocation ?? load.pickup_location),
     delivery_location: str(dropStop?.fullAddress ?? dropStop?.addressLine ?? load.deliveryLocation ?? load.delivery_location),
     carrier_name: str(primary?.carrierName ?? load.carrierName ?? load.carrier_name),
+    customer_name: str(load.customerName ?? load.customer_name ?? load.customerCompany),
     pieces: items.length ? sum("pieces") || null : num(load.totalPieces ?? load.pieces),
     weight: items.length ? sum("weight") || null : num(load.totalWeight ?? load.weight),
   };
@@ -156,6 +158,7 @@ export async function POST(req: NextRequest) {
         pickup_location: n.pickup_location,
         delivery_location: n.delivery_location,
         carrier_name: n.carrier_name,
+        customer_name: n.customer_name,
         pieces: n.pieces,
         weight: n.weight,
         ai_is_candidate: true,
