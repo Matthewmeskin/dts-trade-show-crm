@@ -61,7 +61,7 @@ export default async function CalendarPage({
   const sp = await searchParams;
   const view: View = sp.view === "week" || sp.view === "shows" ? sp.view : "month";
   const basis: Basis = sp.by === "delivery" ? "delivery" : "pickup";
-  const labelMode: LabelMode = sp.label === "exhibitor" ? "exhibitor" : "pro";
+  const labelMode: LabelMode = sp.label === "pro" ? "pro" : "exhibitor";
   const colorMode: ColorMode = sp.color === "direction" ? "direction" : "status";
   const today = todayDate();
   const anchor = parseDate(sp.date) ?? today;
@@ -236,9 +236,11 @@ async function ShipmentCalendar({
     const key = dateStr.slice(0, 10);
     const exhibitor = s.exhibitor?.company_name ?? null;
     const label =
-      labelMode === "exhibitor"
-        ? exhibitor || (s.pro_number ? `PRO ${s.pro_number}` : "Shipment")
-        : s.pro_number || exhibitor || "Shipment";
+      labelMode === "pro"
+        ? s.pro_number
+          ? `PRO ${s.pro_number}`
+          : exhibitor || "Shipment"
+        : exhibitor || (s.pro_number ? `PRO ${s.pro_number}` : "Shipment");
     const list = byDay.get(key) ?? [];
     list.push({
       id: s.id,
