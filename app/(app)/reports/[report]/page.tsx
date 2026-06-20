@@ -361,18 +361,29 @@ async function ExhibitorsPerShow({ showId }: { showId: string }) {
   const supabase = await createClient();
   const [linkRes, shipRes] = await Promise.all([
     supabase.from("show_exhibitors").select("exhibitor:exhibitors(id, company_name, industry)").eq("show_id", showId),
-    supabase.from("shipments").select("exhibitor_id, status").eq("show_id", showId),
+    supabase
+      .from("shipments")
+      .select("status, exhibitor:exhibitors(id, company_name, industry)")
+      .eq("show_id", showId),
   ]);
-  const exhibitors = (linkRes.data ?? []).map((r) => r.exhibitor).filter((e): e is NonNullable<typeof e> => Boolean(e));
-  if (exhibitors.length === 0) return <EmptyCard icon="exhibitors" label="No exhibitors on this show." />;
 
+  // Source exhibitors from the show's SHIPMENTS (where the link actually lives
+  // for TMS-driven data), supplemented by any manual show_exhibitors entries.
+  type ExhInfo = { id: string; company_name: string; industry: string | null };
+  const exhInfo = new Map<string, ExhInfo>();
   const byExh = new Map<string, ShipmentStatus[]>();
   for (const s of shipRes.data ?? []) {
-    if (!s.exhibitor_id) continue;
-    const list = byExh.get(s.exhibitor_id) ?? [];
+    if (!s.exhibitor) continue;
+    exhInfo.set(s.exhibitor.id, s.exhibitor);
+    const list = byExh.get(s.exhibitor.id) ?? [];
     list.push(s.status);
-    byExh.set(s.exhibitor_id, list);
+    byExh.set(s.exhibitor.id, list);
   }
+  for (const r of linkRes.data ?? []) {
+    if (r.exhibitor && !exhInfo.has(r.exhibitor.id)) exhInfo.set(r.exhibitor.id, r.exhibitor);
+  }
+  const exhibitors = [...exhInfo.values()];
+  if (exhibitors.length === 0) return <EmptyCard icon="exhibitors" label="No exhibitors on this show." />;
 
   return (
     <Card>

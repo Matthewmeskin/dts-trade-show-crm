@@ -386,18 +386,39 @@ function DetailRow({
 
 async function ExhibitorsTab({ showId }: { showId: string }) {
   const supabase = await createClient();
-  const [linkedRes, allRes] = await Promise.all([
+  const [linkedRes, shipRes, allRes] = await Promise.all([
     supabase
       .from("show_exhibitors")
+      .select("exhibitor:exhibitors(id, company_name, industry, primary_contact_name)")
+      .eq("show_id", showId),
+    supabase
+      .from("shipments")
       .select("exhibitor:exhibitors(id, company_name, industry, primary_contact_name)")
       .eq("show_id", showId),
     supabase.from("exhibitors").select("id, company_name").order("company_name"),
   ]);
 
-  const linked = (linkedRes.data ?? [])
-    .map((r) => r.exhibitor)
-    .filter((e): e is NonNullable<typeof e> => Boolean(e))
-    .sort((a, b) => a.company_name.localeCompare(b.company_name));
+  // Exhibitors come from manual show_exhibitors links AND from the show's
+  // shipments (where TMS-driven freight carries the link). Track which have a
+  // manual link so only those expose a Remove control.
+  type ExhRow = {
+    id: string;
+    company_name: string;
+    industry: string | null;
+    primary_contact_name: string | null;
+    manual: boolean;
+  };
+  const byId = new Map<string, ExhRow>();
+  for (const r of linkedRes.data ?? []) {
+    if (r.exhibitor) byId.set(r.exhibitor.id, { ...r.exhibitor, manual: true });
+  }
+  for (const r of shipRes.data ?? []) {
+    if (r.exhibitor && !byId.has(r.exhibitor.id))
+      byId.set(r.exhibitor.id, { ...r.exhibitor, manual: false });
+  }
+  const linked = [...byId.values()].sort((a, b) =>
+    a.company_name.localeCompare(b.company_name),
+  );
   const linkedIds = new Set(linked.map((e) => e.id));
   const available = (allRes.data ?? []).filter((e) => !linkedIds.has(e.id));
 
@@ -448,13 +469,19 @@ async function ExhibitorsTab({ showId }: { showId: string }) {
                   {[e.industry, e.primary_contact_name].filter(Boolean).join(" · ") || "—"}
                 </div>
               </div>
-              <form action={removeExhibitorFromShow}>
-                <input type="hidden" name="show_id" value={showId} />
-                <input type="hidden" name="exhibitor_id" value={e.id} />
-                <button type="submit" className="text-xs font-medium text-slate-400 hover:text-dts-maroon">
-                  Remove
-                </button>
-              </form>
+              {e.manual ? (
+                <form action={removeExhibitorFromShow}>
+                  <input type="hidden" name="show_id" value={showId} />
+                  <input type="hidden" name="exhibitor_id" value={e.id} />
+                  <button type="submit" className="text-xs font-medium text-slate-400 hover:text-dts-maroon">
+                    Remove
+                  </button>
+                </form>
+              ) : (
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                  Via freight
+                </span>
+              )}
             </li>
           ))}
         </ul>
