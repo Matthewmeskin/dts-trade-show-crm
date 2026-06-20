@@ -289,16 +289,21 @@ async function OverviewTab({ show, links }: { show: ShowWithStatus; links: ShowL
           </dl>
         </Card>
 
-        {links && (links.website_url || links.exhibitor_manual_url || links.exhibitor_list_url) ? (
-          <Card>
-            <CardHeader title="Links" icon="documents" />
+        <Card>
+          <CardHeader title="Links" icon="documents" />
+          {links && (links.website_url || links.exhibitor_manual_url || links.exhibitor_list_url) ? (
             <dl className="divide-y divide-slate-100 text-sm">
               <LinkDetailRow label="Show website" href={links.website_url} />
               <LinkDetailRow label="Exhibitor manual" href={links.exhibitor_manual_url} />
               <LinkDetailRow label="Exhibitor list" href={links.exhibitor_list_url} />
             </dl>
-          </Card>
-        ) : null}
+          ) : (
+            <p className="px-5 py-4 text-sm text-slate-400">
+              No links yet. Use <span className="font-medium text-slate-500">Edit</span> to add the show
+              website, exhibitor manual, and exhibitor list.
+            </p>
+          )}
+        </Card>
 
         <Card>
           <CardHeader title="Revenue" icon="reports" />

@@ -5,7 +5,7 @@ import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { SHOW_STATUS_META } from "@/lib/shows";
 import { SHIPMENT_STATUS_META } from "@/lib/shipments";
-import { formatDate, formatDateRange } from "@/lib/format";
+import { formatDate, formatDateRange, formatCurrency } from "@/lib/format";
 import { deleteExhibitor } from "../actions";
 import { QuickEditExhibitor } from "./quick-edit";
 
@@ -20,10 +20,13 @@ type SecondaryContact = {
 
 export default async function ExhibitorRecordPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { id } = await params;
+  const { from, to } = await searchParams;
   const supabase = await createClient();
 
   const { data: e } = await supabase.from("exhibitors").select("*").eq("id", id).single();
@@ -36,6 +39,15 @@ export default async function ExhibitorRecordPage({
     .eq("exhibitor_id", id);
   const showIds = (links ?? []).map((l) => l.show_id);
 
+  let shipQuery = supabase
+    .from("shipments")
+    .select(
+      "id, status, mode, pickup_date, pro_number, margin, show:shows(show_name), carrier:carriers(carrier_name)",
+    )
+    .eq("exhibitor_id", id);
+  if (from) shipQuery = shipQuery.gte("pickup_date", from);
+  if (to) shipQuery = shipQuery.lte("pickup_date", to);
+
   const [showsRes, shipRes] = await Promise.all([
     showIds.length
       ? supabase
@@ -44,17 +56,13 @@ export default async function ExhibitorRecordPage({
           .in("id", showIds)
           .order("move_in_start", { ascending: true, nullsFirst: false })
       : Promise.resolve({ data: [] as never[] }),
-    supabase
-      .from("shipments")
-      .select(
-        "id, status, mode, pickup_date, pro_number, show:shows(show_name), carrier:carriers(carrier_name)",
-      )
-      .eq("exhibitor_id", id)
-      .order("pickup_date", { ascending: true, nullsFirst: false }),
+    shipQuery.order("pickup_date", { ascending: true, nullsFirst: false }),
   ]);
 
   const shows = showsRes.data ?? [];
   const shipments = shipRes.data ?? [];
+  const marginTotal = shipments.reduce((sum, s) => sum + (s.margin ?? 0), 0);
+  const hasMargin = shipments.some((s) => s.margin != null);
   const secondary = (Array.isArray(e.secondary_contacts)
     ? e.secondary_contacts
     : []) as SecondaryContact[];
@@ -91,9 +99,45 @@ export default async function ExhibitorRecordPage({
         <div className="space-y-5 lg:col-span-2">
           {/* Shipment history */}
           <Card>
-            <CardHeader title={`Shipment history (${shipments.length})`} icon="shipments" />
+            <CardHeader
+              title={`Shipment history (${shipments.length})`}
+              icon="shipments"
+              action={
+                <form className="flex flex-wrap items-center gap-1.5 text-sm">
+                  <input
+                    type="date"
+                    name="from"
+                    defaultValue={from ?? ""}
+                    aria-label="From date"
+                    className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon"
+                  />
+                  <span className="text-slate-400">–</span>
+                  <input
+                    type="date"
+                    name="to"
+                    defaultValue={to ?? ""}
+                    aria-label="To date"
+                    className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                  >
+                    Apply
+                  </button>
+                  {from || to ? (
+                    <Link
+                      href={`/exhibitors/${id}`}
+                      className="rounded-lg px-2 py-1 text-xs font-medium text-slate-400 hover:text-slate-700"
+                    >
+                      Clear
+                    </Link>
+                  ) : null}
+                </form>
+              }
+            />
             {shipments.length === 0 ? (
-              <EmptyState icon="shipments" title="No shipments" description="Shipments for this exhibitor will appear here." />
+              <EmptyState icon="shipments" title="No shipments" description={from || to ? "No shipments in this date range." : "Shipments for this exhibitor will appear here."} />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -104,6 +148,7 @@ export default async function ExhibitorRecordPage({
                       <th className="px-5 py-3">Mode</th>
                       <th className="px-5 py-3">Carrier</th>
                       <th className="px-5 py-3">Pickup</th>
+                      <th className="px-5 py-3 text-right">Margin</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -123,10 +168,33 @@ export default async function ExhibitorRecordPage({
                           <td className="px-5 py-3 text-slate-600">{s.mode ?? "—"}</td>
                           <td className="px-5 py-3 text-slate-600">{s.carrier?.carrier_name ?? "—"}</td>
                           <td className="px-5 py-3 text-slate-600">{formatDate(s.pickup_date)}</td>
+                          <td className="px-5 py-3 text-right tabular-nums">
+                            {s.margin != null ? (
+                              <span className={s.margin < 0 ? "text-dts-maroon" : "text-slate-700"}>
+                                {formatCurrency(s.margin, { cents: true })}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
                   </tbody>
+                  {hasMargin ? (
+                    <tfoot>
+                      <tr className="border-t border-slate-200 font-semibold text-slate-900">
+                        <td className="px-5 py-3" colSpan={5}>
+                          Total margin{from || to ? " (range)" : ""}
+                        </td>
+                        <td className="px-5 py-3 text-right tabular-nums">
+                          <span className={marginTotal < 0 ? "text-dts-maroon" : "text-slate-900"}>
+                            {formatCurrency(marginTotal, { cents: true })}
+                          </span>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  ) : null}
                 </table>
               </div>
             )}
