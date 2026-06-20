@@ -16,8 +16,6 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Shipments", href: "/shipments", icon: "shipments" },
   { label: "Load Finder", href: "/load-finder", icon: "sparkles" },
   { label: "Carriers", href: "/carriers", icon: "carriers" },
-  { label: "Contacts", href: "/contacts", icon: "contacts" },
-  { label: "Documents", href: "/documents", icon: "documents" },
   { label: "Tasks", href: "/tasks", icon: "tasks" },
   { label: "Reports", href: "/reports", icon: "reports" },
 ];

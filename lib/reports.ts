@@ -45,13 +45,6 @@ export const REPORTS: ReportDef[] = [
     icon: "carriers",
   },
   {
-    slug: "revenue",
-    title: "Revenue",
-    description: "Estimated vs actual revenue across shows.",
-    scoped: false,
-    icon: "reports",
-  },
-  {
     slug: "financials",
     title: "Financials by show & carrier",
     description: "Billed, cost, and margin per show, broken down by carrier.",

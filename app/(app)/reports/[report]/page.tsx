@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
-import { Icon } from "@/components/icons";
 import { getReport } from "@/lib/reports";
 import { Constants } from "@/lib/database.types";
 import { SHOW_STATUS_META } from "@/lib/shows";
@@ -13,7 +12,7 @@ import {
   rollupShipmentStatus,
   type ShipmentStatus,
 } from "@/lib/shipments";
-import { formatCurrency, formatDate, formatDateRange } from "@/lib/format";
+import { formatCurrency, formatDateRange } from "@/lib/format";
 import { ShowSelect } from "../show-select";
 
 export const dynamic = "force-dynamic";
@@ -74,7 +73,6 @@ export default async function ReportPage({
           {def.slug === "show-summary" && <ShowSummary showId={show!} />}
           {def.slug === "exhibitor-history" && <ExhibitorHistory />}
           {def.slug === "carrier-usage" && <CarrierUsage />}
-          {def.slug === "revenue" && <Revenue />}
           {def.slug === "financials" && <Financials />}
         </>
       )}
@@ -96,73 +94,6 @@ function Td({ children, right }: { children: React.ReactNode; right?: boolean })
 }
 
 const STATUS_ORDER = Constants.public.Enums.shipment_status;
-
-/* ---- Revenue (global) ---------------------------------------------------- */
-
-async function Revenue() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("shows_with_status")
-    .select("id, show_name, edition_year, status, estimated_revenue, actual_revenue")
-    .order("show_name");
-  const rows = data ?? [];
-
-  const totEst = rows.reduce((a, r) => a + (r.estimated_revenue ?? 0), 0);
-  const totAct = rows.reduce((a, r) => a + (r.actual_revenue ?? 0), 0);
-
-  if (rows.length === 0) return <EmptyCard icon="reports" />;
-
-  return (
-    <Card>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100">
-              <Th>Show</Th><Th>Status</Th><Th right>Estimated</Th><Th right>Actual</Th><Th right>Variance</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {rows.map((r) => {
-              const meta = SHOW_STATUS_META[r.status ?? "upcoming"];
-              const variance = r.estimated_revenue != null && r.actual_revenue != null ? r.actual_revenue - r.estimated_revenue : null;
-              return (
-                <tr key={r.id} className="hover:bg-slate-50/60">
-                  <td className="px-5 py-3">
-                    <Link href={`/shows/${r.id}`} className="font-medium text-slate-900 hover:text-dts-maroon">
-                      {r.show_name}{r.edition_year ? <span className="ml-1 text-slate-400">{r.edition_year}</span> : null}
-                    </Link>
-                  </td>
-                  <td className="px-5 py-3"><Badge className={meta.badge}>{meta.label}</Badge></td>
-                  <Td right>{formatCurrency(r.estimated_revenue)}</Td>
-                  <Td right>{formatCurrency(r.actual_revenue)}</Td>
-                  <td className="px-5 py-3 text-right font-medium">
-                    {variance == null ? <span className="text-slate-300">—</span> : (
-                      <span className={variance >= 0 ? "text-emerald-600" : "text-dts-maroon"}>
-                        {variance >= 0 ? "+" : "−"}{formatCurrency(Math.abs(variance))}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <tr className="border-t border-slate-200 font-semibold text-slate-900">
-              <td className="px-5 py-3" colSpan={2}>Total</td>
-              <td className="px-5 py-3 text-right">{formatCurrency(totEst)}</td>
-              <td className="px-5 py-3 text-right">{formatCurrency(totAct)}</td>
-              <td className="px-5 py-3 text-right">
-                <span className={totAct - totEst >= 0 ? "text-emerald-600" : "text-dts-maroon"}>
-                  {totAct - totEst >= 0 ? "+" : "−"}{formatCurrency(Math.abs(totAct - totEst))}
-                </span>
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </Card>
-  );
-}
 
 /* ---- Financials by show & carrier (global) ------------------------------ */
 
