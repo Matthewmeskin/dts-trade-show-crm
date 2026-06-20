@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "@/lib/nav";
@@ -27,6 +28,7 @@ export function Sidebar({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const [logoOk, setLogoOk] = useState(true);
   const initials =
     userName
       .split(" ")
@@ -42,10 +44,26 @@ export function Sidebar({
         mobileOpen ? "translate-x-0" : "-translate-x-full"
       } ${desktopCollapsed ? "md:hidden" : "md:static md:translate-x-0"}`}
     >
-      <div className="px-5 py-5">
-        <div className="font-heading text-[11px] font-semibold uppercase tracking-wider text-white/70">
-          Trade Show CRM
-        </div>
+      <div className="px-4 py-4">
+        <Link href="/" onClick={onNavigate} className="block" aria-label="DTS Trade Show CRM — home">
+          {logoOk ? (
+            // Real raster logo on a white card so the brand colors read against
+            // the blue sidebar. Drop the file at public/dts-logo.png.
+            <span className="block rounded-lg bg-white px-3 py-2 shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/dts-logo.png"
+                alt="DTS — Diversified Transportation Services"
+                className="h-9 w-auto"
+                onError={() => setLogoOk(false)}
+              />
+            </span>
+          ) : (
+            <span className="font-heading text-[11px] font-semibold uppercase tracking-wider text-white/70">
+              Trade Show CRM
+            </span>
+          )}
+        </Link>
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
