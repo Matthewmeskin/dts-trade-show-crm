@@ -69,7 +69,7 @@ export default async function ShowRecordPage({
     supabase.from("shows_with_status").select("*").eq("id", id).single(),
     supabase
       .from("shows")
-      .select("website_url, exhibitor_manual_url, exhibitor_list_url")
+      .select("website_url, exhibitor_manual_url, exhibitor_list_url, advance_warehouse_address, direct_to_show_address")
       .eq("id", id)
       .single(),
     supabase.from("shows").select("*").eq("id", id).single(),
@@ -173,6 +173,8 @@ type ShowLinks = {
   website_url: string | null;
   exhibitor_manual_url: string | null;
   exhibitor_list_url: string | null;
+  advance_warehouse_address: string | null;
+  direct_to_show_address: string | null;
 } | null;
 
 async function OverviewTab({ show, links }: { show: ShowWithStatus; links: ShowLinks }) {
@@ -220,6 +222,16 @@ async function OverviewTab({ show, links }: { show: ShowWithStatus; links: ShowL
             <DateCell label="Direct-to-show end" value={show.direct_to_show_end} />
           </div>
         </Card>
+
+        {links && (links.advance_warehouse_address || links.direct_to_show_address) ? (
+          <Card>
+            <CardHeader title="Freight addresses" icon="venues" />
+            <dl className="divide-y divide-slate-100 text-sm">
+              <AddressRow label="Advance warehouse" value={links.advance_warehouse_address} />
+              <AddressRow label="Direct to show" value={links.direct_to_show_address} />
+            </dl>
+          </Card>
+        ) : null}
 
         {(show.competitor_notes || show.general_notes) && (
           <Card>
@@ -358,6 +370,21 @@ function LinkDetailRow({ label, href }: { label: string; href: string | null }) 
         >
           {display}
           <Icon name="external" className="h-3.5 w-3.5 shrink-0" />
+        </a>
+      </dd>
+    </div>
+  );
+}
+
+function AddressRow({ label, value }: { label: string; value: string | null }) {
+  if (!value) return null;
+  const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
+  return (
+    <div className="flex items-start justify-between gap-4 px-5 py-3">
+      <dt className="shrink-0 text-slate-400">{label}</dt>
+      <dd className="min-w-0 text-right">
+        <a href={maps} target="_blank" rel="noopener noreferrer" className="text-dts-blue hover:underline">
+          {value}
         </a>
       </dd>
     </div>

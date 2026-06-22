@@ -185,11 +185,17 @@ export function ShowForm({
           <Field label="Advance warehouse cutoff" htmlFor="advance_warehouse_cutoff">
             <input id="advance_warehouse_cutoff" name="advance_warehouse_cutoff" type="date" defaultValue={d?.advance_warehouse_cutoff ?? ""} className={inputClass} />
           </Field>
+          <Field label="Advance warehouse address" htmlFor="advance_warehouse_address" className="sm:col-span-2">
+            <input id="advance_warehouse_address" name="advance_warehouse_address" defaultValue={d?.advance_warehouse_address ?? ""} className={inputClass} placeholder="Receiving dock / warehouse address" />
+          </Field>
           <Field label="Direct-to-show start" htmlFor="direct_to_show_start">
             <input id="direct_to_show_start" name="direct_to_show_start" type="date" defaultValue={d?.direct_to_show_start ?? ""} className={inputClass} />
           </Field>
           <Field label="Direct-to-show end" htmlFor="direct_to_show_end">
             <input id="direct_to_show_end" name="direct_to_show_end" type="date" defaultValue={d?.direct_to_show_end ?? ""} className={inputClass} />
+          </Field>
+          <Field label="Direct-to-show address" htmlFor="direct_to_show_address" className="sm:col-span-2">
+            <input id="direct_to_show_address" name="direct_to_show_address" defaultValue={d?.direct_to_show_address ?? ""} className={inputClass} placeholder="Show-site / venue dock address" />
           </Field>
         </FormSection>
 

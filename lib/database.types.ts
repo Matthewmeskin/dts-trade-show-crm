@@ -587,6 +587,8 @@ export type Database = {
           actual_revenue: number | null
           advance_warehouse_cutoff: string | null
           advance_warehouse_open: string | null
+          advance_warehouse_address: string | null
+          direct_to_show_address: string | null
           archived: boolean
           competitor_notes: string | null
           created_at: string
@@ -616,6 +618,8 @@ export type Database = {
           actual_revenue?: number | null
           advance_warehouse_cutoff?: string | null
           advance_warehouse_open?: string | null
+          advance_warehouse_address?: string | null
+          direct_to_show_address?: string | null
           archived?: boolean
           competitor_notes?: string | null
           created_at?: string
@@ -645,6 +649,8 @@ export type Database = {
           actual_revenue?: number | null
           advance_warehouse_cutoff?: string | null
           advance_warehouse_open?: string | null
+          advance_warehouse_address?: string | null
+          direct_to_show_address?: string | null
           archived?: boolean
           competitor_notes?: string | null
           created_at?: string
