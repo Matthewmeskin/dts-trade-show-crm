@@ -9,8 +9,8 @@ export type NavItem = {
 /** Primary navigation, in display order. */
 export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/", icon: "dashboard" },
-  { label: "Shows", href: "/shows", icon: "shows" },
   { label: "Calendar", href: "/calendar", icon: "calendar" },
+  { label: "Shows", href: "/shows", icon: "shows" },
   { label: "Venues", href: "/venues", icon: "venues" },
   { label: "Exhibitors", href: "/exhibitors", icon: "exhibitors" },
   { label: "Shipments", href: "/shipments", icon: "shipments" },
