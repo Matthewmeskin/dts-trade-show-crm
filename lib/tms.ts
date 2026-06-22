@@ -129,6 +129,29 @@ export function extractLoadNumber(item: Record<string, unknown>): string | undef
   );
 }
 
+/** Extract the Hyperion customer number, with common aliases. */
+export function extractCustomerId(item: Record<string, unknown>): string | undefined {
+  return str(
+    item.tms_customer_id ?? item.customerId ?? item.customer_id ?? item.customerNumber ??
+      item.customerNo ?? item.customerNum ?? item.clientId ?? item.clientCustomerId ??
+      item.billToId ?? item.billToCustomerId ?? item.customerCompanyId,
+  );
+}
+
+/**
+ * Hyperion shipment-profile deep link for a load: needs both the customer
+ * number and the load number. Returns null if either is missing.
+ */
+export function hyperionShipmentUrl(
+  customerId: string | null | undefined,
+  loadNumber: string | null | undefined,
+): string | null {
+  const c = str(customerId);
+  const l = str(loadNumber);
+  if (!c || !l) return null;
+  return `https://hyperion.dtsone.com/pages/shipments/shipmentprofile/${encodeURIComponent(c)}/${encodeURIComponent(l)}`;
+}
+
 export type ParsedLoad = {
   ref: string;
   carrierName?: string;
@@ -157,6 +180,7 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   set("weight", numVal(item.weight ?? item.totalWeight ?? item.weight_lbs));
   set("package_type", str(item.package_type ?? item.packaging ?? item.packageType));
   set("tracking_url", str(item.tracking_url ?? item.carrierTrackingURL ?? item.carrier_tracking_url));
+  set("tms_customer_id", extractCustomerId(item));
   set("destination_address", str(item.destination_address ?? item.delivery_location ?? item.deliveryLocation));
 
   // Origin: explicit fields win; otherwise parse pickupLocation.

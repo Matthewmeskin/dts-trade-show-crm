@@ -15,6 +15,7 @@ import {
   effectiveShowDate,
   deliveryHealth,
 } from "@/lib/shipments";
+import { hyperionShipmentUrl } from "@/lib/tms";
 import { formatDate, formatCurrency, formatCountdown, daysUntil } from "@/lib/format";
 import { deleteShipment } from "../actions";
 import { QuickEditShipment } from "./quick-edit";
@@ -51,6 +52,7 @@ export default async function ShipmentRecordPage({
 
   const sm = SHIPMENT_STATUS_META[s.status];
   const tms = TMS_SYNC_META[s.tms_sync_status];
+  const hyperionUrl = hyperionShipmentUrl(s.tms_customer_id, s.tms_reference_id);
   const dir = effectiveDirection(s);
   const target = effectiveTargetDate(s, s.show);
   const showDate = effectiveShowDate(s, s.show);
@@ -296,7 +298,25 @@ export default async function ShipmentRecordPage({
             <CardHeader title="TMS / BrokerWareLite" icon="sparkles" />
             <dl className="divide-y divide-slate-100 text-sm">
               <Row label="Sync status" value={<Badge className={tms.badge}>{tms.label}</Badge>} />
-              <Row label="Reference ID" value={s.tms_reference_id} />
+              <Row
+                label="Load number"
+                value={
+                  s.tms_reference_id ? (
+                    hyperionUrl ? (
+                      <a
+                        href={hyperionUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-dts-blue hover:underline"
+                      >
+                        {s.tms_reference_id} ↗
+                      </a>
+                    ) : (
+                      s.tms_reference_id
+                    )
+                  ) : null
+                }
+              />
               <Row
                 label="Last synced"
                 value={
