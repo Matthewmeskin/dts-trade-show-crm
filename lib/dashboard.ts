@@ -130,7 +130,9 @@ function localISO(d: Date): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
-export async function loadDashboard(): Promise<DashboardData> {
+export type WeekBasis = "pickup" | "delivery";
+
+export async function loadDashboard(weekBasis: WeekBasis = "pickup"): Promise<DashboardData> {
   const supabase = await createClient();
   const iso = todayISO();
 
@@ -170,19 +172,37 @@ export async function loadDashboard(): Promise<DashboardData> {
       .not("due_date", "is", null)
       .lte("due_date", iso)
       .order("due_date", { ascending: true }),
-    supabase
-      .from("shipments")
-      .select("id, status, direction, pickup_date, exhibitor:exhibitors(company_name)")
-      .gte("pickup_date", weekDates[0])
-      .lte("pickup_date", weekDates[6])
-      .order("pickup_date", { ascending: true }),
+    (() => {
+      const sel = supabase
+        .from("shipments")
+        .select(
+          "id, status, direction, pickup_date, estimated_delivery_date, actual_delivery_date, exhibitor:exhibitors(company_name)",
+        );
+      const ws = weekDates[0];
+      const we = weekDates[6];
+      return weekBasis === "delivery"
+        ? sel.or(
+            `and(actual_delivery_date.gte.${ws},actual_delivery_date.lte.${we}),and(estimated_delivery_date.gte.${ws},estimated_delivery_date.lte.${we})`,
+          )
+        : sel.gte("pickup_date", ws).lte("pickup_date", we);
+    })(),
   ]);
 
-  // ---- Week strip (shipments by pickup date) -------------------------------
+  // ---- Week strip (shipments by pickup or delivery date) -------------------
+  const eventDate = (s: {
+    pickup_date: string | null;
+    estimated_delivery_date: string | null;
+    actual_delivery_date: string | null;
+  }): string | null =>
+    weekBasis === "delivery"
+      ? s.actual_delivery_date ?? s.estimated_delivery_date
+      : s.pickup_date;
+
   const eventsByDate = new Map<string, WeekEvent[]>();
   for (const s of weekRes.data ?? []) {
-    if (!s.pickup_date) continue;
-    const key = s.pickup_date.slice(0, 10);
+    const d = eventDate(s);
+    if (!d) continue;
+    const key = d.slice(0, 10);
     const list = eventsByDate.get(key) ?? [];
     list.push({
       id: s.id,
