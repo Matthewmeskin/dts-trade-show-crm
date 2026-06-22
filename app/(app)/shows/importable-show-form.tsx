@@ -88,6 +88,8 @@ function mapExtracted(fields: Record<string, unknown>, venues: VenueOpt[]): Part
   out.edition_year = num(fields.edition_year);
   out.industry_vertical = str(fields.industry_vertical);
   out.show_management_company = str(fields.show_management_company);
+  out.advance_warehouse_address = str(fields.advance_warehouse_address);
+  out.direct_to_show_address = str(fields.direct_to_show_address);
   out.competitor_notes = str(fields.competitor_notes);
   out.estimated_revenue = num(fields.estimated_revenue);
   out.actual_revenue = num(fields.actual_revenue);
