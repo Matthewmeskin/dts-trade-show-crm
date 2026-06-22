@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
+import { LinkRow } from "@/components/link-row";
 import { Icon } from "@/components/icons";
 import { inputClass } from "@/components/form";
 import {
@@ -572,7 +573,7 @@ async function ShipmentsTab({ showId }: { showId: string }) {
               {rows.map((s) => {
                 const sm = SHIPMENT_STATUS_META[s.status];
                 return (
-                  <tr key={s.id} className="group hover:bg-slate-50/60">
+                  <LinkRow key={s.id} href={`/shipments/${s.id}`} className="group hover:bg-slate-50/60">
                     <td className="px-5 py-3">
                       <Link
                         href={`/shipments/${s.id}`}
@@ -601,7 +602,7 @@ async function ShipmentsTab({ showId }: { showId: string }) {
                         </button>
                       </form>
                     </td>
-                  </tr>
+                  </LinkRow>
                 );
               })}
             </tbody>
