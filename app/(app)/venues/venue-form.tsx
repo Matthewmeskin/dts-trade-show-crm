@@ -12,15 +12,17 @@ type VenueRow = Tables<"venues">;
 export function VenueForm({
   action,
   venue,
+  defaults,
   submitLabel,
 }: {
   action: (prev: VenueFormState, fd: FormData) => Promise<VenueFormState>;
   venue?: VenueRow;
+  defaults?: Partial<VenueRow>;
   submitLabel: string;
 }) {
   const [state, formAction] = useActionState(action, { error: null });
   const err = state.fieldErrors ?? {};
-  const d = venue;
+  const d = venue ?? defaults;
 
   return (
     <form action={formAction}>
