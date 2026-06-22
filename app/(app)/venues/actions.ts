@@ -84,3 +84,50 @@ export async function deleteVenue(fd: FormData) {
   revalidatePath("/venues");
   redirect("/venues?flash=deleted");
 }
+
+/** Set a show's venue to this one ("Shows held here"). */
+export async function addShowToVenue(fd: FormData) {
+  const venue_id = String(fd.get("venue_id") ?? "");
+  const show_id = String(fd.get("show_id") ?? "");
+  if (!venue_id || !show_id) return;
+  const supabase = await createClient();
+  await supabase.from("shows").update({ venue_id }).eq("id", show_id);
+  revalidatePath(`/venues/${venue_id}`);
+  revalidatePath(`/shows/${show_id}`);
+}
+
+/** Clear a show's venue link (keeps the show). */
+export async function removeShowFromVenue(fd: FormData) {
+  const venue_id = String(fd.get("venue_id") ?? "");
+  const show_id = String(fd.get("show_id") ?? "");
+  if (!show_id) return;
+  const supabase = await createClient();
+  await supabase.from("shows").update({ venue_id: null }).eq("id", show_id);
+  if (venue_id) revalidatePath(`/venues/${venue_id}`);
+  revalidatePath(`/shows/${show_id}`);
+}
+
+/** Link a carrier to this venue (carrier_venues many-to-many). */
+export async function addCarrierToVenue(fd: FormData) {
+  const venue_id = String(fd.get("venue_id") ?? "");
+  const carrier_id = String(fd.get("carrier_id") ?? "");
+  if (!venue_id || !carrier_id) return;
+  const supabase = await createClient();
+  await supabase
+    .from("carrier_venues")
+    .upsert({ carrier_id, venue_id }, { onConflict: "carrier_id,venue_id" });
+  revalidatePath(`/venues/${venue_id}`);
+}
+
+export async function removeCarrierFromVenue(fd: FormData) {
+  const venue_id = String(fd.get("venue_id") ?? "");
+  const carrier_id = String(fd.get("carrier_id") ?? "");
+  if (!venue_id || !carrier_id) return;
+  const supabase = await createClient();
+  await supabase
+    .from("carrier_venues")
+    .delete()
+    .eq("carrier_id", carrier_id)
+    .eq("venue_id", venue_id);
+  revalidatePath(`/venues/${venue_id}`);
+}
