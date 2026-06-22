@@ -5,9 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const SYSTEM_PROMPT = `You are a freight logistics data extraction assistant. The user will paste raw text from a Freemanco trade show Quick Facts document. Extract all relevant fields and return ONLY a valid JSON object with no preamble, no markdown, no backticks. Use ISO 8601 date format (YYYY-MM-DD) for all dates. If a field cannot be determined from the text, set it to null. Fields: show_name, edition_year, industry_vertical, show_management_company, venue, primary_gsc_contact, show_start_date, show_end_date, move_in_start, move_in_end, move_out_start, move_out_end, advance_warehouse_open, advance_warehouse_cutoff, direct_to_show_start, direct_to_show_end, estimated_revenue, actual_revenue, competitor_notes, general_notes.
-
-general_notes must be SHORT and contain ONLY freight-relevant facts that are NOT already represented by the structured fields above. Do NOT restate show/move-in/move-out/warehouse dates or their daily hours — those live in the date fields. Only include distinct operational notes that affect freight planning, e.g. carpet is mandatory, no return-to-warehouse at show close (must ship from show site), carrier check-in deadlines, overtime/labor-rate rules, the official carrier/GSC, special shipping programs/discounts, or who will/won't act as Importer of Record. Use a few terse bullet-like sentences; omit anything redundant; set to null if there is nothing genuinely additive.`;
+const SYSTEM_PROMPT = `You are a freight logistics data extraction assistant. The user will paste raw text about a trade show / convention venue (e.g. a venue facilities page, a show's Quick Facts logistics section, or a freight/marshalling instructions sheet). Extract venue details and return ONLY a valid JSON object with no preamble, no markdown, no backticks. If a field cannot be determined from the text, set it to null. Fields: venue_name (the convention center / facility name), address (street address only), city, state (2-letter US abbreviation when possible), dock_notes (loading dock count, dimensions, dock height, marshalling yard details), union_rules (labor jurisdiction, what union labor is required for, work rules), delivery_restrictions (carrier check-in, marshalling/staging requirements, time/height/curfew limits, certificate of insurance requirements), parking_and_staging_notes (truck parking, staging area, POV parking), general_notes (only freight-relevant facts NOT already captured by the dock/union/delivery/parking fields above — keep it short and set to null if there is nothing additive). Combine related sentences into each notes field as readable prose; do not repeat the same fact across multiple fields.`;
 
 /** Pull a JSON object out of the model's reply (tolerant of fences / stray text). */
 function parseJson(raw: string): Record<string, unknown> | null {
@@ -24,9 +22,9 @@ function parseJson(raw: string): Record<string, unknown> | null {
 }
 
 /**
- * Extracts New Show fields from pasted Freeman Quick Facts text using Claude.
- * Browser-called from the New Show import modal; the API key stays server-side
- * and the route requires an authenticated session.
+ * Extracts New Venue fields from pasted text using Claude. Browser-called from
+ * the New Venue import modal; the API key stays server-side and the route
+ * requires an authenticated session.
  */
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -49,7 +47,7 @@ export async function POST(req: NextRequest) {
   }
   const text = typeof (body as { text?: unknown })?.text === "string" ? (body as { text: string }).text : "";
   if (!text.trim()) {
-    return NextResponse.json({ ok: false, error: "Paste some Quick Facts text first." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Paste some venue text first." }, { status: 400 });
   }
 
   try {
