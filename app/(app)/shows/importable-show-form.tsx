@@ -33,6 +33,54 @@ const num = (v: unknown) => {
   return Number.isFinite(n) ? n : undefined;
 };
 
+// Words too generic to distinguish one venue from another.
+const VENUE_STOPWORDS = new Set([
+  "the", "convention", "center", "centre", "conv", "ctr", "expo", "exposition",
+  "hall", "complex", "of", "and", "at", "fairgrounds", "fairground",
+]);
+const normVenue = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+const venueTokens = (s: string) =>
+  normVenue(s).split(" ").filter((t) => t && !VENUE_STOPWORDS.has(t));
+
+/**
+ * Best-effort match of a free-text venue name (from the Quick Facts doc, which
+ * may include a city/state or differ from our record's exact wording) to an
+ * existing venue. Tries exact → substring → distinctive-token containment.
+ */
+function matchVenueId(venueRaw: string, venues: VenueOpt[]): string | undefined {
+  const candidates = [venueRaw, venueRaw.split(",")[0]]
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  for (const cand of candidates) {
+    const cn = normVenue(cand);
+    const exact = venues.find((v) => normVenue(v.venue_name) === cn);
+    if (exact) return exact.id;
+  }
+  for (const cand of candidates) {
+    const cn = normVenue(cand);
+    if (!cn) continue;
+    const sub = venues.find((v) => {
+      const vn = normVenue(v.venue_name);
+      return vn === cn || vn.includes(cn) || cn.includes(vn);
+    });
+    if (sub) return sub.id;
+  }
+  for (const cand of candidates) {
+    const ct = new Set(venueTokens(cand));
+    if (ct.size === 0) continue;
+    const tok = venues.find((v) => {
+      const vt = new Set(venueTokens(v.venue_name));
+      if (vt.size === 0) return false;
+      const candInVenue = [...ct].every((t) => vt.has(t));
+      const venueInCand = [...vt].every((t) => ct.has(t));
+      return candInVenue || venueInCand;
+    });
+    if (tok) return tok.id;
+  }
+  return undefined;
+}
+
 /** Map the AI's JSON onto the New Show form's defaults. */
 function mapExtracted(fields: Record<string, unknown>, venues: VenueOpt[]): Partial<Tables<"shows">> {
   const out: Partial<Tables<"shows">> = {};
@@ -49,11 +97,12 @@ function mapExtracted(fields: Record<string, unknown>, venues: VenueOpt[]): Part
     if (v && ISO_DATE.test(v)) out[f] = v;
   }
 
-  // Venue is free text from the doc; match it to an existing venue record.
+  // Venue is free text from the doc; fuzzily match it to an existing venue so
+  // it gets pre-selected when one is available.
   const venueName = str(fields.venue);
   if (venueName) {
-    const match = venues.find((v) => v.venue_name.trim().toLowerCase() === venueName.toLowerCase());
-    if (match) out.venue_id = match.id;
+    const venueId = matchVenueId(venueName, venues);
+    if (venueId) out.venue_id = venueId;
   }
 
   // The GSC contact must be picked from existing contacts — keep the extracted
