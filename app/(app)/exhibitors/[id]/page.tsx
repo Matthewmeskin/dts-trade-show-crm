@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { LinkRow } from "@/components/link-row";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { SHOW_STATUS_META } from "@/lib/shows";
@@ -155,7 +156,7 @@ export default async function ExhibitorRecordPage({
                     {shipments.map((s) => {
                       const sm = SHIPMENT_STATUS_META[s.status];
                       return (
-                        <tr key={s.id} className="hover:bg-slate-50/60">
+                        <LinkRow key={s.id} href={`/shipments/${s.id}`} className="hover:bg-slate-50/60">
                           <td className="px-5 py-3 font-medium text-slate-800">
                             {s.show?.show_name ?? "—"}
                           </td>
@@ -177,7 +178,7 @@ export default async function ExhibitorRecordPage({
                               <span className="text-slate-300">—</span>
                             )}
                           </td>
-                        </tr>
+                        </LinkRow>
                       );
                     })}
                   </tbody>
