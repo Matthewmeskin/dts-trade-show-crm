@@ -466,9 +466,11 @@ async function ExhibitorsTab({ showId }: { showId: string }) {
                 <Link href={`/exhibitors/${e.id}`} className="text-sm font-medium text-slate-900 hover:text-dts-maroon">
                   {e.company_name}
                 </Link>
-                <div className="text-xs text-slate-400">
-                  {[e.industry, e.primary_contact_name].filter(Boolean).join(" · ") || "—"}
-                </div>
+                {[e.industry, e.primary_contact_name].filter(Boolean).length > 0 ? (
+                  <div className="text-xs text-slate-400">
+                    {[e.industry, e.primary_contact_name].filter(Boolean).join(" · ")}
+                  </div>
+                ) : null}
               </div>
               {e.manual ? (
                 <form action={removeExhibitorFromShow}>

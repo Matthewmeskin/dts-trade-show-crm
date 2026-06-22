@@ -3,10 +3,17 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
 import { ConfirmDelete } from "@/components/confirm-delete";
+import { inputClass } from "@/components/form";
 import { SHOW_STATUS_META } from "@/lib/shows";
 import { SHIPMENT_STATUS_META, DIRECTION_META } from "@/lib/shipments";
 import { formatDateRange, formatDate } from "@/lib/format";
-import { deleteVenue } from "../actions";
+import {
+  deleteVenue,
+  addShowToVenue,
+  removeShowFromVenue,
+  addCarrierToVenue,
+  removeCarrierFromVenue,
+} from "../actions";
 import { QuickEditVenue } from "./quick-edit";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +37,7 @@ export default async function VenueRecordPage({
   const { data: venue } = await supabase.from("venues").select("*").eq("id", id).single();
   if (!venue) notFound();
 
-  const [showsRes, carrierRes, shipRes] = await Promise.all([
+  const [showsRes, carrierRes, shipRes, allShowsRes, allCarriersRes] = await Promise.all([
     supabase
       .from("shows_with_status")
       .select("id, show_name, edition_year, status, move_in_start, move_out_end")
@@ -45,6 +52,8 @@ export default async function VenueRecordPage({
       .select("id, status, direction, pickup_date, exhibitor:exhibitors(company_name), show:shows(show_name)")
       .eq("venue_id", id)
       .order("pickup_date", { ascending: true, nullsFirst: false }),
+    supabase.from("shows").select("id, show_name, edition_year, venue_id").order("show_name"),
+    supabase.from("carriers").select("id, carrier_name").order("carrier_name"),
   ]);
 
   const shows = showsRes.data ?? [];
@@ -52,6 +61,11 @@ export default async function VenueRecordPage({
   const carriers = (carrierRes.data ?? [])
     .map((r) => r.carrier)
     .filter((c): c is NonNullable<typeof c> => Boolean(c));
+
+  // Pickers: shows not already at this venue, and carriers not yet linked.
+  const availableShows = (allShowsRes.data ?? []).filter((s) => s.venue_id !== id);
+  const linkedCarrierIds = new Set(carriers.map((c) => c.id));
+  const availableCarriers = (allCarriersRes.data ?? []).filter((c) => !linkedCarrierIds.has(c.id));
 
   const hasIntel = INTEL_FIELDS.some((f) => venue[f.key]);
   const location = [venue.city, venue.state].filter(Boolean).join(", ");
@@ -161,9 +175,35 @@ export default async function VenueRecordPage({
         {/* Shows + carriers */}
         <div className="space-y-5">
           <Card>
-            <CardHeader title={`Shows held here (${shows.length})`} icon="shows" />
+            <CardHeader
+              title={`Shows held here (${shows.length})`}
+              icon="shows"
+              action={
+                <div className="flex items-center gap-2">
+                  {availableShows.length > 0 ? (
+                    <form action={addShowToVenue} className="flex items-center gap-1.5">
+                      <input type="hidden" name="venue_id" value={id} />
+                      <select name="show_id" required defaultValue="" className={`${inputClass} h-8 py-1 text-xs`}>
+                        <option value="" disabled>Add show…</option>
+                        {availableShows.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.show_name}{s.edition_year ? ` ${s.edition_year}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <button type="submit" className="rounded-lg bg-dts-maroon px-2.5 py-1 text-xs font-medium text-white hover:bg-dts-maroon-dark">
+                        Add
+                      </button>
+                    </form>
+                  ) : null}
+                  <Link href="/shows/new" className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                    New
+                  </Link>
+                </div>
+              }
+            />
             {shows.length === 0 ? (
-              <EmptyState icon="shows" title="No shows yet" />
+              <EmptyState icon="shows" title="No shows yet" description="Add an existing show, or create a new one." />
             ) : (
               <ul className="divide-y divide-slate-100">
                 {shows.map((s) => {
@@ -180,10 +220,19 @@ export default async function VenueRecordPage({
                             <span className="ml-1 text-slate-400">{s.edition_year}</span>
                           ) : null}
                         </Link>
-                        <Badge className={meta.badge}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
-                          {meta.label}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className={meta.badge}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                            {meta.label}
+                          </Badge>
+                          <form action={removeShowFromVenue}>
+                            <input type="hidden" name="venue_id" value={id} />
+                            <input type="hidden" name="show_id" value={s.id ?? ""} />
+                            <button type="submit" className="text-xs font-medium text-slate-400 hover:text-dts-maroon">
+                              Remove
+                            </button>
+                          </form>
+                        </div>
                       </div>
                       <div className="mt-0.5 text-xs text-slate-400">
                         {formatDateRange(s.move_in_start, s.move_out_end)}
@@ -196,19 +245,45 @@ export default async function VenueRecordPage({
           </Card>
 
           <Card>
-            <CardHeader title={`Carriers (${carriers.length})`} icon="carriers" />
+            <CardHeader
+              title={`Carriers (${carriers.length})`}
+              icon="carriers"
+              action={
+                availableCarriers.length > 0 ? (
+                  <form action={addCarrierToVenue} className="flex items-center gap-1.5">
+                    <input type="hidden" name="venue_id" value={id} />
+                    <select name="carrier_id" required defaultValue="" className={`${inputClass} h-8 py-1 text-xs`}>
+                      <option value="" disabled>Link carrier…</option>
+                      {availableCarriers.map((c) => (
+                        <option key={c.id} value={c.id}>{c.carrier_name}</option>
+                      ))}
+                    </select>
+                    <button type="submit" className="rounded-lg bg-dts-maroon px-2.5 py-1 text-xs font-medium text-white hover:bg-dts-maroon-dark">
+                      Add
+                    </button>
+                  </form>
+                ) : null
+              }
+            />
             {carriers.length === 0 ? (
-              <EmptyState icon="carriers" title="No carriers linked" />
+              <EmptyState icon="carriers" title="No carriers linked" description="Link the carriers that service this venue." />
             ) : (
               <ul className="divide-y divide-slate-100">
                 {carriers.map((c) => (
-                  <li key={c.id} className="px-5 py-3">
+                  <li key={c.id} className="flex items-center justify-between px-5 py-3">
                     <Link
                       href={`/carriers/${c.id}`}
                       className="text-sm font-medium text-slate-900 hover:text-dts-maroon"
                     >
                       {c.carrier_name}
                     </Link>
+                    <form action={removeCarrierFromVenue}>
+                      <input type="hidden" name="venue_id" value={id} />
+                      <input type="hidden" name="carrier_id" value={c.id} />
+                      <button type="submit" className="text-xs font-medium text-slate-400 hover:text-dts-maroon">
+                        Remove
+                      </button>
+                    </form>
                   </li>
                 ))}
               </ul>
