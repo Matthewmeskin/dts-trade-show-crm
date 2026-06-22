@@ -90,10 +90,26 @@ export type UpcomingShow = ShowWithStatus & {
   cutoffDays: number | null;
 };
 
+export type WeekEvent = {
+  id: string;
+  exhibitor: string | null;
+  status: ShipmentStatus;
+  direction: "move_in" | "move_out" | null;
+};
+
+export type WeekDay = {
+  date: string; // YYYY-MM-DD
+  weekday: string; // Sun, Mon, …
+  dayNum: number;
+  isToday: boolean;
+  events: WeekEvent[];
+};
+
 export type DashboardData = {
   featured: FeaturedShow | null;
   exhibitorStatuses: ExhibitorStatusRow[];
   shipmentSummary: ShipmentSummary;
+  weekDays: WeekDay[];
   alerts: {
     cutoffs: CutoffAlert[];
     deliveryRisks: DeliveryRiskAlert[];
@@ -105,11 +121,31 @@ export type DashboardData = {
   upcomingShows: UpcomingShow[];
 };
 
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** Local YYYY-MM-DD for a Date (avoids UTC drift). */
+function localISO(d: Date): string {
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 export async function loadDashboard(): Promise<DashboardData> {
   const supabase = await createClient();
   const iso = todayISO();
 
-  const [showsRes, venuesRes, attentionRes, deliveryRes, allShipRes, tasksRes] = await Promise.all([
+  // Current week, Sunday → Saturday, for the dashboard week strip.
+  const base = today();
+  const weekStart = new Date(base);
+  weekStart.setDate(base.getDate() - base.getDay());
+  const weekDates: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    weekDates.push(localISO(d));
+  }
+
+  const [showsRes, venuesRes, attentionRes, deliveryRes, allShipRes, tasksRes, weekRes] = await Promise.all([
     supabase.from("shows_with_status").select("*"),
     supabase.from("venues").select("id, venue_name, city, state"),
     supabase
@@ -134,7 +170,35 @@ export async function loadDashboard(): Promise<DashboardData> {
       .not("due_date", "is", null)
       .lte("due_date", iso)
       .order("due_date", { ascending: true }),
+    supabase
+      .from("shipments")
+      .select("id, status, direction, pickup_date, exhibitor:exhibitors(company_name)")
+      .gte("pickup_date", weekDates[0])
+      .lte("pickup_date", weekDates[6])
+      .order("pickup_date", { ascending: true }),
   ]);
+
+  // ---- Week strip (shipments by pickup date) -------------------------------
+  const eventsByDate = new Map<string, WeekEvent[]>();
+  for (const s of weekRes.data ?? []) {
+    if (!s.pickup_date) continue;
+    const key = s.pickup_date.slice(0, 10);
+    const list = eventsByDate.get(key) ?? [];
+    list.push({
+      id: s.id,
+      exhibitor: s.exhibitor?.company_name ?? null,
+      status: s.status,
+      direction: s.direction,
+    });
+    eventsByDate.set(key, list);
+  }
+  const weekDays: WeekDay[] = weekDates.map((d, i) => ({
+    date: d,
+    weekday: WEEKDAYS[i],
+    dayNum: Number(d.slice(8, 10)),
+    isToday: d === iso,
+    events: eventsByDate.get(d) ?? [],
+  }));
 
   const shows = (showsRes.data ?? []) as ShowWithStatus[];
   const venues = venuesRes.data ?? [];
@@ -301,6 +365,7 @@ export async function loadDashboard(): Promise<DashboardData> {
     featured,
     exhibitorStatuses,
     shipmentSummary,
+    weekDays,
     alerts: {
       cutoffs,
       deliveryRisks,

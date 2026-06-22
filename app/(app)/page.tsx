@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { loadDashboard } from "@/lib/dashboard";
+import { loadDashboard, type WeekDay } from "@/lib/dashboard";
 import {
   PageHeader,
   Card,
@@ -10,7 +10,7 @@ import {
 } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { SHOW_STATUS_META } from "@/lib/shows";
-import { ROLLUP_META, DELIVERY_HEALTH_META } from "@/lib/shipments";
+import { ROLLUP_META, DELIVERY_HEALTH_META, SHIPMENT_STATUS_META } from "@/lib/shipments";
 import {
   formatDateRange,
   formatDate,
@@ -44,6 +44,11 @@ export default async function DashboardPage() {
         <QuickAction href="/shipments/new" icon="shipments" label="Log shipment" />
         <QuickAction href="/documents/new" icon="documents" label="Upload document" />
         <QuickAction href="/tasks/new" icon="tasks" label="Add task" />
+      </div>
+
+      {/* This week */}
+      <div className="mb-5">
+        <WeekCalendarCard days={data.weekDays} />
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -81,6 +86,81 @@ export default async function DashboardPage() {
 }
 
 /* -------------------------------------------------------------------------- */
+
+function WeekCalendarCard({ days }: { days: WeekDay[] }) {
+  const total = days.reduce((n, d) => n + d.events.length, 0);
+  const range =
+    days.length > 0
+      ? `${formatShortDate(days[0].date)} – ${formatShortDate(days[days.length - 1].date)}`
+      : "";
+
+  return (
+    <Card>
+      <CardHeader
+        title="This week"
+        icon="calendar"
+        action={
+          <Link href="/calendar?view=week" className="text-sm font-medium text-dts-blue hover:underline">
+            Full calendar →
+          </Link>
+        }
+      />
+      <div className="px-2 pb-2 text-xs text-slate-400 sm:px-4">
+        <span className="px-1">{range}</span>
+      </div>
+      <div className="grid grid-cols-1 gap-px overflow-hidden border-t border-slate-100 bg-slate-100 sm:grid-cols-7">
+        {days.map((d) => (
+          <div
+            key={d.date}
+            className={`min-h-[7rem] bg-white p-2 ${d.isToday ? "ring-1 ring-inset ring-dts-maroon/30" : ""}`}
+          >
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                {d.weekday}
+              </span>
+              <span
+                className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold ${
+                  d.isToday ? "bg-dts-maroon text-white" : "text-slate-500"
+                }`}
+              >
+                {d.dayNum}
+              </span>
+            </div>
+            <div className="space-y-1">
+              {d.events.slice(0, 4).map((e) => {
+                const sm = SHIPMENT_STATUS_META[e.status];
+                return (
+                  <Link
+                    key={e.id}
+                    href={`/shipments/${e.id}`}
+                    className="flex items-center gap-1.5 truncate rounded px-1 py-0.5 text-xs text-slate-700 hover:bg-slate-50"
+                    title={e.exhibitor ?? "Shipment"}
+                  >
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${sm.dot}`} />
+                    <span className="truncate">{e.exhibitor ?? "Shipment"}</span>
+                  </Link>
+                );
+              })}
+              {d.events.length > 4 ? (
+                <Link
+                  href="/calendar?view=week"
+                  className="block px-1 text-[11px] font-medium text-slate-400 hover:text-slate-600"
+                >
+                  +{d.events.length - 4} more
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+      {total === 0 ? (
+        <p className="border-t border-slate-100 px-5 py-3 text-sm text-slate-400">
+          No pickups scheduled this week.
+        </p>
+      ) : null}
+    </Card>
+  );
+}
 
 function FeaturedShowCard({ data }: { data: Awaited<ReturnType<typeof loadDashboard>> }) {
   const featured = data.featured;
