@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { loadDashboard, type WeekDay } from "@/lib/dashboard";
+import { loadDashboard, type WeekDay, type WeekBasis } from "@/lib/dashboard";
 import {
   PageHeader,
   Card,
@@ -27,8 +27,14 @@ const PRIORITY_META: Record<string, string> = {
   low: "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-500/20",
 };
 
-export default async function DashboardPage() {
-  const data = await loadDashboard();
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string }>;
+}) {
+  const { week } = await searchParams;
+  const weekBasis: WeekBasis = week === "delivery" ? "delivery" : "pickup";
+  const data = await loadDashboard(weekBasis);
   const { featured } = data;
 
   return (
@@ -48,7 +54,7 @@ export default async function DashboardPage() {
 
       {/* This week */}
       <div className="mb-5">
-        <WeekCalendarCard days={data.weekDays} />
+        <WeekCalendarCard days={data.weekDays} basis={weekBasis} />
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -87,12 +93,22 @@ export default async function DashboardPage() {
 
 /* -------------------------------------------------------------------------- */
 
-function WeekCalendarCard({ days }: { days: WeekDay[] }) {
+function WeekCalendarCard({ days, basis }: { days: WeekDay[]; basis: WeekBasis }) {
   const total = days.reduce((n, d) => n + d.events.length, 0);
   const range =
     days.length > 0
       ? `${formatShortDate(days[0].date)} – ${formatShortDate(days[days.length - 1].date)}`
       : "";
+  const tab = (label: string, value: WeekBasis) => (
+    <Link
+      href={value === "pickup" ? "/" : `/?week=${value}`}
+      className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+        basis === value ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
+      }`}
+    >
+      {label}
+    </Link>
+  );
 
   return (
     <Card>
@@ -100,9 +116,15 @@ function WeekCalendarCard({ days }: { days: WeekDay[] }) {
         title="This week"
         icon="calendar"
         action={
-          <Link href="/calendar?view=week" className="text-sm font-medium text-dts-blue hover:underline">
-            Full calendar →
-          </Link>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
+              {tab("Pickup", "pickup")}
+              {tab("Delivery", "delivery")}
+            </div>
+            <Link href="/calendar?view=week" className="text-sm font-medium text-dts-blue hover:underline">
+              Full calendar →
+            </Link>
+          </div>
         }
       />
       <div className="px-2 pb-2 text-xs text-slate-400 sm:px-4">
@@ -155,7 +177,7 @@ function WeekCalendarCard({ days }: { days: WeekDay[] }) {
       </div>
       {total === 0 ? (
         <p className="border-t border-slate-100 px-5 py-3 text-sm text-slate-400">
-          No pickups scheduled this week.
+          No {basis === "delivery" ? "deliveries" : "pickups"} scheduled this week.
         </p>
       ) : null}
     </Card>
