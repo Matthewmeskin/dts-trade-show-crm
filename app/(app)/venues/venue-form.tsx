@@ -78,7 +78,7 @@ export function VenueForm({
       <div className="mt-5 flex items-center gap-3">
         <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
         <Link
-          href={venue ? `/venues/${venue.id}` : "/venues"}
+          href={redirectTo ?? (venue ? `/venues/${venue.id}` : "/venues")}
           className="text-sm font-medium text-slate-500 hover:text-slate-900"
         >
           Cancel

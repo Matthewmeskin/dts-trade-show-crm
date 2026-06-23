@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -70,6 +70,20 @@ export function ShipmentPanel({
   const data = ready ? loaded!.value : null;
   const loading = !ready;
 
+  // Keep clicks inside the panel from closing it, but treat the form's "Cancel"
+  // (a link back to the page we're already on) as a request to close the panel
+  // rather than a no-op navigation.
+  const onContentClick = (e: MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    const a = (e.target as HTMLElement).closest("a");
+    if (!a) return;
+    const url = new URL(a.href, window.location.origin);
+    if (url.pathname + url.search === returnTo) {
+      e.preventDefault();
+      onClose();
+    }
+  };
+
   if (!open) return null;
   return createPortal(
     <div
@@ -80,7 +94,7 @@ export function ShipmentPanel({
     >
       <div
         className="flex h-full w-full max-w-xl flex-col bg-slate-50 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        onClick={onContentClick}
       >
         <PanelBody data={data} loading={loading} returnTo={returnTo} onClose={onClose} />
       </div>

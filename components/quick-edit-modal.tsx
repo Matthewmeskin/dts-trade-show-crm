@@ -56,7 +56,7 @@ export function QuickEditModal({
 
       {open ? (
         <div
-          className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:p-8"
+          className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:p-8"
           onClick={() => setOpen(false)}
           role="dialog"
           aria-modal="true"
