@@ -49,7 +49,7 @@ export function CarrierForm({
       <div className="mt-5 flex items-center gap-3">
         <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
         <Link
-          href={carrier ? `/carriers/${carrier.id}` : "/carriers"}
+          href={redirectTo ?? (carrier ? `/carriers/${carrier.id}` : "/carriers")}
           className="text-sm font-medium text-slate-500 hover:text-slate-900"
         >
           Cancel

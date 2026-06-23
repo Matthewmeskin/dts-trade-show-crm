@@ -135,7 +135,7 @@ export function ExhibitorForm({
       <div className="mt-5 flex items-center gap-3">
         <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
         <Link
-          href={exhibitor ? `/exhibitors/${exhibitor.id}` : "/exhibitors"}
+          href={redirectTo ?? (exhibitor ? `/exhibitors/${exhibitor.id}` : "/exhibitors")}
           className="text-sm font-medium text-slate-500 hover:text-slate-900"
         >
           Cancel

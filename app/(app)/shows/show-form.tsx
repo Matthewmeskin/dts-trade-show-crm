@@ -236,7 +236,7 @@ export function ShowForm({
       <div className="mt-5 flex items-center gap-3">
         <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
         <Link
-          href={show ? `/shows/${show.id}` : "/shows"}
+          href={redirectTo ?? (show ? `/shows/${show.id}` : "/shows")}
           className="text-sm font-medium text-slate-500 hover:text-slate-900"
         >
           Cancel

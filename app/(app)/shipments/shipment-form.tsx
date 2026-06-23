@@ -199,7 +199,7 @@ export function ShipmentForm({
       <div className="mt-5 flex items-center gap-3">
         <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
         <Link
-          href={shipment ? `/shipments/${shipment.id}` : "/shipments"}
+          href={redirectTo ?? (shipment ? `/shipments/${shipment.id}` : "/shipments")}
           className="text-sm font-medium text-slate-500 hover:text-slate-900"
         >
           Cancel
