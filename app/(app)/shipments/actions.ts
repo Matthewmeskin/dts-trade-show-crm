@@ -42,6 +42,7 @@ function operatorFields(fd: FormData) {
     tms_reference_id: str(fd, "tms_reference_id"),
     show_id: str(fd, "show_id"),
     exhibitor_id: str(fd, "exhibitor_id"),
+    venue_id: str(fd, "venue_id"),
     destination_type: enumOrNull(
       str(fd, "destination_type"),
       Constants.public.Enums.shipment_destination,
@@ -129,17 +130,19 @@ export async function updateShipment(
 export async function getShipmentDrawerData(id: string) {
   if (!id) return null;
   const supabase = await createClient();
-  const [{ data: shipment }, { data: showsData }, { data: exhibitorsData }] = await Promise.all([
-    supabase
-      .from("shipments")
-      .select(
-        "*, exhibitor:exhibitors(id, company_name), show:shows(id, show_name, edition_year, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(id, carrier_name), venue:venues(id, venue_name)",
-      )
-      .eq("id", id)
-      .single(),
-    supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
-    supabase.from("exhibitors").select("id, company_name").order("company_name"),
-  ]);
+  const [{ data: shipment }, { data: showsData }, { data: exhibitorsData }, { data: venuesData }] =
+    await Promise.all([
+      supabase
+        .from("shipments")
+        .select(
+          "*, exhibitor:exhibitors(id, company_name, industry, primary_contact_name, primary_contact_email, primary_contact_phone), show:shows(id, show_name, edition_year, show_start_date, show_end_date, move_in_start, move_in_end, move_out_start, move_out_end, advance_warehouse_open, advance_warehouse_cutoff, advance_warehouse_address, direct_to_show_address), carrier:carriers(id, carrier_name), venue:venues(id, venue_name, city, state)",
+        )
+        .eq("id", id)
+        .single(),
+      supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
+      supabase.from("exhibitors").select("id, company_name").order("company_name"),
+      supabase.from("venues").select("id, venue_name, city, state").order("venue_name"),
+    ]);
   if (!shipment) return null;
   return {
     shipment,
@@ -148,6 +151,10 @@ export async function getShipmentDrawerData(id: string) {
       label: `${x.show_name}${x.edition_year ? ` ${x.edition_year}` : ""}`,
     })),
     exhibitors: (exhibitorsData ?? []).map((x) => ({ id: x.id, label: x.company_name })),
+    venues: (venuesData ?? []).map((x) => ({
+      id: x.id,
+      label: `${x.venue_name}${x.city ? ` (${x.city}${x.state ? `, ${x.state}` : ""})` : ""}`,
+    })),
   };
 }
 
