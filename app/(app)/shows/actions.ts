@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { TablesInsert } from "@/lib/database.types";
+import {
+  composeFreightAddress,
+  FREIGHT_ADDRESS_KEYS,
+  type FreightAddressParts,
+} from "@/lib/freight";
 
 export type ShowFormState = {
   error: string | null;
@@ -51,8 +56,39 @@ function parseShow(fd: FormData): {
 
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
+  // Read each freight address's structured parts, and compose them into the
+  // legacy single-line *_address column (falling back to any existing value the
+  // form carries in a hidden field so it isn't wiped when parts are empty).
+  const freight = (prefix: "advance_warehouse" | "direct_to_show") => {
+    const parts: FreightAddressParts = {};
+    for (const k of FREIGHT_ADDRESS_KEYS) parts[k] = str(fd, `${prefix}_${k}`);
+    const address =
+      composeFreightAddress(parts).oneLine ?? str(fd, `${prefix}_address_legacy`);
+    return { parts, address };
+  };
+  const aw = freight("advance_warehouse");
+  const dts = freight("direct_to_show");
+
   return {
     data: {
+      advance_warehouse_name: aw.parts.name ?? null,
+      advance_warehouse_care_of: aw.parts.care_of ?? null,
+      advance_warehouse_street1: aw.parts.street1 ?? null,
+      advance_warehouse_street2: aw.parts.street2 ?? null,
+      advance_warehouse_city: aw.parts.city ?? null,
+      advance_warehouse_state: aw.parts.state ?? null,
+      advance_warehouse_zip: aw.parts.zip ?? null,
+      advance_warehouse_country: aw.parts.country ?? null,
+      advance_warehouse_address: aw.address,
+      direct_to_show_name: dts.parts.name ?? null,
+      direct_to_show_care_of: dts.parts.care_of ?? null,
+      direct_to_show_street1: dts.parts.street1 ?? null,
+      direct_to_show_street2: dts.parts.street2 ?? null,
+      direct_to_show_city: dts.parts.city ?? null,
+      direct_to_show_state: dts.parts.state ?? null,
+      direct_to_show_zip: dts.parts.zip ?? null,
+      direct_to_show_country: dts.parts.country ?? null,
+      direct_to_show_address: dts.address,
       show_name: show_name!,
       edition_year: int(fd, "edition_year"),
       industry_vertical: str(fd, "industry_vertical"),
@@ -71,10 +107,8 @@ function parseShow(fd: FormData): {
       move_out_end,
       advance_warehouse_open: str(fd, "advance_warehouse_open"),
       advance_warehouse_cutoff: str(fd, "advance_warehouse_cutoff"),
-      advance_warehouse_address: str(fd, "advance_warehouse_address"),
       direct_to_show_start: str(fd, "direct_to_show_start"),
       direct_to_show_end: str(fd, "direct_to_show_end"),
-      direct_to_show_address: str(fd, "direct_to_show_address"),
       estimated_revenue: num(fd, "estimated_revenue"),
       actual_revenue: num(fd, "actual_revenue"),
       competitor_notes: str(fd, "competitor_notes"),

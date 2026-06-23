@@ -588,7 +588,23 @@ export type Database = {
           advance_warehouse_cutoff: string | null
           advance_warehouse_open: string | null
           advance_warehouse_address: string | null
+          advance_warehouse_name: string | null
+          advance_warehouse_care_of: string | null
+          advance_warehouse_street1: string | null
+          advance_warehouse_street2: string | null
+          advance_warehouse_city: string | null
+          advance_warehouse_state: string | null
+          advance_warehouse_zip: string | null
+          advance_warehouse_country: string | null
           direct_to_show_address: string | null
+          direct_to_show_name: string | null
+          direct_to_show_care_of: string | null
+          direct_to_show_street1: string | null
+          direct_to_show_street2: string | null
+          direct_to_show_city: string | null
+          direct_to_show_state: string | null
+          direct_to_show_zip: string | null
+          direct_to_show_country: string | null
           archived: boolean
           competitor_notes: string | null
           created_at: string
@@ -619,7 +635,23 @@ export type Database = {
           advance_warehouse_cutoff?: string | null
           advance_warehouse_open?: string | null
           advance_warehouse_address?: string | null
+          advance_warehouse_name?: string | null
+          advance_warehouse_care_of?: string | null
+          advance_warehouse_street1?: string | null
+          advance_warehouse_street2?: string | null
+          advance_warehouse_city?: string | null
+          advance_warehouse_state?: string | null
+          advance_warehouse_zip?: string | null
+          advance_warehouse_country?: string | null
           direct_to_show_address?: string | null
+          direct_to_show_name?: string | null
+          direct_to_show_care_of?: string | null
+          direct_to_show_street1?: string | null
+          direct_to_show_street2?: string | null
+          direct_to_show_city?: string | null
+          direct_to_show_state?: string | null
+          direct_to_show_zip?: string | null
+          direct_to_show_country?: string | null
           archived?: boolean
           competitor_notes?: string | null
           created_at?: string
@@ -650,7 +682,23 @@ export type Database = {
           advance_warehouse_cutoff?: string | null
           advance_warehouse_open?: string | null
           advance_warehouse_address?: string | null
+          advance_warehouse_name?: string | null
+          advance_warehouse_care_of?: string | null
+          advance_warehouse_street1?: string | null
+          advance_warehouse_street2?: string | null
+          advance_warehouse_city?: string | null
+          advance_warehouse_state?: string | null
+          advance_warehouse_zip?: string | null
+          advance_warehouse_country?: string | null
           direct_to_show_address?: string | null
+          direct_to_show_name?: string | null
+          direct_to_show_care_of?: string | null
+          direct_to_show_street1?: string | null
+          direct_to_show_street2?: string | null
+          direct_to_show_city?: string | null
+          direct_to_show_state?: string | null
+          direct_to_show_zip?: string | null
+          direct_to_show_country?: string | null
           archived?: boolean
           competitor_notes?: string | null
           created_at?: string

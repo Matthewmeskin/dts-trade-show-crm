@@ -8,6 +8,7 @@ import { Icon } from "@/components/icons";
 import { Badge } from "@/components/ui";
 import { LocalDateTime } from "@/components/local-time";
 import { formatDate, formatCurrency } from "@/lib/format";
+import { composeFreightAddress } from "@/lib/freight";
 import {
   SHIPMENT_STATUS_META,
   TMS_SYNC_META,
@@ -331,8 +332,26 @@ function PanelBody({
               <Fact label="Adv. warehouse cutoff" value={s.show.advance_warehouse_cutoff ? formatDate(s.show.advance_warehouse_cutoff) : null} />
               <Fact label="Direct-to-show start" value={s.show.direct_to_show_start ? formatDate(s.show.direct_to_show_start) : null} />
               <Fact label="Direct-to-show end" value={s.show.direct_to_show_end ? formatDate(s.show.direct_to_show_end) : null} />
-              <Fact label="Adv. warehouse address" value={s.show.advance_warehouse_address} className="col-span-2" />
-              <Fact label="Direct-to-show address" value={s.show.direct_to_show_address} className="col-span-2" />
+              <Fact label="Adv. warehouse address" value={addressValue({
+                name: s.show.advance_warehouse_name,
+                care_of: s.show.advance_warehouse_care_of,
+                street1: s.show.advance_warehouse_street1,
+                street2: s.show.advance_warehouse_street2,
+                city: s.show.advance_warehouse_city,
+                state: s.show.advance_warehouse_state,
+                zip: s.show.advance_warehouse_zip,
+                country: s.show.advance_warehouse_country,
+              }, s.show.advance_warehouse_address)} className="col-span-2" />
+              <Fact label="Direct-to-show address" value={addressValue({
+                name: s.show.direct_to_show_name,
+                care_of: s.show.direct_to_show_care_of,
+                street1: s.show.direct_to_show_street1,
+                street2: s.show.direct_to_show_street2,
+                city: s.show.direct_to_show_city,
+                state: s.show.direct_to_show_state,
+                zip: s.show.direct_to_show_zip,
+                country: s.show.direct_to_show_country,
+              }, s.show.direct_to_show_address)} className="col-span-2" />
               <LinkFact label="Website" href={s.show.website_url} />
               <LinkFact label="Exhibitor manual" href={s.show.exhibitor_manual_url} />
               <LinkFact label="Exhibitor list" href={s.show.exhibitor_list_url} />
@@ -511,6 +530,28 @@ function LinkFact({ label, href }: { label: string; href: string | null | undefi
 type SecondaryContact = { name?: string; title?: string; email?: string; phone?: string };
 function secondaryContacts(value: unknown): SecondaryContact[] {
   return Array.isArray(value) ? (value as SecondaryContact[]) : [];
+}
+
+/**
+ * Render a freight address from its structured parts as stacked lines, falling
+ * back to a legacy single-line string (split on commas) when no parts are set.
+ */
+function addressValue(
+  parts: Parameters<typeof composeFreightAddress>[0],
+  legacy: string | null,
+): ReactNode {
+  const composed = composeFreightAddress(parts);
+  const lines = composed.lines.length
+    ? composed.lines
+    : (legacy ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+  if (!lines.length) return null;
+  return (
+    <span className="block">
+      {lines.map((l, i) => (
+        <span key={i} className="block leading-snug">{l}</span>
+      ))}
+    </span>
+  );
 }
 
 function Fact({ label, value, className = "" }: { label: string; value: ReactNode; className?: string }) {

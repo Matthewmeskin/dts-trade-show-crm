@@ -17,6 +17,7 @@ import {
   formatCurrency,
   formatCountdown,
 } from "@/lib/format";
+import { composeFreightAddress } from "@/lib/freight";
 import {
   addExhibitorToShow,
   removeExhibitorFromShow,
@@ -69,7 +70,7 @@ export default async function ShowRecordPage({
     supabase.from("shows_with_status").select("*").eq("id", id).single(),
     supabase
       .from("shows")
-      .select("website_url, exhibitor_manual_url, exhibitor_list_url, advance_warehouse_address, direct_to_show_address")
+      .select("website_url, exhibitor_manual_url, exhibitor_list_url, advance_warehouse_address, advance_warehouse_name, advance_warehouse_care_of, advance_warehouse_street1, advance_warehouse_street2, advance_warehouse_city, advance_warehouse_state, advance_warehouse_zip, advance_warehouse_country, direct_to_show_address, direct_to_show_name, direct_to_show_care_of, direct_to_show_street1, direct_to_show_street2, direct_to_show_city, direct_to_show_state, direct_to_show_zip, direct_to_show_country")
       .eq("id", id)
       .single(),
     supabase.from("shows").select("*").eq("id", id).single(),
@@ -169,13 +170,32 @@ export default async function ShowRecordPage({
 /* Overview                                                                    */
 /* -------------------------------------------------------------------------- */
 
-type ShowLinks = {
+type FreightAddressColumns = {
+  advance_warehouse_address: string | null;
+  advance_warehouse_name: string | null;
+  advance_warehouse_care_of: string | null;
+  advance_warehouse_street1: string | null;
+  advance_warehouse_street2: string | null;
+  advance_warehouse_city: string | null;
+  advance_warehouse_state: string | null;
+  advance_warehouse_zip: string | null;
+  advance_warehouse_country: string | null;
+  direct_to_show_address: string | null;
+  direct_to_show_name: string | null;
+  direct_to_show_care_of: string | null;
+  direct_to_show_street1: string | null;
+  direct_to_show_street2: string | null;
+  direct_to_show_city: string | null;
+  direct_to_show_state: string | null;
+  direct_to_show_zip: string | null;
+  direct_to_show_country: string | null;
+};
+
+type ShowLinks = ({
   website_url: string | null;
   exhibitor_manual_url: string | null;
   exhibitor_list_url: string | null;
-  advance_warehouse_address: string | null;
-  direct_to_show_address: string | null;
-} | null;
+} & FreightAddressColumns) | null;
 
 async function OverviewTab({ show, links }: { show: ShowWithStatus; links: ShowLinks }) {
   const supabase = await createClient();
@@ -223,15 +243,41 @@ async function OverviewTab({ show, links }: { show: ShowWithStatus; links: ShowL
           </div>
         </Card>
 
-        {links && (links.advance_warehouse_address || links.direct_to_show_address) ? (
-          <Card>
-            <CardHeader title="Freight addresses" icon="venues" />
-            <dl className="divide-y divide-slate-100 text-sm">
-              <AddressRow label="Advance warehouse" value={links.advance_warehouse_address} />
-              <AddressRow label="Direct to show" value={links.direct_to_show_address} />
-            </dl>
-          </Card>
-        ) : null}
+        {(() => {
+          const aw = composeFreightAddress({
+            name: links?.advance_warehouse_name,
+            care_of: links?.advance_warehouse_care_of,
+            street1: links?.advance_warehouse_street1,
+            street2: links?.advance_warehouse_street2,
+            city: links?.advance_warehouse_city,
+            state: links?.advance_warehouse_state,
+            zip: links?.advance_warehouse_zip,
+            country: links?.advance_warehouse_country,
+          });
+          const dts = composeFreightAddress({
+            name: links?.direct_to_show_name,
+            care_of: links?.direct_to_show_care_of,
+            street1: links?.direct_to_show_street1,
+            street2: links?.direct_to_show_street2,
+            city: links?.direct_to_show_city,
+            state: links?.direct_to_show_state,
+            zip: links?.direct_to_show_zip,
+            country: links?.direct_to_show_country,
+          });
+          // Fall back to the legacy single-line address when no parts are set.
+          const awLines = aw.lines.length ? aw.lines : asLines(links?.advance_warehouse_address);
+          const dtsLines = dts.lines.length ? dts.lines : asLines(links?.direct_to_show_address);
+          if (!awLines.length && !dtsLines.length) return null;
+          return (
+            <Card>
+              <CardHeader title="Freight addresses" icon="venues" />
+              <dl className="divide-y divide-slate-100 text-sm">
+                <AddressRow label="Advance warehouse" lines={awLines} />
+                <AddressRow label="Direct to show" lines={dtsLines} />
+              </dl>
+            </Card>
+          );
+        })()}
 
         {(show.competitor_notes || show.general_notes) && (
           <Card>
@@ -376,15 +422,23 @@ function LinkDetailRow({ label, href }: { label: string; href: string | null }) 
   );
 }
 
-function AddressRow({ label, value }: { label: string; value: string | null }) {
-  if (!value) return null;
-  const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
+/** Split a legacy single-line address into display lines on commas. */
+function asLines(value: string | null | undefined): string[] {
+  if (!value) return [];
+  return value.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+function AddressRow({ label, lines }: { label: string; lines: string[] }) {
+  if (!lines.length) return null;
+  const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lines.join(", "))}`;
   return (
     <div className="flex items-start justify-between gap-4 px-5 py-3">
       <dt className="shrink-0 text-slate-400">{label}</dt>
       <dd className="min-w-0 text-right">
         <a href={maps} target="_blank" rel="noopener noreferrer" className="text-dts-blue hover:underline">
-          {value}
+          {lines.map((l, i) => (
+            <span key={i} className="block leading-snug">{l}</span>
+          ))}
         </a>
       </dd>
     </div>
