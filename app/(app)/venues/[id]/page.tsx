@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
+import { LinkRow } from "@/components/link-row";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { inputClass } from "@/components/form";
 import { SHOW_STATUS_META } from "@/lib/shows";
@@ -13,6 +14,8 @@ import {
   removeShowFromVenue,
   addCarrierToVenue,
   removeCarrierFromVenue,
+  attachShipmentToVenue,
+  detachShipmentFromVenue,
 } from "../actions";
 import { QuickEditVenue } from "./quick-edit";
 
@@ -37,7 +40,7 @@ export default async function VenueRecordPage({
   const { data: venue } = await supabase.from("venues").select("*").eq("id", id).single();
   if (!venue) notFound();
 
-  const [showsRes, carrierRes, shipRes, allShowsRes, allCarriersRes] = await Promise.all([
+  const [showsRes, carrierRes, shipRes, allShowsRes, allCarriersRes, unlinkedShipRes] = await Promise.all([
     supabase
       .from("shows_with_status")
       .select("id, show_name, edition_year, status, move_in_start, move_out_end")
@@ -54,10 +57,16 @@ export default async function VenueRecordPage({
       .order("pickup_date", { ascending: true, nullsFirst: false }),
     supabase.from("shows").select("id, show_name, edition_year, venue_id").order("show_name"),
     supabase.from("carriers").select("id, carrier_name").order("carrier_name"),
+    supabase
+      .from("shipments")
+      .select("id, pro_number, tms_reference_id, exhibitor:exhibitors(company_name)")
+      .is("venue_id", null)
+      .order("pickup_date", { ascending: false, nullsFirst: false }),
   ]);
 
   const shows = showsRes.data ?? [];
   const shipments = shipRes.data ?? [];
+  const unlinkedShipments = unlinkedShipRes.data ?? [];
   const carriers = (carrierRes.data ?? [])
     .map((r) => r.carrier)
     .filter((c): c is NonNullable<typeof c> => Boolean(c));
@@ -126,9 +135,36 @@ export default async function VenueRecordPage({
           </Card>
 
           <Card className="mt-5">
-            <CardHeader title={`Loads at this venue (${shipments.length})`} icon="shipments" />
+            <CardHeader
+              title={`Loads at this venue (${shipments.length})`}
+              icon="shipments"
+              action={
+                <div className="flex items-center gap-2">
+                  {unlinkedShipments.length > 0 ? (
+                    <form action={attachShipmentToVenue} className="flex items-center gap-1.5">
+                      <input type="hidden" name="venue_id" value={id} />
+                      <select name="shipment_id" required defaultValue="" className={`${inputClass} h-8 py-1 text-xs`}>
+                        <option value="" disabled>Attach shipment…</option>
+                        {unlinkedShipments.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.exhibitor?.company_name ?? "Shipment"}
+                            {s.tms_reference_id ? ` · ${s.tms_reference_id}` : s.pro_number ? ` · PRO ${s.pro_number}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <button type="submit" className="rounded-lg bg-dts-maroon px-2.5 py-1 text-xs font-medium text-white hover:bg-dts-maroon-dark">
+                        Add
+                      </button>
+                    </form>
+                  ) : null}
+                  <Link href="/shipments/new" className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                    Log
+                  </Link>
+                </div>
+              }
+            />
             {shipments.length === 0 ? (
-              <EmptyState icon="shipments" title="No shipments routed through this venue yet" />
+              <EmptyState icon="shipments" title="No shipments routed through this venue yet" description="Attach an existing shipment or log a new one." />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -139,15 +175,16 @@ export default async function VenueRecordPage({
                       <th className="px-5 py-3">Status</th>
                       <th className="px-5 py-3">Show</th>
                       <th className="px-5 py-3">Pickup</th>
+                      <th className="px-5 py-3"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {shipments.map((s) => {
                       const meta = SHIPMENT_STATUS_META[s.status];
                       return (
-                        <tr key={s.id} className="hover:bg-slate-50/60">
+                        <LinkRow key={s.id} href={`/shipments/${s.id}`} className="group hover:bg-slate-50/60">
                           <td className="px-5 py-3">
-                            <Link href={`/shipments/${s.id}`} className="font-medium text-slate-900 hover:text-dts-maroon">
+                            <Link href={`/shipments/${s.id}`} className="font-medium text-slate-900 group-hover:text-dts-maroon">
                               {s.exhibitor?.company_name ?? "Shipment"}
                             </Link>
                           </td>
@@ -162,7 +199,16 @@ export default async function VenueRecordPage({
                           </td>
                           <td className="px-5 py-3 text-slate-600">{s.show?.show_name ?? "—"}</td>
                           <td className="px-5 py-3 text-slate-600">{formatDate(s.pickup_date)}</td>
-                        </tr>
+                          <td className="px-5 py-3 text-right">
+                            <form action={detachShipmentFromVenue}>
+                              <input type="hidden" name="venue_id" value={id} />
+                              <input type="hidden" name="shipment_id" value={s.id} />
+                              <button type="submit" className="text-xs font-medium text-slate-400 hover:text-dts-maroon">
+                                Remove
+                              </button>
+                            </form>
+                          </td>
+                        </LinkRow>
                       );
                     })}
                   </tbody>
