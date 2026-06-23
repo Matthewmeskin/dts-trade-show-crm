@@ -78,7 +78,9 @@ export function ShipmentPanel({
     const a = (e.target as HTMLElement).closest("a");
     if (!a) return;
     const url = new URL(a.href, window.location.origin);
-    if (url.pathname + url.search === returnTo) {
+    // Only intercept internal links back to this same page (the form's Cancel);
+    // external links (e.g. a show website) must open normally.
+    if (url.origin === window.location.origin && url.pathname + url.search === returnTo) {
       e.preventDefault();
       onClose();
     }
