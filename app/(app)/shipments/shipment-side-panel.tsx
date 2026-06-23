@@ -169,11 +169,81 @@ function PanelBody({
           />
         </dl>
 
+        {/* Freight & route */}
+        <dl className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+          <Fact label="Mode" value={s.mode} />
+          <Fact label="PRO #" value={s.pro_number} />
+          <Fact label="Weight" value={s.weight != null ? `${s.weight} lbs` : null} />
+          <Fact label="Pieces" value={s.pieces != null ? String(s.pieces) : null} />
+          <Fact label="Package" value={s.package_type} />
+          <Fact label="Destination type" value={s.destination_type ? s.destination_type.replace(/_/g, " ") : null} />
+          <Fact label="Billed" value={s.billed_amount != null ? formatCurrency(s.billed_amount, { cents: true }) : null} />
+          <Fact label="Cost" value={s.cost_amount != null ? formatCurrency(s.cost_amount, { cents: true }) : null} />
+          <Fact
+            label="Origin"
+            value={
+              [
+                s.origin_street,
+                [s.origin_city, s.origin_state].filter(Boolean).join(", "),
+                s.origin_zip,
+              ]
+                .filter(Boolean)
+                .join(" · ") || null
+            }
+            className="col-span-2"
+          />
+          <Fact label="Destination" value={s.destination_address} className="col-span-2" />
+        </dl>
+
+        {/* Show details */}
+        {s.show ? (
+          <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <Link href={`/shows/${s.show.id}`} className="font-medium text-dts-blue hover:underline">
+                {s.show.show_name}
+                {s.show.edition_year ? <span className="text-slate-400"> {s.show.edition_year}</span> : null}
+              </Link>
+              <Link href={`/shows/${s.show.id}`} className="shrink-0 text-xs text-dts-blue hover:underline">
+                Open show ↗
+              </Link>
+            </div>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <Fact label="Move-in" value={s.show.move_in_start ? formatDate(s.show.move_in_start) : null} />
+              <Fact label="Move-out" value={s.show.move_out_end ? formatDate(s.show.move_out_end) : null} />
+              <Fact label="Adv. warehouse cutoff" value={s.show.advance_warehouse_cutoff ? formatDate(s.show.advance_warehouse_cutoff) : null} />
+              <Fact label="Show dates" value={s.show.show_start_date ? formatDate(s.show.show_start_date) : null} />
+              <Fact label="Adv. warehouse address" value={s.show.advance_warehouse_address} className="col-span-2" />
+              <Fact label="Direct-to-show address" value={s.show.direct_to_show_address} className="col-span-2" />
+            </dl>
+          </div>
+        ) : null}
+
+        {/* Exhibitor / customer contact */}
+        {s.exhibitor ? (
+          <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <Link href={`/exhibitors/${s.exhibitor.id}`} className="font-medium text-dts-blue hover:underline">
+                {s.exhibitor.company_name}
+              </Link>
+              <Link href={`/exhibitors/${s.exhibitor.id}`} className="shrink-0 text-xs text-dts-blue hover:underline">
+                Open exhibitor ↗
+              </Link>
+            </div>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <Fact label="Industry" value={s.exhibitor.industry} />
+              <Fact label="Primary contact" value={s.exhibitor.primary_contact_name} />
+              <Fact label="Email" value={s.exhibitor.primary_contact_email} />
+              <Fact label="Phone" value={s.exhibitor.primary_contact_phone} />
+            </dl>
+          </div>
+        ) : null}
+
         <ShipmentForm
           action={updateShipment}
           shipment={s}
           shows={data.shows}
           exhibitors={data.exhibitors}
+          venues={data.venues}
           submitLabel="Save changes"
           redirectTo={returnTo}
         />
@@ -222,11 +292,11 @@ function PanelHeader({
   );
 }
 
-function Fact({ label, value }: { label: string; value: ReactNode }) {
+function Fact({ label, value, className = "" }: { label: string; value: ReactNode; className?: string }) {
   return (
-    <div>
+    <div className={className}>
       <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</dt>
-      <dd className="mt-0.5 text-slate-800">{value ?? <span className="text-slate-300">—</span>}</dd>
+      <dd className="mt-0.5 break-words text-slate-800">{value ?? <span className="text-slate-300">—</span>}</dd>
     </div>
   );
 }

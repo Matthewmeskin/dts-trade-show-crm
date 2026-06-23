@@ -23,6 +23,7 @@ export function ShipmentForm({
   shipment,
   shows,
   exhibitors,
+  venues,
   defaults,
   submitLabel,
   redirectTo,
@@ -31,6 +32,7 @@ export function ShipmentForm({
   shipment?: ShipmentRow;
   shows: Opt[];
   exhibitors: Opt[];
+  venues?: Opt[];
   defaults?: { show_id?: string; exhibitor_id?: string };
   submitLabel: string;
   redirectTo?: string;
@@ -86,6 +88,16 @@ export function ShipmentForm({
               ))}
             </select>
           </Field>
+          {venues ? (
+            <Field label="Venue" htmlFor="venue_id">
+              <select id="venue_id" name="venue_id" defaultValue={d?.venue_id ?? ""} className={inputClass}>
+                <option value="">— Select venue —</option>
+                {venues.map((v) => (
+                  <option key={v.id} value={v.id}>{v.label}</option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
           <Field label="Destination" htmlFor="destination_type">
             <select id="destination_type" name="destination_type" defaultValue={d?.destination_type ?? ""} className={inputClass}>
               <option value="">— Select —</option>
