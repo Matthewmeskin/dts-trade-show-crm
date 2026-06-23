@@ -135,7 +135,7 @@ export async function getShipmentDrawerData(id: string) {
       supabase
         .from("shipments")
         .select(
-          "*, exhibitor:exhibitors(id, company_name, industry, primary_contact_name, primary_contact_email, primary_contact_phone), show:shows(id, show_name, edition_year, show_start_date, show_end_date, move_in_start, move_in_end, move_out_start, move_out_end, advance_warehouse_open, advance_warehouse_cutoff, advance_warehouse_address, direct_to_show_address), carrier:carriers(id, carrier_name), venue:venues(id, venue_name, city, state)",
+          "*, exhibitor:exhibitors(id, company_name, industry, primary_contact_name, primary_contact_title, primary_contact_email, primary_contact_phone, secondary_contacts, freight_profile_notes, general_notes), show:shows(id, show_name, edition_year, industry_vertical, show_management_company, show_start_date, show_end_date, move_in_start, move_in_end, move_out_start, move_out_end, advance_warehouse_open, advance_warehouse_cutoff, advance_warehouse_address, direct_to_show_address, direct_to_show_start, direct_to_show_end, website_url, exhibitor_manual_url, exhibitor_list_url, general_notes), carrier:carriers(id, carrier_name, trade_show_notes), venue:venues(id, venue_name, address, city, state, dock_notes, union_rules, delivery_restrictions, parking_and_staging_notes, general_notes)",
         )
         .eq("id", id)
         .single(),
