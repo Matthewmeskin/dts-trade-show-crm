@@ -118,6 +118,13 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M21 21l-4.3-4.3" />
     </>
   ),
+  users: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+      <path d="M16 5.2a3.5 3.5 0 0 1 0 6.6M17 14.3a6.5 6.5 0 0 1 4.5 5.7" />
+    </>
+  ),
   menu: <path d="M3 6h18M3 12h18M3 18h18" />,
   close: <path d="M6 6l12 12M18 6L6 18" />,
   check: <path d="M4 12l5 5L20 6" />,

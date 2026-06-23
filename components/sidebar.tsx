@@ -67,7 +67,7 @@ export function Sidebar({
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => !item.adminOnly || role === "admin").map((item) => {
           const active = isActive(pathname, item.href);
           return (
             <Link
