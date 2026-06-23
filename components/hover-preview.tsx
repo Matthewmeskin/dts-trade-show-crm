@@ -25,6 +25,8 @@ export function HoverPreview({
     // fires mouseenter without a matching mouseleave, so the card would stick
     // (and overlap things like the side panel). Skip it when there's no hover.
     if (typeof window !== "undefined" && !window.matchMedia("(hover: hover)").matches) return;
+    // Don't pop a preview over an open panel/modal — it just clutters the dialog.
+    if (typeof document !== "undefined" && document.querySelector("[role=dialog]")) return;
     const r = ref.current?.getBoundingClientRect();
     if (!r) return;
     // Clamp into the viewport so the card stays visible near edges.
