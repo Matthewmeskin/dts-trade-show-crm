@@ -41,7 +41,7 @@ export function QuickEditModal({
     const anchor = (e.target as HTMLElement).closest("a");
     if (anchor) {
       const url = new URL(anchor.href, window.location.origin);
-      if (url.pathname === pathname) {
+      if (url.origin === window.location.origin && url.pathname === pathname) {
         e.preventDefault();
         setOpen(false);
       }
