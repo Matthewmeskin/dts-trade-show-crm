@@ -115,7 +115,40 @@ export async function updateShipment(
 
   revalidatePath("/shipments");
   revalidatePath(`/shipments/${id}`);
-  redirect(`/shipments/${id}?flash=updated`);
+  revalidatePath("/calendar");
+  // Return where the editor came from (e.g. the calendar side panel) when given.
+  const back = String(fd.get("redirect_to") ?? "");
+  redirect(back.startsWith("/") ? back : `/shipments/${id}?flash=updated`);
+}
+
+/**
+ * Full data for the calendar / list shipment side panel: the shipment with its
+ * linked records, plus show & exhibitor options for inline editing. Loaded on
+ * demand when a panel opens so the calendar query itself stays light.
+ */
+export async function getShipmentDrawerData(id: string) {
+  if (!id) return null;
+  const supabase = await createClient();
+  const [{ data: shipment }, { data: showsData }, { data: exhibitorsData }] = await Promise.all([
+    supabase
+      .from("shipments")
+      .select(
+        "*, exhibitor:exhibitors(id, company_name), show:shows(id, show_name, edition_year, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(id, carrier_name), venue:venues(id, venue_name)",
+      )
+      .eq("id", id)
+      .single(),
+    supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
+    supabase.from("exhibitors").select("id, company_name").order("company_name"),
+  ]);
+  if (!shipment) return null;
+  return {
+    shipment,
+    shows: (showsData ?? []).map((x) => ({
+      id: x.id,
+      label: `${x.show_name}${x.edition_year ? ` ${x.edition_year}` : ""}`,
+    })),
+    exhibitors: (exhibitorsData ?? []).map((x) => ({ id: x.id, label: x.company_name })),
+  };
 }
 
 export async function updateShipmentStatus(fd: FormData) {

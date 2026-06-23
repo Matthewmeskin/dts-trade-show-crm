@@ -25,6 +25,7 @@ export function ShipmentForm({
   exhibitors,
   defaults,
   submitLabel,
+  redirectTo,
 }: {
   action: (prev: ShipmentFormState, fd: FormData) => Promise<ShipmentFormState>;
   shipment?: ShipmentRow;
@@ -32,6 +33,7 @@ export function ShipmentForm({
   exhibitors: Opt[];
   defaults?: { show_id?: string; exhibitor_id?: string };
   submitLabel: string;
+  redirectTo?: string;
 }) {
   const [state, formAction] = useActionState(action, { error: null });
   const err = state.fieldErrors ?? {};
@@ -52,6 +54,7 @@ export function ShipmentForm({
   return (
     <form action={formAction}>
       {shipment ? <input type="hidden" name="id" value={shipment.id} /> : null}
+      {redirectTo ? <input type="hidden" name="redirect_to" value={redirectTo} /> : null}
 
       <Card>
         <FormSection
