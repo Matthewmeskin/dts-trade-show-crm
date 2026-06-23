@@ -254,7 +254,20 @@ function PanelBody({
         {/* Freight & route */}
         <dl className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-white p-4 text-sm">
           <Fact label="Mode" value={s.mode} />
-          <Fact label="PRO #" value={s.pro_number} />
+          <Fact
+            label="PRO #"
+            value={
+              s.pro_number ? (
+                s.tracking_url ? (
+                  <a href={s.tracking_url} target="_blank" rel="noopener noreferrer" className="text-dts-blue hover:underline">
+                    {s.pro_number} ↗
+                  </a>
+                ) : (
+                  s.pro_number
+                )
+              ) : null
+            }
+          />
           <Fact label="Weight" value={s.weight != null ? `${s.weight} lbs` : null} />
           <Fact label="Pieces" value={s.pieces != null ? String(s.pieces) : null} />
           <Fact label="Package" value={s.package_type} />
@@ -306,10 +319,16 @@ function PanelBody({
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
               <Fact label="Industry" value={s.show.industry_vertical} />
               <Fact label="Management co." value={s.show.show_management_company} />
-              <Fact label="Show dates" value={s.show.show_start_date ? formatDate(s.show.show_start_date) : null} />
-              <Fact label="Move-in" value={s.show.move_in_start ? formatDate(s.show.move_in_start) : null} />
-              <Fact label="Move-out" value={s.show.move_out_end ? formatDate(s.show.move_out_end) : null} />
+              <Fact label="Show start" value={s.show.show_start_date ? formatDate(s.show.show_start_date) : null} />
+              <Fact label="Show end" value={s.show.show_end_date ? formatDate(s.show.show_end_date) : null} />
+              <Fact label="Move-in start" value={s.show.move_in_start ? formatDate(s.show.move_in_start) : null} />
+              <Fact label="Move-in end" value={s.show.move_in_end ? formatDate(s.show.move_in_end) : null} />
+              <Fact label="Move-out start" value={s.show.move_out_start ? formatDate(s.show.move_out_start) : null} />
+              <Fact label="Move-out end" value={s.show.move_out_end ? formatDate(s.show.move_out_end) : null} />
+              <Fact label="Adv. warehouse open" value={s.show.advance_warehouse_open ? formatDate(s.show.advance_warehouse_open) : null} />
               <Fact label="Adv. warehouse cutoff" value={s.show.advance_warehouse_cutoff ? formatDate(s.show.advance_warehouse_cutoff) : null} />
+              <Fact label="Direct-to-show start" value={s.show.direct_to_show_start ? formatDate(s.show.direct_to_show_start) : null} />
+              <Fact label="Direct-to-show end" value={s.show.direct_to_show_end ? formatDate(s.show.direct_to_show_end) : null} />
               <Fact label="Adv. warehouse address" value={s.show.advance_warehouse_address} className="col-span-2" />
               <Fact label="Direct-to-show address" value={s.show.direct_to_show_address} className="col-span-2" />
               <LinkFact label="Website" href={s.show.website_url} />

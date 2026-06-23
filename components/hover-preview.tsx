@@ -38,6 +38,7 @@ export function HoverPreview({
       ref={ref}
       onMouseEnter={open}
       onMouseLeave={() => setPos(null)}
+      onMouseDown={() => setPos(null)}
       className={className}
     >
       {label}
