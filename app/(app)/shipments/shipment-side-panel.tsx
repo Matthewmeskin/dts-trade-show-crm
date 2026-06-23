@@ -18,8 +18,8 @@ import {
   deliveryHealth,
 } from "@/lib/shipments";
 import { hyperionShipmentUrl } from "@/lib/tms";
-import { ShipmentForm } from "./shipment-form";
-import { getShipmentDrawerData, updateShipment } from "./actions";
+import { getShipmentDrawerData } from "./actions";
+import { QuickEditShipment } from "./[id]/quick-edit";
 import { QuickEditShow } from "@/app/(app)/shows/[id]/quick-edit";
 import { QuickEditExhibitor } from "@/app/(app)/exhibitors/[id]/quick-edit";
 import { QuickEditVenue } from "@/app/(app)/venues/[id]/quick-edit";
@@ -211,6 +211,17 @@ function PanelBody({
           <Badge className={tms.badge}>TMS: {tms.label}</Badge>
         </div>
 
+        <div className="mb-4 flex justify-end">
+          <QuickEditShipment
+            shipment={s}
+            shows={data.shows}
+            exhibitors={data.exhibitors}
+            venues={data.venues}
+            redirectTo={returnTo}
+            triggerClassName="inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3.5 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark"
+          />
+        </div>
+
         {/* At-a-glance facts the edit form doesn't cover (TMS-synced). */}
         <dl className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-white p-4 text-sm">
           <Fact label="Carrier" value={s.carrier?.carrier_name} />
@@ -250,6 +261,9 @@ function PanelBody({
           <Fact label="Destination type" value={s.destination_type ? s.destination_type.replace(/_/g, " ") : null} />
           <Fact label="Billed" value={s.billed_amount != null ? formatCurrency(s.billed_amount, { cents: true }) : null} />
           <Fact label="Cost" value={s.cost_amount != null ? formatCurrency(s.cost_amount, { cents: true }) : null} />
+          <Fact label="PO reference" value={s.po_ref} />
+          <Fact label="Shipper number" value={s.shipper_number} />
+          <Fact label="Show date" value={s.show_date ? formatDate(s.show_date) : null} />
           <Fact
             label="Origin"
             value={
@@ -265,6 +279,13 @@ function PanelBody({
           />
           <Fact label="Destination" value={s.destination_address} className="col-span-2" />
         </dl>
+
+        {s.special_requirements || s.notes ? (
+          <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+            <Note label="Special requirements" value={s.special_requirements} />
+            <Note label="Notes" value={s.notes} />
+          </div>
+        ) : null}
 
         {/* Linked records — full detail, not just links */}
         {s.show ? (
@@ -366,16 +387,6 @@ function PanelBody({
             ) : null}
           </LinkedSection>
         ) : null}
-
-        <ShipmentForm
-          action={updateShipment}
-          shipment={s}
-          shows={data.shows}
-          exhibitors={data.exhibitors}
-          venues={data.venues}
-          submitLabel="Save changes"
-          redirectTo={returnTo}
-        />
       </div>
     </>
   );

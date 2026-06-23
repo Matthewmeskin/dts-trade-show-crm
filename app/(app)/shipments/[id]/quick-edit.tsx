@@ -12,19 +12,27 @@ export function QuickEditShipment({
   shipment,
   shows,
   exhibitors,
+  venues,
+  redirectTo,
+  triggerClassName,
 }: {
   shipment: Tables<"shipments">;
   shows: Opt[];
   exhibitors: Opt[];
+  venues?: Opt[];
+  redirectTo?: string;
+  triggerClassName?: string;
 }) {
   return (
-    <QuickEditModal title="Edit shipment" triggerIcon="shipments">
+    <QuickEditModal title="Edit shipment" triggerIcon="shipments" triggerClassName={triggerClassName}>
       <ShipmentForm
         action={updateShipment}
         shipment={shipment}
         shows={shows}
         exhibitors={exhibitors}
+        venues={venues}
         submitLabel="Save changes"
+        redirectTo={redirectTo}
       />
     </QuickEditModal>
   );
