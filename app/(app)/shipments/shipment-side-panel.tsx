@@ -195,47 +195,93 @@ function PanelBody({
           <Fact label="Destination" value={s.destination_address} className="col-span-2" />
         </dl>
 
-        {/* Show details */}
+        {/* Linked records — full detail, not just links */}
         {s.show ? (
-          <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 text-sm">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <Link href={`/shows/${s.show.id}`} className="font-medium text-dts-blue hover:underline">
-                {s.show.show_name}
-                {s.show.edition_year ? <span className="text-slate-400"> {s.show.edition_year}</span> : null}
-              </Link>
-              <Link href={`/shows/${s.show.id}`} className="shrink-0 text-xs text-dts-blue hover:underline">
-                Open show ↗
-              </Link>
-            </div>
+          <LinkedSection
+            title={`${s.show.show_name}${s.show.edition_year ? ` ${s.show.edition_year}` : ""}`}
+            href={`/shows/${s.show.id}`}
+            openLabel="Open show"
+          >
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <Fact label="Industry" value={s.show.industry_vertical} />
+              <Fact label="Management co." value={s.show.show_management_company} />
+              <Fact label="Show dates" value={s.show.show_start_date ? formatDate(s.show.show_start_date) : null} />
               <Fact label="Move-in" value={s.show.move_in_start ? formatDate(s.show.move_in_start) : null} />
               <Fact label="Move-out" value={s.show.move_out_end ? formatDate(s.show.move_out_end) : null} />
               <Fact label="Adv. warehouse cutoff" value={s.show.advance_warehouse_cutoff ? formatDate(s.show.advance_warehouse_cutoff) : null} />
-              <Fact label="Show dates" value={s.show.show_start_date ? formatDate(s.show.show_start_date) : null} />
               <Fact label="Adv. warehouse address" value={s.show.advance_warehouse_address} className="col-span-2" />
               <Fact label="Direct-to-show address" value={s.show.direct_to_show_address} className="col-span-2" />
+              <LinkFact label="Website" href={s.show.website_url} />
+              <LinkFact label="Exhibitor manual" href={s.show.exhibitor_manual_url} />
+              <LinkFact label="Exhibitor list" href={s.show.exhibitor_list_url} />
             </dl>
-          </div>
+            <Note label="Show notes" value={s.show.general_notes} />
+          </LinkedSection>
         ) : null}
 
-        {/* Exhibitor / customer contact */}
         {s.exhibitor ? (
-          <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 text-sm">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <Link href={`/exhibitors/${s.exhibitor.id}`} className="font-medium text-dts-blue hover:underline">
-                {s.exhibitor.company_name}
-              </Link>
-              <Link href={`/exhibitors/${s.exhibitor.id}`} className="shrink-0 text-xs text-dts-blue hover:underline">
-                Open exhibitor ↗
-              </Link>
-            </div>
+          <LinkedSection
+            title={s.exhibitor.company_name}
+            href={`/exhibitors/${s.exhibitor.id}`}
+            openLabel="Open customer"
+          >
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
               <Fact label="Industry" value={s.exhibitor.industry} />
-              <Fact label="Primary contact" value={s.exhibitor.primary_contact_name} />
+              <Fact label="Primary contact" value={[s.exhibitor.primary_contact_name, s.exhibitor.primary_contact_title].filter(Boolean).join(" · ") || null} />
               <Fact label="Email" value={s.exhibitor.primary_contact_email} />
               <Fact label="Phone" value={s.exhibitor.primary_contact_phone} />
             </dl>
-          </div>
+            {secondaryContacts(s.exhibitor.secondary_contacts).length > 0 ? (
+              <div className="mt-2 border-t border-slate-100 pt-2">
+                <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">Other contacts</div>
+                <ul className="space-y-1">
+                  {secondaryContacts(s.exhibitor.secondary_contacts).map((c, i) => (
+                    <li key={i} className="text-slate-700">
+                      <span className="font-medium text-slate-800">{c.name || "—"}</span>
+                      {c.title ? <span className="text-slate-400"> · {c.title}</span> : null}
+                      {[c.email, c.phone].filter(Boolean).length ? (
+                        <span className="text-slate-500"> — {[c.email, c.phone].filter(Boolean).join(" · ")}</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <Note label="Freight profile" value={s.exhibitor.freight_profile_notes} />
+            <Note label="Notes" value={s.exhibitor.general_notes} />
+          </LinkedSection>
+        ) : null}
+
+        {s.venue ? (
+          <LinkedSection
+            title={s.venue.venue_name}
+            href={`/venues/${s.venue.id}`}
+            openLabel="Open venue"
+          >
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <Fact label="Address" value={s.venue.address} className="col-span-2" />
+              <Fact label="City" value={s.venue.city} />
+              <Fact label="State" value={s.venue.state} />
+            </dl>
+            <Note label="Dock notes" value={s.venue.dock_notes} />
+            <Note label="Union rules" value={s.venue.union_rules} />
+            <Note label="Delivery restrictions" value={s.venue.delivery_restrictions} />
+            <Note label="Parking & staging" value={s.venue.parking_and_staging_notes} />
+            <Note label="General notes" value={s.venue.general_notes} />
+          </LinkedSection>
+        ) : null}
+
+        {s.carrier ? (
+          <LinkedSection
+            title={s.carrier.carrier_name}
+            href={`/carriers/${s.carrier.id}`}
+            openLabel="Open carrier"
+          >
+            <Note label="Trade show notes" value={s.carrier.trade_show_notes} />
+            {!s.carrier.trade_show_notes ? (
+              <p className="text-xs text-slate-400">No carrier notes captured.</p>
+            ) : null}
+          </LinkedSection>
         ) : null}
 
         <ShipmentForm
@@ -290,6 +336,61 @@ function PanelHeader({
       </div>
     </div>
   );
+}
+
+function LinkedSection({
+  title,
+  href,
+  openLabel,
+  children,
+}: {
+  title: string;
+  href: string;
+  openLabel: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <Link href={href} className="truncate font-medium text-dts-blue hover:underline">
+          {title}
+        </Link>
+        <Link href={href} className="shrink-0 text-xs text-dts-blue hover:underline">
+          {openLabel} ↗
+        </Link>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Note({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value) return null;
+  return (
+    <div className="mt-2 border-t border-slate-100 pt-2">
+      <div className="mb-0.5 text-xs font-medium uppercase tracking-wide text-slate-400">{label}</div>
+      <p className="whitespace-pre-wrap text-slate-700">{value}</p>
+    </div>
+  );
+}
+
+function LinkFact({ label, href }: { label: string; href: string | null | undefined }) {
+  if (!href) return null;
+  return (
+    <div>
+      <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</dt>
+      <dd className="mt-0.5">
+        <a href={href} target="_blank" rel="noopener noreferrer" className="text-dts-blue hover:underline">
+          Open ↗
+        </a>
+      </dd>
+    </div>
+  );
+}
+
+type SecondaryContact = { name?: string; title?: string; email?: string; phone?: string };
+function secondaryContacts(value: unknown): SecondaryContact[] {
+  return Array.isArray(value) ? (value as SecondaryContact[]) : [];
 }
 
 function Fact({ label, value, className = "" }: { label: string; value: ReactNode; className?: string }) {
