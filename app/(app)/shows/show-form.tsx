@@ -6,6 +6,50 @@ import { Card } from "@/components/ui";
 import { Field, FormSection, SubmitButton, inputClass } from "@/components/form";
 import type { ShowFormState } from "./actions";
 import type { Tables } from "@/lib/database.types";
+import type { FreightAddressParts } from "@/lib/freight";
+
+/**
+ * The structured parts of a freight delivery address. Field names are prefixed
+ * (advance_warehouse_* / direct_to_show_*) so they map straight onto the show
+ * columns; the parse step composes them back into the legacy *_address line.
+ */
+function FreightAddressFields({
+  prefix,
+  values,
+}: {
+  prefix: "advance_warehouse" | "direct_to_show";
+  values: FreightAddressParts;
+}) {
+  const f = (k: string) => `${prefix}_${k}`;
+  return (
+    <>
+      <Field label="Ship to / recipient" htmlFor={f("name")} className="sm:col-span-2">
+        <input id={f("name")} name={f("name")} defaultValue={values.name ?? ""} className={inputClass} placeholder="Exhibiting company / booth #" />
+      </Field>
+      <Field label="C/O (handling agent)" htmlFor={f("care_of")} className="sm:col-span-2">
+        <input id={f("care_of")} name={f("care_of")} defaultValue={values.care_of ?? ""} className={inputClass} placeholder="e.g. C/O Freeman" />
+      </Field>
+      <Field label="Street address" htmlFor={f("street1")} className="sm:col-span-2">
+        <input id={f("street1")} name={f("street1")} defaultValue={values.street1 ?? ""} className={inputClass} placeholder="Street" />
+      </Field>
+      <Field label="Suite / line 2" htmlFor={f("street2")} className="sm:col-span-2">
+        <input id={f("street2")} name={f("street2")} defaultValue={values.street2 ?? ""} className={inputClass} placeholder="Suite, unit, dock…" />
+      </Field>
+      <Field label="City" htmlFor={f("city")}>
+        <input id={f("city")} name={f("city")} defaultValue={values.city ?? ""} className={inputClass} />
+      </Field>
+      <Field label="State" htmlFor={f("state")}>
+        <input id={f("state")} name={f("state")} defaultValue={values.state ?? ""} className={inputClass} />
+      </Field>
+      <Field label="ZIP" htmlFor={f("zip")}>
+        <input id={f("zip")} name={f("zip")} defaultValue={values.zip ?? ""} className={inputClass} />
+      </Field>
+      <Field label="Country" htmlFor={f("country")}>
+        <input id={f("country")} name={f("country")} defaultValue={values.country ?? ""} className={inputClass} placeholder="USA" />
+      </Field>
+    </>
+  );
+}
 
 type ShowRow = Tables<"shows">;
 type VenueOpt = Pick<Tables<"venues">, "id" | "venue_name" | "city" | "state">;
@@ -178,22 +222,53 @@ export function ShowForm({
           </Field>
         </FormSection>
 
+        {/* Preserve any pre-existing single-line address when the structured
+            parts are left empty (the parse step composes parts → *_address). */}
+        <input type="hidden" name="advance_warehouse_address_legacy" value={d?.advance_warehouse_address ?? ""} />
+        <input type="hidden" name="direct_to_show_address_legacy" value={d?.direct_to_show_address ?? ""} />
+
         <FormSection
-          title="Freight windows"
-          description="Advance warehouse and direct-to-show receiving."
+          title="Advance warehouse"
+          description="Receiving dock / advance warehouse — shipping label and date window."
         >
-          <Field label="Advance warehouse address" htmlFor="advance_warehouse_address" className="sm:col-span-2">
-            <input id="advance_warehouse_address" name="advance_warehouse_address" defaultValue={d?.advance_warehouse_address ?? ""} className={inputClass} placeholder="Receiving dock / warehouse address" />
-          </Field>
+          <FreightAddressFields
+            prefix="advance_warehouse"
+            values={{
+              name: d?.advance_warehouse_name,
+              care_of: d?.advance_warehouse_care_of,
+              street1: d?.advance_warehouse_street1,
+              street2: d?.advance_warehouse_street2,
+              city: d?.advance_warehouse_city,
+              state: d?.advance_warehouse_state,
+              zip: d?.advance_warehouse_zip,
+              country: d?.advance_warehouse_country,
+            }}
+          />
           <Field label="Advance warehouse open" htmlFor="advance_warehouse_open">
             <input id="advance_warehouse_open" name="advance_warehouse_open" type="date" defaultValue={d?.advance_warehouse_open ?? ""} className={inputClass} />
           </Field>
           <Field label="Advance warehouse cutoff" htmlFor="advance_warehouse_cutoff">
             <input id="advance_warehouse_cutoff" name="advance_warehouse_cutoff" type="date" defaultValue={d?.advance_warehouse_cutoff ?? ""} className={inputClass} />
           </Field>
-          <Field label="Direct-to-show address" htmlFor="direct_to_show_address" className="sm:col-span-2">
-            <input id="direct_to_show_address" name="direct_to_show_address" defaultValue={d?.direct_to_show_address ?? ""} className={inputClass} placeholder="Show-site / venue dock address" />
-          </Field>
+        </FormSection>
+
+        <FormSection
+          title="Direct to show"
+          description="Show-site / venue dock — shipping label and date window."
+        >
+          <FreightAddressFields
+            prefix="direct_to_show"
+            values={{
+              name: d?.direct_to_show_name,
+              care_of: d?.direct_to_show_care_of,
+              street1: d?.direct_to_show_street1,
+              street2: d?.direct_to_show_street2,
+              city: d?.direct_to_show_city,
+              state: d?.direct_to_show_state,
+              zip: d?.direct_to_show_zip,
+              country: d?.direct_to_show_country,
+            }}
+          />
           <Field label="Direct-to-show start" htmlFor="direct_to_show_start">
             <input id="direct_to_show_start" name="direct_to_show_start" type="date" defaultValue={d?.direct_to_show_start ?? ""} className={inputClass} />
           </Field>
