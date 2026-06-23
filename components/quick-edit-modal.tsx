@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type MouseEvent } from "react";
+import { usePathname } from "next/navigation";
 import { Icon, type IconName } from "@/components/icons";
 
 /**
@@ -25,6 +26,22 @@ export function QuickEditModal({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  // The forms' "Cancel" is a <Link> back to the record page — but we're already
+  // there, so it would be a no-op inside the modal. Intercept clicks on any link
+  // that points to the current page and just close the modal instead.
+  const onContentClick = (e: MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    const anchor = (e.target as HTMLElement).closest("a");
+    if (anchor) {
+      const url = new URL(anchor.href, window.location.origin);
+      if (url.pathname === pathname) {
+        e.preventDefault();
+        setOpen(false);
+      }
+    }
+  };
 
   return (
     <>
@@ -45,7 +62,7 @@ export function QuickEditModal({
         >
           <div
             className={`w-full ${maxWidth} rounded-2xl bg-white p-4 shadow-xl sm:p-5`}
-            onClick={(e) => e.stopPropagation()}
+            onClick={onContentClick}
           >
             <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="font-heading text-lg font-semibold text-slate-900">{title}</h2>

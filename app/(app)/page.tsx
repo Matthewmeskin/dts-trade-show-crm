@@ -10,7 +10,8 @@ import {
 } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { SHOW_STATUS_META } from "@/lib/shows";
-import { ROLLUP_META, DELIVERY_HEALTH_META, SHIPMENT_STATUS_META } from "@/lib/shipments";
+import { ROLLUP_META, DELIVERY_HEALTH_META, SHIPMENT_STATUS_META, DIRECTION_META } from "@/lib/shipments";
+import { HoverPreview } from "@/components/hover-preview";
 import {
   formatDateRange,
   formatDate,
@@ -128,9 +129,12 @@ function WeekCalendarCard({ days, basis }: { days: WeekDay[]; basis: WeekBasis }
         }
       />
       <div className="px-2 pb-2 text-xs text-slate-400 sm:px-4">
-        <span className="px-1">{range}</span>
+        <span className="px-1">
+          {range}
+          {total === 0 ? ` · No ${basis === "delivery" ? "deliveries" : "pickups"} scheduled` : ""}
+        </span>
       </div>
-      <div className="grid grid-cols-1 gap-px overflow-hidden border-t border-slate-100 bg-slate-100 sm:grid-cols-7">
+      <div className="grid grid-cols-1 gap-px overflow-hidden rounded-b-2xl border-t border-slate-100 bg-slate-100 sm:grid-cols-7">
         {days.map((d) => (
           <div
             key={d.date}
@@ -152,15 +156,33 @@ function WeekCalendarCard({ days, basis }: { days: WeekDay[]; basis: WeekBasis }
               {d.events.slice(0, 4).map((e) => {
                 const sm = SHIPMENT_STATUS_META[e.status];
                 return (
-                  <Link
+                  <HoverPreview
                     key={e.id}
-                    href={`/shipments/${e.id}`}
-                    className="flex items-center gap-1.5 truncate rounded px-1 py-0.5 text-xs text-slate-700 hover:bg-slate-50"
-                    title={e.exhibitor ?? "Shipment"}
+                    className="block"
+                    label={
+                      <Link
+                        href={`/shipments/${e.id}`}
+                        className="flex items-center gap-1.5 truncate rounded px-1 py-0.5 text-xs text-slate-700 hover:bg-slate-50"
+                      >
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${sm.dot}`} />
+                        <span className="truncate">{e.exhibitor ?? "Shipment"}</span>
+                      </Link>
+                    }
                   >
-                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${sm.dot}`} />
-                    <span className="truncate">{e.exhibitor ?? "Shipment"}</span>
-                  </Link>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-slate-900">{e.exhibitor ?? "Shipment"}</span>
+                        <Badge className={sm.badge}>{sm.label}</Badge>
+                      </div>
+                      <dl className="space-y-1 text-xs">
+                        <WeekPreviewRow label="Show" value={e.show ?? "—"} />
+                        <WeekPreviewRow label="Direction" value={e.direction ? DIRECTION_META[e.direction].label : "—"} />
+                        <WeekPreviewRow label="Carrier" value={e.carrier ?? "—"} />
+                        <WeekPreviewRow label="Pickup" value={formatDate(e.pickupDate)} />
+                        <WeekPreviewRow label="Delivery" value={formatDate(e.deliveryDate)} />
+                      </dl>
+                    </div>
+                  </HoverPreview>
                 );
               })}
               {d.events.length > 4 ? (
@@ -175,12 +197,16 @@ function WeekCalendarCard({ days, basis }: { days: WeekDay[]; basis: WeekBasis }
           </div>
         ))}
       </div>
-      {total === 0 ? (
-        <p className="border-t border-slate-100 px-5 py-3 text-sm text-slate-400">
-          No {basis === "delivery" ? "deliveries" : "pickups"} scheduled this week.
-        </p>
-      ) : null}
     </Card>
+  );
+}
+
+function WeekPreviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <dt className="shrink-0 text-slate-400">{label}</dt>
+      <dd className="truncate text-right text-slate-700">{value}</dd>
+    </div>
   );
 }
 
