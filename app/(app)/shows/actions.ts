@@ -119,7 +119,9 @@ export async function updateShow(
 
   revalidatePath("/shows");
   revalidatePath(`/shows/${id}`);
-  redirect(`/shows/${id}?flash=updated`);
+  revalidatePath("/calendar");
+  const back = String(fd.get("redirect_to") ?? "");
+  redirect(back.startsWith("/") ? back : `/shows/${id}?flash=updated`);
 }
 
 export async function deleteShow(fd: FormData) {

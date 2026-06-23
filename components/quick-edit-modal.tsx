@@ -12,16 +12,21 @@ import { Icon, type IconName } from "@/components/icons";
  * hard to read. Saving redirects back to the record, which remounts this
  * component and closes the modal.
  */
+const DEFAULT_TRIGGER =
+  "inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3.5 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark";
+
 export function QuickEditModal({
   title,
   triggerIcon,
   triggerLabel = "Edit",
+  triggerClassName = DEFAULT_TRIGGER,
   maxWidth = "max-w-2xl",
   children,
 }: {
   title: string;
   triggerIcon: IconName;
   triggerLabel?: string;
+  triggerClassName?: string;
   maxWidth?: string;
   children: ReactNode;
 }) {
@@ -45,11 +50,7 @@ export function QuickEditModal({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3.5 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark"
-      >
+      <button type="button" onClick={() => setOpen(true)} className={triggerClassName}>
         <Icon name={triggerIcon} className="h-4 w-4" /> {triggerLabel}
       </button>
 

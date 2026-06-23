@@ -72,7 +72,9 @@ export async function updateVenue(
 
   revalidatePath("/venues");
   revalidatePath(`/venues/${id}`);
-  redirect(`/venues/${id}?flash=updated`);
+  revalidatePath("/calendar");
+  const back = String(fd.get("redirect_to") ?? "");
+  redirect(back.startsWith("/") ? back : `/venues/${id}?flash=updated`);
 }
 
 export async function deleteVenue(fd: FormData) {

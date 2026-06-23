@@ -20,6 +20,10 @@ import {
 import { hyperionShipmentUrl } from "@/lib/tms";
 import { ShipmentForm } from "./shipment-form";
 import { getShipmentDrawerData, updateShipment } from "./actions";
+import { QuickEditShow } from "@/app/(app)/shows/[id]/quick-edit";
+import { QuickEditExhibitor } from "@/app/(app)/exhibitors/[id]/quick-edit";
+import { QuickEditVenue } from "@/app/(app)/venues/[id]/quick-edit";
+import { QuickEditCarrier } from "@/app/(app)/carriers/[id]/quick-edit";
 
 type DrawerData = NonNullable<Awaited<ReturnType<typeof getShipmentDrawerData>>>;
 
@@ -254,6 +258,15 @@ function PanelBody({
             title={`${s.show.show_name}${s.show.edition_year ? ` ${s.show.edition_year}` : ""}`}
             href={`/shows/${s.show.id}`}
             openLabel="Open show"
+            editControl={
+              <QuickEditShow
+                show={s.show}
+                venues={data.venueRecords}
+                contacts={data.contacts}
+                redirectTo={returnTo}
+                triggerClassName="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              />
+            }
           >
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
               <Fact label="Industry" value={s.show.industry_vertical} />
@@ -277,6 +290,7 @@ function PanelBody({
             title={s.exhibitor.company_name}
             href={`/exhibitors/${s.exhibitor.id}`}
             openLabel="Open customer"
+            editControl={<QuickEditExhibitor exhibitor={s.exhibitor} redirectTo={returnTo} triggerClassName="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50" />}
           >
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
               <Fact label="Industry" value={s.exhibitor.industry} />
@@ -310,6 +324,7 @@ function PanelBody({
             title={s.venue.venue_name}
             href={`/venues/${s.venue.id}`}
             openLabel="Open venue"
+            editControl={<QuickEditVenue venue={s.venue} redirectTo={returnTo} triggerClassName="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50" />}
           >
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
               <Fact label="Address" value={s.venue.address} className="col-span-2" />
@@ -329,6 +344,7 @@ function PanelBody({
             title={s.carrier.carrier_name}
             href={`/carriers/${s.carrier.id}`}
             openLabel="Open carrier"
+            editControl={<QuickEditCarrier carrier={s.carrier} redirectTo={returnTo} triggerClassName="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50" />}
           >
             <Note label="Trade show notes" value={s.carrier.trade_show_notes} />
             {!s.carrier.trade_show_notes ? (
@@ -395,11 +411,13 @@ function LinkedSection({
   title,
   href,
   openLabel,
+  editControl,
   children,
 }: {
   title: string;
   href: string;
   openLabel: string;
+  editControl?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -408,9 +426,12 @@ function LinkedSection({
         <Link href={href} className="truncate font-medium text-dts-blue hover:underline">
           {title}
         </Link>
-        <Link href={href} className="shrink-0 text-xs text-dts-blue hover:underline">
-          {openLabel} ↗
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          {editControl}
+          <Link href={href} className="text-xs text-dts-blue hover:underline">
+            {openLabel} ↗
+          </Link>
+        </div>
       </div>
       {children}
     </div>

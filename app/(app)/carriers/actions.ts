@@ -59,7 +59,9 @@ export async function updateCarrier(
 
   revalidatePath("/carriers");
   revalidatePath(`/carriers/${id}`);
-  redirect(`/carriers/${id}?flash=updated`);
+  revalidatePath("/calendar");
+  const back = String(fd.get("redirect_to") ?? "");
+  redirect(back.startsWith("/") ? back : `/carriers/${id}?flash=updated`);
 }
 
 export async function deleteCarrier(fd: FormData) {

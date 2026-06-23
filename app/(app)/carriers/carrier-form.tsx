@@ -13,10 +13,12 @@ export function CarrierForm({
   action,
   carrier,
   submitLabel,
+  redirectTo,
 }: {
   action: (prev: CarrierFormState, fd: FormData) => Promise<CarrierFormState>;
   carrier?: CarrierRow;
   submitLabel: string;
+  redirectTo?: string;
 }) {
   const [state, formAction] = useActionState(action, { error: null });
   const err = state.fieldErrors ?? {};
@@ -25,6 +27,7 @@ export function CarrierForm({
   return (
     <form action={formAction}>
       {carrier ? <input type="hidden" name="id" value={carrier.id} /> : null}
+      {redirectTo ? <input type="hidden" name="redirect_to" value={redirectTo} /> : null}
 
       <Card>
         <FormSection title="Carrier">
