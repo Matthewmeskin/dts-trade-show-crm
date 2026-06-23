@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/icons";
@@ -28,6 +29,63 @@ type DrawerData = NonNullable<Awaited<ReturnType<typeof getShipmentDrawerData>>>
  * and lets you see and edit every detail without leaving the calendar; saving
  * returns to wherever the panel was opened.
  */
+/**
+ * Controlled panel — the overlay is portaled to <body> so it can be opened from
+ * anywhere (button, table row) without breaking table markup. Refetches the
+ * load each time it opens so edits elsewhere are reflected.
+ */
+export function ShipmentPanel({
+  id,
+  open,
+  onClose,
+}: {
+  id: string;
+  open: boolean;
+  onClose: () => void;
+}) {
+  // Keyed by id so reopening a different load shows loading until its data
+  // arrives. Only set state from the async callback (lint forbids setState
+  // directly in an effect body).
+  const [loaded, setLoaded] = useState<{ id: string; value: DrawerData | null } | null>(null);
+  const pathname = usePathname();
+  const search = useSearchParams();
+  const returnTo = pathname + (search.toString() ? `?${search.toString()}` : "");
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    getShipmentDrawerData(id).then((v) => {
+      if (active) setLoaded({ id, value: v });
+    });
+    return () => {
+      active = false;
+    };
+  }, [open, id]);
+
+  const ready = loaded?.id === id;
+  const data = ready ? loaded!.value : null;
+  const loading = !ready;
+
+  if (!open) return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[90] flex justify-end bg-slate-900/40"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="flex h-full w-full max-w-xl flex-col bg-slate-50 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <PanelBody data={data} loading={loading} returnTo={returnTo} onClose={onClose} />
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** Button trigger that opens the shipment panel (calendar / dashboard events). */
 export function ShipmentSidePanel({
   id,
   className = "block w-full text-left",
@@ -38,45 +96,40 @@ export function ShipmentSidePanel({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const [data, setData] = useState<DrawerData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const pathname = usePathname();
-  const search = useSearchParams();
-  const returnTo = pathname + (search.toString() ? `?${search.toString()}` : "");
-
-  const openPanel = async () => {
-    setOpen(true);
-    if (!data && !loading) {
-      setLoading(true);
-      try {
-        setData(await getShipmentDrawerData(id));
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
   return (
     <>
-      <button type="button" onClick={openPanel} className={className}>
+      <button type="button" onClick={() => setOpen(true)} className={className}>
         {children}
       </button>
+      <ShipmentPanel id={id} open={open} onClose={() => setOpen(false)} />
+    </>
+  );
+}
 
-      {open ? (
-        <div
-          className="fixed inset-0 z-[90] flex justify-end bg-slate-900/40"
-          onClick={() => setOpen(false)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="flex h-full w-full max-w-xl flex-col bg-slate-50 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <PanelBody data={data} loading={loading} returnTo={returnTo} onClose={() => setOpen(false)} />
-          </div>
-        </div>
-      ) : null}
+/** Table-row trigger that opens the shipment panel (shipments list). */
+export function ShipmentRow({
+  id,
+  className = "",
+  children,
+}: {
+  id: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <tr
+        className={`cursor-pointer ${className}`}
+        onClick={(e) => {
+          const t = e.target as HTMLElement;
+          if (t.closest("a,button,input,select,textarea,label,[role=button]")) return;
+          setOpen(true);
+        }}
+      >
+        {children}
+      </tr>
+      <ShipmentPanel id={id} open={open} onClose={() => setOpen(false)} />
     </>
   );
 }

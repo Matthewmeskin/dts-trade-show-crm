@@ -12,6 +12,7 @@ import { Icon } from "@/components/icons";
 import { SHOW_STATUS_META } from "@/lib/shows";
 import { ROLLUP_META, DELIVERY_HEALTH_META, SHIPMENT_STATUS_META, DIRECTION_META } from "@/lib/shipments";
 import { HoverPreview } from "@/components/hover-preview";
+import { ShipmentSidePanel } from "@/app/(app)/shipments/shipment-side-panel";
 import {
   formatDateRange,
   formatDate,
@@ -160,13 +161,13 @@ function WeekCalendarCard({ days, basis }: { days: WeekDay[]; basis: WeekBasis }
                     key={e.id}
                     className="block"
                     label={
-                      <Link
-                        href={`/shipments/${e.id}`}
-                        className="flex items-center gap-1.5 truncate rounded px-1 py-0.5 text-xs text-slate-700 hover:bg-slate-50"
+                      <ShipmentSidePanel
+                        id={e.id}
+                        className="flex w-full items-center gap-1.5 truncate rounded px-1 py-0.5 text-left text-xs text-slate-700 hover:bg-slate-50"
                       >
                         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${sm.dot}`} />
                         <span className="truncate">{e.exhibitor ?? "Shipment"}</span>
-                      </Link>
+                      </ShipmentSidePanel>
                     }
                   >
                     <div className="space-y-2">

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LinkRow } from "@/components/link-row";
+import { ShipmentRow } from "./shipment-side-panel";
 import { HoverPreview } from "@/components/hover-preview";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
@@ -203,13 +203,13 @@ export default async function ShipmentsPage({
                   const tms = TMS_SYNC_META[s.tms_sync_status];
                   const hm = DELIVERY_HEALTH_META[health];
                   return (
-                    <LinkRow key={s.id} href={`/shipments/${s.id}`} className="group hover:bg-slate-50/60">
+                    <ShipmentRow key={s.id} id={s.id} className="group hover:bg-slate-50/60">
                       <td className="px-5 py-3">
                         <HoverPreview
                           label={
-                            <Link href={`/shipments/${s.id}`} className="font-medium text-slate-900 group-hover:text-dts-maroon">
+                            <span className="font-medium text-slate-900 group-hover:text-dts-maroon">
                               {s.exhibitor?.company_name ?? "—"}
-                            </Link>
+                            </span>
                           }
                         >
                           <div className="space-y-2">
@@ -265,7 +265,7 @@ export default async function ShipmentsPage({
                       <td className="px-5 py-3">
                         <Badge className={tms.badge}>{tms.label}</Badge>
                       </td>
-                    </LinkRow>
+                    </ShipmentRow>
                   );
                 })}
               </tbody>
