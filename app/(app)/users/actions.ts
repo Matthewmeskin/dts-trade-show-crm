@@ -76,7 +76,12 @@ export async function createUser(
   }
 
   if (role === "admin" && data.user) {
-    const { error: roleError } = await admin
+    // Set the role through the caller's own session, not the service-role
+    // client: the profiles enforce_role_change trigger calls is_admin() (which
+    // reads auth.uid()), so a role change must run as the signed-in admin or it
+    // is rejected with "Only admins can change a user role".
+    const userClient = await createClient();
+    const { error: roleError } = await userClient
       .from("profiles")
       .update({ role })
       .eq("id", data.user.id);
@@ -99,8 +104,12 @@ export async function setUserRole(fd: FormData) {
   // out of user management).
   if (id === gate.uid && role !== "admin") return;
 
-  const admin = createAdminClient();
-  await admin.from("profiles").update({ role }).eq("id", id);
+  // Update through the caller's session (not the service-role client): the
+  // profiles enforce_role_change trigger calls is_admin() against auth.uid(),
+  // so the service role — which has no user identity — is rejected. The RLS
+  // "profiles: admin update any" policy already allows an admin to do this.
+  const supabase = await createClient();
+  await supabase.from("profiles").update({ role }).eq("id", id);
   revalidatePath("/users");
 }
 
