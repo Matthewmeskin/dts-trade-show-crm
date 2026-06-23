@@ -111,7 +111,7 @@ export function ShipmentForm({
               ))}
             </select>
           </Field>
-          <Field label="Target delivery date" htmlFor="target_delivery_date" hint="Must-arrive-by deadline. Blank = use the show's date.">
+          <Field label="Target delivery date" htmlFor="target_delivery_date" hint="Must-arrive-by deadline. Blank = the show's move-in start (move-out end for move-outs).">
             <input id="target_delivery_date" name="target_delivery_date" type="date" defaultValue={d?.target_delivery_date ?? ""} className={inputClass} />
           </Field>
           <Field label="Show date" htmlFor="show_date" hint="Move-in / move-out date. Blank = use the show's date.">

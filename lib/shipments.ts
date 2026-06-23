@@ -63,7 +63,9 @@ export function derivedTargetDate(
 ): string | null {
   if (!show) return null;
   if (direction === "move_out") return show.move_out_end ?? show.move_out_start ?? null;
-  return show.advance_warehouse_cutoff ?? show.move_in_start ?? null;
+  // Move-in: freight must be on-site by the time move-in begins, so default to
+  // the move-in start date (fall back to the advance-warehouse cutoff).
+  return show.move_in_start ?? show.advance_warehouse_cutoff ?? null;
 }
 
 /** Manual target wins; otherwise derive from the linked show. */

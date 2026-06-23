@@ -131,3 +131,27 @@ export async function removeCarrierFromVenue(fd: FormData) {
     .eq("venue_id", venue_id);
   revalidatePath(`/venues/${venue_id}`);
 }
+
+/** Route an existing shipment through this venue (sets shipments.venue_id). */
+export async function attachShipmentToVenue(fd: FormData) {
+  const venue_id = String(fd.get("venue_id") ?? "");
+  const shipment_id = String(fd.get("shipment_id") ?? "");
+  if (!venue_id || !shipment_id) return;
+  const supabase = await createClient();
+  await supabase.from("shipments").update({ venue_id }).eq("id", shipment_id);
+  revalidatePath(`/venues/${venue_id}`);
+  revalidatePath("/shipments");
+  revalidatePath(`/shipments/${shipment_id}`);
+}
+
+/** Unlink a shipment from this venue (keeps the shipment). */
+export async function detachShipmentFromVenue(fd: FormData) {
+  const venue_id = String(fd.get("venue_id") ?? "");
+  const shipment_id = String(fd.get("shipment_id") ?? "");
+  if (!shipment_id) return;
+  const supabase = await createClient();
+  await supabase.from("shipments").update({ venue_id: null }).eq("id", shipment_id);
+  if (venue_id) revalidatePath(`/venues/${venue_id}`);
+  revalidatePath("/shipments");
+  revalidatePath(`/shipments/${shipment_id}`);
+}
