@@ -14,11 +14,13 @@ export function VenueForm({
   venue,
   defaults,
   submitLabel,
+  redirectTo,
 }: {
   action: (prev: VenueFormState, fd: FormData) => Promise<VenueFormState>;
   venue?: VenueRow;
   defaults?: Partial<VenueRow>;
   submitLabel: string;
+  redirectTo?: string;
 }) {
   const [state, formAction] = useActionState(action, { error: null });
   const err = state.fieldErrors ?? {};
@@ -27,6 +29,7 @@ export function VenueForm({
   return (
     <form action={formAction}>
       {venue ? <input type="hidden" name="id" value={venue.id} /> : null}
+      {redirectTo ? <input type="hidden" name="redirect_to" value={redirectTo} /> : null}
 
       <Card>
         <FormSection title="Venue">

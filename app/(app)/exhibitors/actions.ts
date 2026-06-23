@@ -91,7 +91,9 @@ export async function updateExhibitor(
 
   revalidatePath("/exhibitors");
   revalidatePath(`/exhibitors/${id}`);
-  redirect(`/exhibitors/${id}?flash=updated`);
+  revalidatePath("/calendar");
+  const back = String(fd.get("redirect_to") ?? "");
+  redirect(back.startsWith("/") ? back : `/exhibitors/${id}?flash=updated`);
 }
 
 export async function deleteExhibitor(fd: FormData) {

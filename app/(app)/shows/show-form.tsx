@@ -21,6 +21,7 @@ export function ShowForm({
   venues,
   contacts,
   submitLabel,
+  redirectTo,
 }: {
   action: (prev: ShowFormState, fd: FormData) => Promise<ShowFormState>;
   show?: ShowRow;
@@ -28,6 +29,7 @@ export function ShowForm({
   venues: VenueOpt[];
   contacts: ContactOpt[];
   submitLabel: string;
+  redirectTo?: string;
 }) {
   const [state, formAction] = useActionState(action, { error: null });
   const err = state.fieldErrors ?? {};
@@ -36,6 +38,7 @@ export function ShowForm({
   return (
     <form action={formAction}>
       {show ? <input type="hidden" name="id" value={show.id} /> : null}
+      {redirectTo ? <input type="hidden" name="redirect_to" value={redirectTo} /> : null}
 
       <Card>
         <FormSection title="Show basics">

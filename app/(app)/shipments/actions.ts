@@ -130,19 +130,24 @@ export async function updateShipment(
 export async function getShipmentDrawerData(id: string) {
   if (!id) return null;
   const supabase = await createClient();
-  const [{ data: shipment }, { data: showsData }, { data: exhibitorsData }, { data: venuesData }] =
-    await Promise.all([
-      supabase
-        .from("shipments")
-        .select(
-          "*, exhibitor:exhibitors(id, company_name, industry, primary_contact_name, primary_contact_title, primary_contact_email, primary_contact_phone, secondary_contacts, freight_profile_notes, general_notes), show:shows(id, show_name, edition_year, industry_vertical, show_management_company, show_start_date, show_end_date, move_in_start, move_in_end, move_out_start, move_out_end, advance_warehouse_open, advance_warehouse_cutoff, advance_warehouse_address, direct_to_show_address, direct_to_show_start, direct_to_show_end, website_url, exhibitor_manual_url, exhibitor_list_url, general_notes), carrier:carriers(id, carrier_name, trade_show_notes), venue:venues(id, venue_name, address, city, state, dock_notes, union_rules, delivery_restrictions, parking_and_staging_notes, general_notes)",
-        )
-        .eq("id", id)
-        .single(),
-      supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
-      supabase.from("exhibitors").select("id, company_name").order("company_name"),
-      supabase.from("venues").select("id, venue_name, city, state").order("venue_name"),
-    ]);
+  const [
+    { data: shipment },
+    { data: showsData },
+    { data: exhibitorsData },
+    { data: venuesData },
+    { data: contactsData },
+  ] = await Promise.all([
+    // Full linked rows (*) so each record's edit form can populate fully.
+    supabase
+      .from("shipments")
+      .select("*, exhibitor:exhibitors(*), show:shows(*), carrier:carriers(*), venue:venues(*)")
+      .eq("id", id)
+      .single(),
+    supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
+    supabase.from("exhibitors").select("id, company_name").order("company_name"),
+    supabase.from("venues").select("id, venue_name, city, state").order("venue_name"),
+    supabase.from("contacts").select("id, first_name, last_name, company").order("last_name"),
+  ]);
   if (!shipment) return null;
   return {
     shipment,
@@ -151,10 +156,14 @@ export async function getShipmentDrawerData(id: string) {
       label: `${x.show_name}${x.edition_year ? ` ${x.edition_year}` : ""}`,
     })),
     exhibitors: (exhibitorsData ?? []).map((x) => ({ id: x.id, label: x.company_name })),
+    // {id,label} for the shipment form's venue select.
     venues: (venuesData ?? []).map((x) => ({
       id: x.id,
       label: `${x.venue_name}${x.city ? ` (${x.city}${x.state ? `, ${x.state}` : ""})` : ""}`,
     })),
+    // Full venue rows + contacts for the show edit form.
+    venueRecords: venuesData ?? [],
+    contacts: contactsData ?? [],
   };
 }
 

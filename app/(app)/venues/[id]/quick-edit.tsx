@@ -6,10 +6,18 @@ import { VenueForm } from "../venue-form";
 import { updateVenue } from "../actions";
 
 /** Edit a venue in a popup instead of navigating to the edit page. */
-export function QuickEditVenue({ venue }: { venue: Tables<"venues"> }) {
+export function QuickEditVenue({
+  venue,
+  redirectTo,
+  triggerClassName,
+}: {
+  venue: Tables<"venues">;
+  redirectTo?: string;
+  triggerClassName?: string;
+}) {
   return (
-    <QuickEditModal title="Edit venue" triggerIcon="venues">
-      <VenueForm action={updateVenue} venue={venue} submitLabel="Save changes" />
+    <QuickEditModal title="Edit venue" triggerIcon="venues" triggerClassName={triggerClassName}>
+      <VenueForm action={updateVenue} venue={venue} submitLabel="Save changes" redirectTo={redirectTo} />
     </QuickEditModal>
   );
 }

@@ -25,10 +25,12 @@ export function ExhibitorForm({
   action,
   exhibitor,
   submitLabel,
+  redirectTo,
 }: {
   action: (prev: ExhibitorFormState, fd: FormData) => Promise<ExhibitorFormState>;
   exhibitor?: ExhibitorRow;
   submitLabel: string;
+  redirectTo?: string;
 }) {
   const [state, formAction] = useActionState(action, { error: null });
   const err = state.fieldErrors ?? {};
@@ -48,6 +50,7 @@ export function ExhibitorForm({
   return (
     <form action={formAction}>
       {exhibitor ? <input type="hidden" name="id" value={exhibitor.id} /> : null}
+      {redirectTo ? <input type="hidden" name="redirect_to" value={redirectTo} /> : null}
       <input type="hidden" name="secondary_contacts" value={JSON.stringify(contacts)} />
 
       <Card>
