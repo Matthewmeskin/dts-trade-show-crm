@@ -16,6 +16,7 @@ import {
   deliveryHealth,
 } from "@/lib/shipments";
 import { hyperionShipmentUrl } from "@/lib/tms";
+import { LocalDateTime } from "@/components/local-time";
 import { formatDate, formatCurrency, formatCountdown, daysUntil } from "@/lib/format";
 import { deleteShipment } from "../actions";
 import { QuickEditShipment } from "./quick-edit";
@@ -321,7 +322,7 @@ export default async function ShipmentRecordPage({
                 label="Last synced"
                 value={
                   s.tms_last_synced_at
-                    ? formatDate(s.tms_last_synced_at.slice(0, 10))
+                    ? <LocalDateTime iso={s.tms_last_synced_at} />
                     : null
                 }
               />

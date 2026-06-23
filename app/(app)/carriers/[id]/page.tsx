@@ -145,28 +145,23 @@ export default async function CarrierRecordPage({
 
         <div className="space-y-5">
           <Card>
-            <CardHeader
-              title={`Shows serviced (${shows.length})`}
-              icon="shows"
-              action={
-                availableShows.length > 0 ? (
-                  <form action={addShowToCarrier} className="flex items-center gap-2">
-                    <input type="hidden" name="carrier_id" value={id} />
-                    <select name="show_id" required defaultValue="" className={`${inputClass} h-8 py-1 text-xs`}>
-                      <option value="" disabled>Link show…</option>
-                      {availableShows.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.show_name}{s.edition_year ? ` ${s.edition_year}` : ""}
-                        </option>
-                      ))}
-                    </select>
-                    <button type="submit" className="rounded-lg bg-dts-maroon px-2.5 py-1 text-xs font-medium text-white hover:bg-dts-maroon-dark">
-                      Add
-                    </button>
-                  </form>
-                ) : null
-              }
-            />
+            <CardHeader title={`Shows serviced (${shows.length})`} icon="shows" />
+            <div className="border-b border-slate-100 px-5 py-2.5">
+              <form action={addShowToCarrier} className="flex items-center gap-1.5">
+                <input type="hidden" name="carrier_id" value={id} />
+                <select name="show_id" required defaultValue="" className={`${inputClass} h-8 flex-1 py-1 text-xs`} disabled={availableShows.length === 0}>
+                  <option value="" disabled>{availableShows.length === 0 ? "All shows linked" : "Link show…"}</option>
+                  {availableShows.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.show_name}{s.edition_year ? ` ${s.edition_year}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <button type="submit" disabled={availableShows.length === 0} className="rounded-lg bg-dts-maroon px-3 py-1.5 text-xs font-medium text-white hover:bg-dts-maroon-dark disabled:opacity-50">
+                  Add
+                </button>
+              </form>
+            </div>
             {shows.length === 0 ? (
               <EmptyState icon="shows" title="No shows linked" description="Link the shows this carrier services." />
             ) : (
@@ -191,26 +186,21 @@ export default async function CarrierRecordPage({
           </Card>
 
           <Card>
-            <CardHeader
-              title={`Venues serviced (${venues.length})`}
-              icon="venues"
-              action={
-                available.length > 0 ? (
-                  <form action={addVenueToCarrier} className="flex items-center gap-2">
-                    <input type="hidden" name="carrier_id" value={id} />
-                    <select name="venue_id" required defaultValue="" className={`${inputClass} h-8 py-1 text-xs`}>
-                      <option value="" disabled>Link venue…</option>
-                      {available.map((v) => (
-                        <option key={v.id} value={v.id}>{v.venue_name}</option>
-                      ))}
-                    </select>
-                    <button type="submit" className="rounded-lg bg-dts-maroon px-2.5 py-1 text-xs font-medium text-white hover:bg-dts-maroon-dark">
-                      Add
-                    </button>
-                  </form>
-                ) : null
-              }
-            />
+            <CardHeader title={`Venues serviced (${venues.length})`} icon="venues" />
+            <div className="border-b border-slate-100 px-5 py-2.5">
+              <form action={addVenueToCarrier} className="flex items-center gap-1.5">
+                <input type="hidden" name="carrier_id" value={id} />
+                <select name="venue_id" required defaultValue="" className={`${inputClass} h-8 flex-1 py-1 text-xs`} disabled={available.length === 0}>
+                  <option value="" disabled>{available.length === 0 ? "All venues linked" : "Link venue…"}</option>
+                  {available.map((v) => (
+                    <option key={v.id} value={v.id}>{v.venue_name}</option>
+                  ))}
+                </select>
+                <button type="submit" disabled={available.length === 0} className="rounded-lg bg-dts-maroon px-3 py-1.5 text-xs font-medium text-white hover:bg-dts-maroon-dark disabled:opacity-50">
+                  Add
+                </button>
+              </form>
+            </div>
             {venues.length === 0 ? (
               <EmptyState icon="venues" title="No venues linked" description="Link the venues this carrier services." />
             ) : (

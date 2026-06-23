@@ -95,6 +95,10 @@ export type WeekEvent = {
   exhibitor: string | null;
   status: ShipmentStatus;
   direction: "move_in" | "move_out" | null;
+  show: string | null;
+  carrier: string | null;
+  pickupDate: string | null;
+  deliveryDate: string | null;
 };
 
 export type WeekDay = {
@@ -176,7 +180,7 @@ export async function loadDashboard(weekBasis: WeekBasis = "pickup"): Promise<Da
       const sel = supabase
         .from("shipments")
         .select(
-          "id, status, direction, pickup_date, estimated_delivery_date, actual_delivery_date, exhibitor:exhibitors(company_name)",
+          "id, status, direction, pickup_date, estimated_delivery_date, actual_delivery_date, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name)",
         );
       const ws = weekDates[0];
       const we = weekDates[6];
@@ -209,6 +213,10 @@ export async function loadDashboard(weekBasis: WeekBasis = "pickup"): Promise<Da
       exhibitor: s.exhibitor?.company_name ?? null,
       status: s.status,
       direction: s.direction,
+      show: s.show?.show_name ?? null,
+      carrier: s.carrier?.carrier_name ?? null,
+      pickupDate: s.pickup_date,
+      deliveryDate: s.actual_delivery_date ?? s.estimated_delivery_date,
     });
     eventsByDate.set(key, list);
   }
