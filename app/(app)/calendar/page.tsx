@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { HoverPreview } from "@/components/hover-preview";
+import { ShipmentSidePanel } from "@/app/(app)/shipments/shipment-side-panel";
 import { SHOW_STATUS_META, type ShowWithStatus, type ShowStatus } from "@/lib/shows";
 import {
   SHIPMENT_STATUS_META,
@@ -317,13 +318,13 @@ async function ShipmentCalendar({
                       key={e.id}
                       className="block"
                       label={
-                        <Link
-                          href={`/shipments/${e.id}`}
-                          className="flex items-center gap-1.5 rounded px-1 py-0.5 hover:bg-slate-50"
+                        <ShipmentSidePanel
+                          id={e.id}
+                          className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left hover:bg-slate-50"
                         >
                           <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${meta.dot}`} />
                           <span className={`truncate text-xs font-medium ${meta.text}`}>{e.label}</span>
-                        </Link>
+                        </ShipmentSidePanel>
                       }
                     >
                       <div className="space-y-2">
