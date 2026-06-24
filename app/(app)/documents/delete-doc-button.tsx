@@ -10,7 +10,7 @@ export function DeleteDocButton({
 }: {
   id: string;
   path: string | null;
-  showId: string;
+  showId: string | null;
   name: string;
 }) {
   return (
@@ -24,7 +24,7 @@ export function DeleteDocButton({
     >
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="path" value={path ?? ""} />
-      <input type="hidden" name="show_id" value={showId} />
+      <input type="hidden" name="show_id" value={showId ?? ""} />
       <button type="submit" className="text-xs font-medium text-slate-400 hover:text-dts-maroon">
         Delete
       </button>
