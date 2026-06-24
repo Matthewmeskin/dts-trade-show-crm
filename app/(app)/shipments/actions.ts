@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Constants, type TablesInsert, type TablesUpdate } from "@/lib/database.types";
+import { DOCUMENTS_BUCKET } from "@/lib/documents";
 import { syncLoadNumber } from "@/lib/tms-sync";
 
 export type ShipmentFormState = {
@@ -179,6 +180,77 @@ export async function updateShipmentStatus(fd: FormData) {
   await supabase.from("shipments").update({ status }).eq("id", id);
   revalidatePath("/shipments");
   revalidatePath(`/shipments/${id}`);
+}
+
+/** Save the move-out check-in number from the inline cell editor. */
+export async function setCheckInNumber(fd: FormData) {
+  const id = String(fd.get("id") ?? "");
+  if (!id) return;
+  const value = String(fd.get("check_in_number") ?? "").trim();
+  const supabase = await createClient();
+  await supabase
+    .from("shipments")
+    .update({ check_in_number: value || null })
+    .eq("id", id);
+  const showId = String(fd.get("show_id") ?? "");
+  if (showId) revalidatePath(`/shows/${showId}`);
+  revalidatePath(`/shipments/${id}`);
+}
+
+/** Documents attached directly to a shipment (newest first). */
+export async function getShipmentDocuments(shipmentId: string) {
+  if (!shipmentId) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("documents")
+    .select("id, document_name, file_url, uploaded_at")
+    .eq("shipment_id", shipmentId)
+    .order("uploaded_at", { ascending: false });
+  return data ?? [];
+}
+
+/**
+ * Insert a document row for a shipment after the file is already in Storage
+ * (the upload happens client-side, direct to the bucket).
+ */
+export async function createShipmentDocument(
+  fd: FormData,
+): Promise<{ error: string | null }> {
+  const shipment_id = String(fd.get("shipment_id") ?? "").trim();
+  const document_name = String(fd.get("document_name") ?? "").trim();
+  const file_url = String(fd.get("file_url") ?? "").trim();
+  const show_id = String(fd.get("show_id") ?? "").trim() || null;
+  if (!shipment_id) return { error: "Missing shipment." };
+  if (!document_name) return { error: "A document name is required." };
+  if (!file_url) return { error: "Upload a file first." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { error } = await supabase.from("documents").insert({
+    shipment_id,
+    show_id,
+    document_name,
+    file_url,
+    uploaded_by: user?.id ?? null,
+  });
+  if (error) return { error: error.message };
+  if (show_id) revalidatePath(`/shows/${show_id}`);
+  revalidatePath(`/shipments/${shipment_id}`);
+  return { error: null };
+}
+
+/** Remove a shipment document (storage object + row). */
+export async function deleteShipmentDocument(fd: FormData) {
+  const id = String(fd.get("id") ?? "");
+  const path = String(fd.get("path") ?? "");
+  if (!id) return;
+  const supabase = await createClient();
+  if (path) await supabase.storage.from(DOCUMENTS_BUCKET).remove([path]);
+  await supabase.from("documents").delete().eq("id", id);
+  const show_id = String(fd.get("show_id") ?? "");
+  if (show_id) revalidatePath(`/shows/${show_id}`);
 }
 
 export async function deleteShipment(fd: FormData) {

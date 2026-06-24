@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
-import { LinkRow } from "@/components/link-row";
 import { Icon } from "@/components/icons";
 import { inputClass } from "@/components/form";
 import {
@@ -10,7 +9,6 @@ import {
   nextCriticalDeadline,
   type ShowWithStatus,
 } from "@/lib/shows";
-import { SHIPMENT_STATUS_META } from "@/lib/shipments";
 import {
   formatDate,
   formatDateRange,
@@ -22,7 +20,6 @@ import {
   addExhibitorToShow,
   removeExhibitorFromShow,
   attachShipmentToShow,
-  detachShipmentFromShow,
 } from "../actions";
 import { documentDownload } from "@/app/(app)/documents/actions";
 import { DeleteDocButton } from "@/app/(app)/documents/delete-doc-button";
@@ -30,6 +27,7 @@ import { DOCUMENT_TYPE_META } from "@/lib/documents";
 import { DebriefForm } from "./debrief-form";
 import { DeleteShowButton } from "./delete-show-button";
 import { QuickEditShow } from "./quick-edit";
+import { ShipmentsTable } from "./shipments-table";
 import type { Tables } from "@/lib/database.types";
 
 export const dynamic = "force-dynamic";
@@ -580,11 +578,17 @@ async function ExhibitorsTab({ showId }: { showId: string }) {
 
 async function ShipmentsTab({ showId }: { showId: string }) {
   const supabase = await createClient();
-  const [{ data }, { data: unlinkedData }] = await Promise.all([
+  const [
+    { data },
+    { data: unlinkedData },
+    { data: showsData },
+    { data: exhibitorsData },
+    { data: venuesData },
+  ] = await Promise.all([
     supabase
       .from("shipments")
       .select(
-        "id, status, mode, destination_type, pickup_date, pro_number, tms_sync_status, exhibitor:exhibitors(company_name), carrier:carriers(carrier_name)",
+        "*, exhibitor:exhibitors(company_name), carrier:carriers(carrier_name)",
       )
       .eq("show_id", showId)
       .order("pickup_date", { ascending: true, nullsFirst: false }),
@@ -593,10 +597,24 @@ async function ShipmentsTab({ showId }: { showId: string }) {
       .select("id, tms_reference_id, exhibitor:exhibitors(company_name)")
       .is("show_id", null)
       .order("tms_reference_id", { nullsFirst: false }),
+    supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
+    supabase.from("exhibitors").select("id, company_name").order("company_name"),
+    supabase.from("venues").select("id, venue_name, city, state").order("venue_name"),
   ]);
 
   const rows = data ?? [];
   const unlinked = unlinkedData ?? [];
+  const options = {
+    shows: (showsData ?? []).map((x) => ({
+      id: x.id,
+      label: `${x.show_name}${x.edition_year ? ` ${x.edition_year}` : ""}`,
+    })),
+    exhibitors: (exhibitorsData ?? []).map((x) => ({ id: x.id, label: x.company_name })),
+    venues: (venuesData ?? []).map((x) => ({
+      id: x.id,
+      label: `${x.venue_name}${x.city ? ` (${x.city}${x.state ? `, ${x.state}` : ""})` : ""}`,
+    })),
+  };
 
   return (
     <Card>
@@ -631,67 +649,7 @@ async function ShipmentsTab({ showId }: { showId: string }) {
           </div>
         }
       />
-      {rows.length === 0 ? (
-        <EmptyState
-          icon="shipments"
-          title="No shipments logged"
-          description="Shipments logged against this show will appear here."
-        />
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
-                <th className="px-5 py-3">Exhibitor</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3">Mode</th>
-                <th className="px-5 py-3">Carrier</th>
-                <th className="px-5 py-3">Pickup</th>
-                <th className="px-5 py-3">PRO #</th>
-                <th className="px-5 py-3">TMS</th>
-                <th className="px-5 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {rows.map((s) => {
-                const sm = SHIPMENT_STATUS_META[s.status];
-                return (
-                  <LinkRow key={s.id} href={`/shipments/${s.id}`} className="group hover:bg-slate-50/60">
-                    <td className="px-5 py-3">
-                      <Link
-                        href={`/shipments/${s.id}`}
-                        className="font-medium text-slate-800 group-hover:text-dts-maroon"
-                      >
-                        {s.exhibitor?.company_name ?? "Shipment"}
-                      </Link>
-                    </td>
-                    <td className="px-5 py-3">
-                      <Badge className={sm.badge}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${sm.dot}`} />
-                        {sm.label}
-                      </Badge>
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">{s.mode ?? "—"}</td>
-                    <td className="px-5 py-3 text-slate-600">{s.carrier?.carrier_name ?? "—"}</td>
-                    <td className="px-5 py-3 text-slate-600">{formatDate(s.pickup_date)}</td>
-                    <td className="px-5 py-3 text-slate-600">{s.pro_number ?? "—"}</td>
-                    <td className="px-5 py-3 text-xs text-slate-400">{s.tms_sync_status}</td>
-                    <td className="px-5 py-3 text-right">
-                      <form action={detachShipmentFromShow}>
-                        <input type="hidden" name="show_id" value={showId} />
-                        <input type="hidden" name="shipment_id" value={s.id} />
-                        <button type="submit" className="text-xs font-medium text-slate-400 hover:text-dts-maroon">
-                          Remove
-                        </button>
-                      </form>
-                    </td>
-                  </LinkRow>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ShipmentsTable showId={showId} rows={rows} options={options} />
     </Card>
   );
 }

@@ -200,7 +200,8 @@ export type Database = {
           document_type: Database["public"]["Enums"]["document_type"] | null
           file_url: string | null
           id: string
-          show_id: string
+          shipment_id: string | null
+          show_id: string | null
           uploaded_at: string
           uploaded_by: string | null
         }
@@ -209,7 +210,8 @@ export type Database = {
           document_type?: Database["public"]["Enums"]["document_type"] | null
           file_url?: string | null
           id?: string
-          show_id: string
+          shipment_id?: string | null
+          show_id?: string | null
           uploaded_at?: string
           uploaded_by?: string | null
         }
@@ -218,7 +220,8 @@ export type Database = {
           document_type?: Database["public"]["Enums"]["document_type"] | null
           file_url?: string | null
           id?: string
-          show_id?: string
+          shipment_id?: string | null
+          show_id?: string | null
           uploaded_at?: string
           uploaded_by?: string | null
         }
@@ -324,6 +327,7 @@ export type Database = {
           actual_delivery_date: string | null
           billed_amount: number | null
           carrier_id: string | null
+          check_in_number: string | null
           cost_amount: number | null
           created_at: string
           destination_address: string | null
@@ -366,6 +370,7 @@ export type Database = {
           actual_delivery_date?: string | null
           billed_amount?: number | null
           carrier_id?: string | null
+          check_in_number?: string | null
           cost_amount?: number | null
           created_at?: string
           destination_address?: string | null
@@ -407,6 +412,7 @@ export type Database = {
           actual_delivery_date?: string | null
           billed_amount?: number | null
           carrier_id?: string | null
+          check_in_number?: string | null
           cost_amount?: number | null
           created_at?: string
           destination_address?: string | null
