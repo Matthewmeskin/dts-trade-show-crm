@@ -49,9 +49,9 @@ shipment-to-form mapping.
 4. **Re-route via and Carrier lines in the failure block stay blank.**
 
 ## Configurable: Bill To
-Defaults to `DTS_BILL_TO`. To override per carrier later, add an optional `bill_to` JSON to the
-carrier and use `carrier.bill_to ?? DTS_BILL_TO` in `mapShipmentToMoveOut`. **Confirm the DTS ZIP
-(currently `90502`) before go-live.**
+Defaults to `DTS_BILL_TO` (DTS, 19829 Hamilton Ave, Torrance CA 90502 — confirmed). To override per
+carrier later, add an optional `bill_to` JSON to the carrier and use `carrier.bill_to ?? DTS_BILL_TO`
+in `mapShipmentToMoveOut`.
 
 ## Accessorial mapping
 `mapAccessorials` turns the shipment's requirement notes into checkboxes:
