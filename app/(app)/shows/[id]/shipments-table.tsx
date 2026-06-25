@@ -124,6 +124,16 @@ export function ShipmentsTable({
                     <td className="px-5 py-3 text-xs text-slate-400">{s.tms_sync_status}</td>
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-end gap-3">
+                        {s.direction === "move_out" ? (
+                          <a
+                            href={`/api/move-out/${s.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-dts-blue hover:underline"
+                          >
+                            <Icon name="documents" className="h-3.5 w-3.5" /> Move-out form
+                          </a>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => setEditing(s)}
