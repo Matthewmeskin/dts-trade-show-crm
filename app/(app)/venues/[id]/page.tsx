@@ -19,6 +19,7 @@ import {
 } from "../actions";
 import { QuickEditVenue } from "./quick-edit";
 import { EnrichVenueButton } from "./enrich-button";
+import { MergeButton } from "@/components/merge-button";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,15 @@ export default async function VenueRecordPage({
 
   const { data: venue } = await supabase.from("venues").select("*").eq("id", id).single();
   if (!venue) notFound();
+
+  const { data: allVenues } = await supabase
+    .from("venues")
+    .select("id, venue_name, city, state")
+    .order("venue_name");
+  const venueCandidates = (allVenues ?? []).map((v) => ({
+    id: v.id,
+    label: `${v.venue_name}${v.city ? ` (${v.city}${v.state ? `, ${v.state}` : ""})` : ""}`,
+  }));
 
   const [showsRes, carrierRes, shipRes, allShowsRes, allCarriersRes, unlinkedShipRes] = await Promise.all([
     supabase
@@ -100,6 +110,7 @@ export default async function VenueRecordPage({
         </div>
         <div className="flex items-center gap-2">
           <EnrichVenueButton venueId={id} />
+          <MergeButton kind="venue" targetId={id} targetLabel={venue.venue_name} candidates={venueCandidates} />
           <QuickEditVenue venue={venue} />
           <ConfirmDelete
             action={deleteVenue}

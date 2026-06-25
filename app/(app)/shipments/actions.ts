@@ -44,6 +44,9 @@ function operatorFields(fd: FormData) {
     show_id: str(fd, "show_id"),
     exhibitor_id: str(fd, "exhibitor_id"),
     venue_id: str(fd, "venue_id"),
+    // An operator saved the form — these links are now manually owned.
+    venue_auto_linked: false,
+    show_auto_linked: false,
     destination_type: enumOrNull(
       str(fd, "destination_type"),
       Constants.public.Enums.shipment_destination,

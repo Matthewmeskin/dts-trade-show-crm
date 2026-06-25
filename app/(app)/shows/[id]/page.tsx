@@ -28,6 +28,7 @@ import { DebriefForm } from "./debrief-form";
 import { DeleteShowButton } from "./delete-show-button";
 import { QuickEditShow } from "./quick-edit";
 import { ShipmentsTable } from "./shipments-table";
+import { MergeButton } from "@/components/merge-button";
 import type { Tables } from "@/lib/database.types";
 
 export const dynamic = "force-dynamic";
@@ -84,6 +85,15 @@ export default async function ShowRecordPage({
 
   if (!show) notFound();
 
+  const { data: allShows } = await supabase
+    .from("shows")
+    .select("id, show_name, edition_year")
+    .order("show_name");
+  const showCandidates = (allShows ?? []).map((x) => ({
+    id: x.id,
+    label: `${x.show_name}${x.edition_year ? ` ${x.edition_year}` : ""}`,
+  }));
+
   const meta = SHOW_STATUS_META[show.status ?? "upcoming"];
 
   return (
@@ -128,6 +138,7 @@ export default async function ShowRecordPage({
               contacts={contacts ?? []}
             />
           ) : null}
+          <MergeButton kind="show" targetId={id} targetLabel={show.show_name ?? "this show"} candidates={showCandidates} />
           <DeleteShowButton id={id} showName={show.show_name ?? "this show"} />
         </div>
       </div>

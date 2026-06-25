@@ -15,6 +15,7 @@ const MESSAGES: Record<string, string> = {
   scan_unconfigured: "Scan webhook isn't configured yet (set N8N_SCAN_WEBHOOK_URL).",
   "user-created": "User added",
   "user-removed": "User removed",
+  merged: "Duplicate merged in",
 };
 
 /**

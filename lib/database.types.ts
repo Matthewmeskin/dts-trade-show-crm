@@ -376,6 +376,8 @@ export type Database = {
           tracking_url: string | null
           updated_at: string
           venue_id: string | null
+          venue_auto_linked: boolean
+          show_auto_linked: boolean
           weight: number | null
         }
         Insert: {
@@ -431,6 +433,8 @@ export type Database = {
           tracking_url?: string | null
           updated_at?: string
           venue_id?: string | null
+          venue_auto_linked?: boolean
+          show_auto_linked?: boolean
           weight?: number | null
         }
         Update: {
@@ -486,6 +490,8 @@ export type Database = {
           tracking_url?: string | null
           updated_at?: string
           venue_id?: string | null
+          venue_auto_linked?: boolean
+          show_auto_linked?: boolean
           weight?: number | null
         }
         Relationships: [
@@ -1118,6 +1124,8 @@ export type Database = {
     }
     Functions: {
       is_admin: { Args: never; Returns: boolean }
+      merge_venues: { Args: { p_target: string; p_source: string }; Returns: undefined }
+      merge_shows: { Args: { p_target: string; p_source: string }; Returns: undefined }
       show_status: {
         Args: { s: Database["public"]["Tables"]["shows"]["Row"] }
         Returns: Database["public"]["Enums"]["show_status"]
