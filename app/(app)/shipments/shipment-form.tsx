@@ -132,6 +132,9 @@ export function ShipmentForm({
           <Field label="Show date" htmlFor="show_date" hint="Move-in / move-out date. Blank = use the show's date.">
             <input id="show_date" name="show_date" type="date" defaultValue={d?.show_date ?? ""} className={inputClass} />
           </Field>
+          <Field label="Check-in #" htmlFor="check_in_number" hint="Move-out check-in / confirmation number." className="sm:col-span-2">
+            <input id="check_in_number" name="check_in_number" defaultValue={d?.check_in_number ?? ""} className={inputClass} />
+          </Field>
         </FormSection>
 
         <FormSection

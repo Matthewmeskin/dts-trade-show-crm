@@ -21,6 +21,8 @@ import {
 import { hyperionShipmentUrl } from "@/lib/tms";
 import { getShipmentDrawerData } from "./actions";
 import { QuickEditShipment } from "./[id]/quick-edit";
+import { CheckInCell } from "./check-in-cell";
+import { ShipmentDocuments } from "./shipment-documents";
 import { QuickEditShow } from "@/app/(app)/shows/[id]/quick-edit";
 import { QuickEditExhibitor } from "@/app/(app)/exhibitors/[id]/quick-edit";
 import { QuickEditVenue } from "@/app/(app)/venues/[id]/quick-edit";
@@ -244,6 +246,19 @@ function PanelBody({
           <Fact label="Est. delivery" value={formatDate(s.estimated_delivery_date)} />
           <Fact label="Actual delivery" value={formatDate(s.actual_delivery_date)} />
           <Fact label="Margin" value={s.margin != null ? formatCurrency(s.margin, { cents: true }) : null} />
+          {dir === "move_out" ? (
+            <Fact
+              label="Check-in #"
+              value={
+                <CheckInCell
+                  shipmentId={s.id}
+                  showId={s.show_id ?? ""}
+                  value={s.check_in_number}
+                  editable
+                />
+              }
+            />
+          ) : null}
           <Fact
             label="Load #"
             value={
@@ -437,6 +452,10 @@ function PanelBody({
             ) : null}
           </LinkedSection>
         ) : null}
+
+        <div className="mt-4">
+          <ShipmentDocuments shipmentId={s.id} showId={s.show_id} />
+        </div>
       </div>
     </>
   );
