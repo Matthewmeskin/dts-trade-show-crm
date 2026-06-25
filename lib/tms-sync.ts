@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseLoad } from "@/lib/tms";
+import { resolveVenueId, resolveShowId, type ShowLite } from "@/lib/tms-link";
 
 const TRACKING_BASE = "https://hyperion.dtsone.com/api/home/tracking";
 
@@ -43,10 +44,32 @@ export async function syncLoadNumber(loadNumber: string): Promise<boolean> {
   // records that can't be linked to anything.
   const { data: current } = await supabase
     .from("shipments")
-    .select("exhibitor_id")
+    .select("exhibitor_id, venue_id, show_id")
     .eq("tms_reference_id", parsed.ref)
     .maybeSingle();
   if (!current) return false;
+
+  // Auto-link venue + show to existing records when confident (link only).
+  let venue_id: string | undefined;
+  let show_id: string | undefined;
+  if (current.venue_id == null || current.show_id == null) {
+    const [{ data: venueRows }, { data: showRows }] = await Promise.all([
+      supabase.from("venues").select("id, venue_name, city, state"),
+      supabase
+        .from("shows")
+        .select("id, venue_id, archived, move_in_start, move_out_end, show_start_date, show_end_date"),
+    ]);
+    if (current.venue_id == null) {
+      venue_id = resolveVenueId(parsed.fields.tms_venue_raw, venueRows ?? []);
+    }
+    if (current.show_id == null) {
+      show_id = resolveShowId(
+        current.venue_id ?? venue_id,
+        parsed.fields.show_date ?? parsed.fields.pickup_date,
+        (showRows ?? []) as ShowLite[],
+      );
+    }
+  }
 
   let carrier_id: string | undefined;
   if (parsed.carrierName) {
@@ -96,6 +119,8 @@ export async function syncLoadNumber(loadNumber: string): Promise<boolean> {
       ...parsed.fields,
       ...(carrier_id ? { carrier_id } : {}),
       ...(exhibitor_id ? { exhibitor_id } : {}),
+      ...(venue_id ? { venue_id } : {}),
+      ...(show_id ? { show_id } : {}),
       tms_sync_status: "synced",
       tms_last_synced_at: new Date().toISOString(),
     })
