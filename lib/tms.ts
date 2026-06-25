@@ -94,31 +94,80 @@ function mapDest(v: unknown): (typeof Constants.public.Enums.shipment_destinatio
   return undefined;
 }
 
-/** Best-effort parse of "street, city, ST zip" into origin parts. */
+/** Best-effort parse of "street, city, ST zip" into parts. */
+function parseAddressParts(v: unknown): {
+  street1?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+} {
+  const s = str(v);
+  if (!s) return {};
+  const parts = s.split(",").map((x) => x.trim()).filter(Boolean);
+  if (parts.length === 0) return {};
+  const out: ReturnType<typeof parseAddressParts> = {};
+  const last = parts[parts.length - 1];
+  const m = last.match(/^([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+  if (m) {
+    out.state = m[1].toUpperCase();
+    out.zip = m[2];
+  } else {
+    const z = last.match(/(\d{5}(?:-\d{4})?)/);
+    if (z) out.zip = z[1];
+  }
+  if (parts.length >= 2) out.city = parts[parts.length - 2];
+  if (parts.length >= 3) out.street1 = parts.slice(0, parts.length - 2).join(", ");
+  else if (parts.length === 1 && !m) out.street1 = parts[0];
+  return out;
+}
+
+/** Origin parse (keeps the origin_* shape the caller expects). */
 function parseLocation(v: unknown): {
   origin_street?: string;
   origin_city?: string;
   origin_state?: string;
   origin_zip?: string;
 } {
-  const s = str(v);
-  if (!s) return {};
-  const parts = s.split(",").map((x) => x.trim()).filter(Boolean);
-  if (parts.length === 0) return {};
-  const out: ReturnType<typeof parseLocation> = {};
-  const last = parts[parts.length - 1];
-  const m = last.match(/^([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
-  if (m) {
-    out.origin_state = m[1].toUpperCase();
-    out.origin_zip = m[2];
-  } else {
-    const z = last.match(/(\d{5}(?:-\d{4})?)/);
-    if (z) out.origin_zip = z[1];
+  const p = parseAddressParts(v);
+  return {
+    origin_street: p.street1,
+    origin_city: p.city,
+    origin_state: p.state,
+    origin_zip: p.zip,
+  };
+}
+
+type Stop = Record<string, unknown>;
+
+/** Structured fields from one Hyperion stop object. */
+function stopAddress(stop: Stop | undefined) {
+  if (!stop) return undefined;
+  return {
+    company: str(stop.companyName ?? stop.company),
+    contact: str(stop.contactName ?? stop.contact),
+    phone: str(stop.contactPhone ?? stop.phone),
+    street1: str(stop.address1 ?? stop.addressLine),
+    street2: str(stop.address2 ?? stop.addressLine2),
+    city: str(stop.city),
+    state: str(stop.state),
+    zip: str(stop.zip ?? stop.postalCode),
+    country: str(stop.country),
+    full: str(stop.fullAddress ?? stop.addressLine),
+  };
+}
+
+function findStop(stops: Stop[], types: string[]): Stop | undefined {
+  return stops.find((s) => types.includes(String(s.stopType ?? "").trim().toLowerCase()));
+}
+
+/** Pull a booth number out of free-text address ("… - Booth #3727, …"). */
+function boothFrom(...texts: (string | undefined)[]): string | undefined {
+  for (const t of texts) {
+    if (!t) continue;
+    const m = t.match(/booth\s*#?\s*([A-Za-z0-9][A-Za-z0-9-]*)/i);
+    if (m) return m[1];
   }
-  if (parts.length >= 2) out.origin_city = parts[parts.length - 2];
-  if (parts.length >= 3) out.origin_street = parts.slice(0, parts.length - 2).join(", ");
-  else if (parts.length === 1 && !m) out.origin_street = parts[0];
-  return out;
+  return undefined;
 }
 
 /** Extract the load number (Hyperion clientLoadId), with common aliases. */
@@ -181,10 +230,31 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   set("package_type", str(item.package_type ?? item.packaging ?? item.packageType));
   set("tracking_url", str(item.tracking_url ?? item.carrierTrackingURL ?? item.carrier_tracking_url));
   set("tms_customer_id", extractCustomerId(item));
-  set("destination_address", str(item.destination_address ?? item.delivery_location ?? item.deliveryLocation));
 
-  // Origin: explicit fields win; otherwise parse pickupLocation.
-  const loc = parseLocation(item.pickup_location ?? item.pickupLocation);
+  // Delivery / consignee (the move-out return party) + booth. Handles both the
+  // structured Hyperion stops[] shape and the flat *Location string shape.
+  const stops: Stop[] = Array.isArray(item.stops) ? (item.stops as Stop[]) : [];
+  const drop = stopAddress(findStop(stops, ["drop", "delivery", "consignee"]));
+  const pickup = stopAddress(findStop(stops, ["pickup", "pick", "origin"]));
+  const deliveryStr =
+    drop?.full ?? str(item.destination_address ?? item.delivery_location ?? item.deliveryLocation);
+  const pickupStr = pickup?.full ?? str(item.pickup_location ?? item.pickupLocation);
+  const da = parseAddressParts(deliveryStr);
+
+  set("destination_address", str(item.destination_address) ?? deliveryStr);
+  set("consignee_company", drop?.company);
+  set("consignee_contact", drop?.contact);
+  set("consignee_phone", drop?.phone);
+  set("consignee_street1", drop?.street1 ?? da.street1);
+  set("consignee_street2", drop?.street2);
+  set("consignee_city", drop?.city ?? da.city);
+  set("consignee_state", drop?.state ?? da.state);
+  set("consignee_zip", drop?.zip ?? da.zip);
+  set("consignee_country", drop?.country);
+  set("booth_number", boothFrom(pickupStr, deliveryStr));
+
+  // Origin: explicit fields win; otherwise parse the pickup location.
+  const loc = parseLocation(item.pickup_location ?? item.pickupLocation ?? pickup?.full);
   set("origin_street", str(item.origin_street) ?? loc.origin_street);
   set("origin_city", str(item.origin_city) ?? loc.origin_city);
   set("origin_state", str(item.origin_state) ?? loc.origin_state);

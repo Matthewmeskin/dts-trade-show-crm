@@ -82,21 +82,25 @@ function mapShipmentToMoveOut(
     ),
   );
 
-  // SHIP TO = where the freight returns after the show. We don't store a
-  // structured consignee, so use the exhibitor as the consignee and the
-  // shipment's destination_address as the street line; the rest is hand-filled.
+  const s = (k: string) => (shipment[k] as string | null) ?? undefined;
+
+  // SHIP TO = the consignee on the load (the move-out return party), pulled from
+  // the Hyperion delivery stop by the TMS sync. Falls back to the exhibitor /
+  // flat destination_address for older rows that predate the structured sync.
   const shipTo: Party = {
-    company: exhibitor?.company_name ?? "",
-    address1: (shipment.destination_address as string | null) ?? "",
-    city: "",
-    state: "",
-    zip: "",
-    phone: exhibitor?.primary_contact_phone ?? undefined,
-    attn: exhibitor?.primary_contact_name ?? undefined,
+    company: s("consignee_company") ?? exhibitor?.company_name ?? "",
+    address1: s("consignee_street1") ?? s("destination_address") ?? "",
+    address2: s("consignee_street2"),
+    city: s("consignee_city") ?? "",
+    state: s("consignee_state") ?? "",
+    zip: s("consignee_zip") ?? "",
+    phone: s("consignee_phone") ?? exhibitor?.primary_contact_phone ?? undefined,
+    attn: s("consignee_contact") ?? exhibitor?.primary_contact_name ?? undefined,
   };
 
   return {
     showName: show?.show_name ?? "",
+    booth: s("booth_number"),
     exhibitorCompany: exhibitor?.company_name ?? "",
     contactName: exhibitor?.primary_contact_name ?? undefined,
     contactPhone: exhibitor?.primary_contact_phone ?? undefined,
