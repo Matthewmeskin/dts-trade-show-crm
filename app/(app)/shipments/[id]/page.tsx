@@ -256,9 +256,12 @@ export default async function ShipmentRecordPage({
                 label="Show"
                 value={
                   s.show ? (
-                    <Link href={`/shows/${s.show.id}`} className="text-dts-blue hover:underline">
-                      {s.show.show_name}
-                    </Link>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Link href={`/shows/${s.show.id}`} className="text-dts-blue hover:underline">
+                        {s.show.show_name}
+                      </Link>
+                      {s.show_auto_linked ? <AutoChip /> : null}
+                    </span>
                   ) : null
                 }
               />
@@ -286,9 +289,12 @@ export default async function ShipmentRecordPage({
                 label="Venue"
                 value={
                   s.venue ? (
-                    <Link href={`/venues/${s.venue.id}`} className="text-dts-blue hover:underline">
-                      {s.venue.venue_name}
-                    </Link>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Link href={`/venues/${s.venue.id}`} className="text-dts-blue hover:underline">
+                        {s.venue.venue_name}
+                      </Link>
+                      {s.venue_auto_linked ? <AutoChip /> : null}
+                    </span>
                   ) : null
                 }
               />
@@ -341,6 +347,17 @@ export default async function ShipmentRecordPage({
         </div>
       </div>
     </div>
+  );
+}
+
+function AutoChip() {
+  return (
+    <span
+      title="Auto-linked by the TMS sync — review and correct if wrong"
+      className="inline-flex items-center gap-1 rounded-full bg-dts-blue/10 px-1.5 py-0.5 text-[10px] font-medium text-dts-blue"
+    >
+      <Icon name="sparkles" className="h-2.5 w-2.5" /> auto
+    </span>
   );
 }
 

@@ -119,8 +119,8 @@ export async function syncLoadNumber(loadNumber: string): Promise<boolean> {
       ...parsed.fields,
       ...(carrier_id ? { carrier_id } : {}),
       ...(exhibitor_id ? { exhibitor_id } : {}),
-      ...(venue_id ? { venue_id } : {}),
-      ...(show_id ? { show_id } : {}),
+      ...(venue_id ? { venue_id, venue_auto_linked: true } : {}),
+      ...(show_id ? { show_id, show_auto_linked: true } : {}),
       tms_sync_status: "synced",
       tms_last_synced_at: new Date().toISOString(),
     })
