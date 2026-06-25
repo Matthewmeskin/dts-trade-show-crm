@@ -316,6 +316,97 @@ export async function discoverTradeShow(input: {
   }
 }
 
+export type DiscoveredVenue = {
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  dock_notes: string | null;
+  union_rules: string | null;
+  delivery_restrictions: string | null;
+  parking_and_staging_notes: string | null;
+  general_notes: string | null;
+  confidence: "high" | "medium" | "low";
+  sources: string[];
+};
+
+export type DiscoverVenueResult =
+  | { status: "ok"; data: DiscoveredVenue }
+  | { status: "unconfigured" }
+  | { status: "error"; message: string };
+
+const VENUE_SYSTEM = `You research convention-center / trade-show venue FREIGHT logistics for DTS, a freight brokerage. Given a venue name and city/state, use web search to find the venue's official freight/exhibitor-logistics info (loading docks, marshalling yard, union/labor rules, delivery restrictions, certificate/insurance requirements, parking & staging).
+
+Return ONLY a JSON object (no markdown, no preamble), null when unsure:
+{
+ "address","city","state",
+ "dock_notes",                 // # of docks, dimensions, marshalling yard, dock height
+ "union_rules",                // labor jurisdiction / work rules for freight handling
+ "delivery_restrictions",      // carrier check-in, time windows, height/weight limits, COI requirements
+ "parking_and_staging_notes",
+ "general_notes",              // other freight-relevant facts
+ "confidence","sources"        // confidence: high|medium|low; sources: array of URLs
+}
+Keep each notes field concise and freight-relevant. Only state facts you can corroborate from search results.`;
+
+export async function discoverVenueLogistics(input: {
+  venue_name: string;
+  city: string | null;
+  state: string | null;
+}): Promise<DiscoverVenueResult> {
+  if (!process.env.ANTHROPIC_API_KEY) return { status: "unconfigured" };
+
+  try {
+    const client = new Anthropic();
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 2000,
+      system: VENUE_SYSTEM,
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }],
+      messages: [
+        {
+          role: "user",
+          content: `Venue: ${input.venue_name}${[input.city, input.state].filter(Boolean).length ? ` (${[input.city, input.state].filter(Boolean).join(", ")})` : ""}\n\nFind its freight/exhibitor logistics and return the JSON object.`,
+        },
+      ],
+    });
+
+    const text = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("")
+      .trim();
+    const j = looseJson(text);
+    if (!j) return { status: "error", message: "Could not parse the AI response." };
+
+    const sources = Array.isArray(j.sources)
+      ? (j.sources as unknown[]).map((x) => String(x)).filter(Boolean).slice(0, 8)
+      : [];
+    return {
+      status: "ok",
+      data: {
+        address: str(j.address),
+        city: str(j.city) ?? input.city,
+        state: str(j.state) ?? input.state,
+        dock_notes: str(j.dock_notes),
+        union_rules: str(j.union_rules),
+        delivery_restrictions: str(j.delivery_restrictions),
+        parking_and_staging_notes: str(j.parking_and_staging_notes),
+        general_notes: str(j.general_notes),
+        confidence: conf(j.confidence),
+        sources,
+      },
+    };
+  } catch (e) {
+    const message =
+      e instanceof Anthropic.APIError
+        ? `${e.status ?? ""} ${e.message}`.trim()
+        : e instanceof Error
+          ? e.message
+          : "Unknown error";
+    return { status: "error", message };
+  }
+}
+
 export async function generateSituationSummary(
   data: DashboardData,
 ): Promise<SummaryResult> {

@@ -18,6 +18,7 @@ import {
   detachShipmentFromVenue,
 } from "../actions";
 import { QuickEditVenue } from "./quick-edit";
+import { EnrichVenueButton } from "./enrich-button";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +99,7 @@ export default async function VenueRecordPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <EnrichVenueButton venueId={id} />
           <QuickEditVenue venue={venue} />
           <ConfirmDelete
             action={deleteVenue}
