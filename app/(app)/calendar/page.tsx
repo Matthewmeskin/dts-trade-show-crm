@@ -11,6 +11,11 @@ import {
   type ShipmentDirection,
 } from "@/lib/shipments";
 import { parseDate, today as todayDate, formatDateRange, formatDate } from "@/lib/format";
+import { Constants } from "@/lib/database.types";
+
+const STATUSES = Constants.public.Enums.shipment_status;
+type StatusFilter = ShipmentStatus | "all";
+type DirFilter = ShipmentDirection | "all";
 
 export const dynamic = "force-dynamic";
 
@@ -57,24 +62,32 @@ type CalEvent = {
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; date?: string; by?: string; label?: string; color?: string }>;
+  searchParams: Promise<{ view?: string; date?: string; by?: string; label?: string; color?: string; status?: string; dir?: string }>;
 }) {
   const sp = await searchParams;
   const view: View = sp.view === "week" || sp.view === "shows" ? sp.view : "month";
   const basis: Basis = sp.by === "delivery" ? "delivery" : "pickup";
   const labelMode: LabelMode = sp.label === "pro" ? "pro" : "exhibitor";
   const colorMode: ColorMode = sp.color === "direction" ? "direction" : "status";
+  const statusFilter: StatusFilter =
+    sp.status && (STATUSES as readonly string[]).includes(sp.status) ? (sp.status as ShipmentStatus) : "all";
+  const dirFilter: DirFilter =
+    sp.dir === "move_in" || sp.dir === "move_out" ? sp.dir : "all";
   const today = todayDate();
   const anchor = parseDate(sp.date) ?? today;
 
   // Preserve params when building control links.
-  const href = (over: Partial<{ view: View; date: string; by: Basis; label: LabelMode; color: ColorMode }>) => {
+  const href = (
+    over: Partial<{ view: View; date: string; by: Basis; label: LabelMode; color: ColorMode; status: StatusFilter; dir: DirFilter }>,
+  ) => {
     const p = new URLSearchParams();
     p.set("view", over.view ?? view);
     p.set("date", over.date ?? ymd(anchor));
     p.set("by", over.by ?? basis);
     p.set("label", over.label ?? labelMode);
     p.set("color", over.color ?? colorMode);
+    p.set("status", over.status ?? statusFilter);
+    p.set("dir", over.dir ?? dirFilter);
     return `/calendar?${p.toString()}`;
   };
 
@@ -142,6 +155,30 @@ export default async function CalendarPage({
         </div>
       </div>
 
+      {/* Filter bar — narrow the calendar to a status and/or direction. */}
+      {view !== "shows" ? (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Filter</span>
+          <Segmented
+            options={[
+              { label: "All status", href: href({ status: "all" }), active: statusFilter === "all" },
+              ...STATUSES.map((s) => ({
+                label: SHIPMENT_STATUS_META[s].label,
+                href: href({ status: s }),
+                active: statusFilter === s,
+              })),
+            ]}
+          />
+          <Segmented
+            options={[
+              { label: "All directions", href: href({ dir: "all" }), active: dirFilter === "all" },
+              { label: DIRECTION_META.move_in.label, href: href({ dir: "move_in" }), active: dirFilter === "move_in" },
+              { label: DIRECTION_META.move_out.label, href: href({ dir: "move_out" }), active: dirFilter === "move_out" },
+            ]}
+          />
+        </div>
+      ) : null}
+
       {view === "shows" ? (
         <ShowsTimeline />
       ) : (
@@ -152,6 +189,8 @@ export default async function CalendarPage({
           basis={basis}
           labelMode={labelMode}
           colorMode={colorMode}
+          statusFilter={statusFilter}
+          dirFilter={dirFilter}
         />
       )}
 
@@ -190,6 +229,8 @@ async function ShipmentCalendar({
   basis,
   labelMode,
   colorMode,
+  statusFilter,
+  dirFilter,
 }: {
   view: "month" | "week";
   anchor: Date;
@@ -197,6 +238,8 @@ async function ShipmentCalendar({
   basis: Basis;
   labelMode: LabelMode;
   colorMode: ColorMode;
+  statusFilter: StatusFilter;
+  dirFilter: DirFilter;
 }) {
   const supabase = await createClient();
 
@@ -223,6 +266,8 @@ async function ShipmentCalendar({
       `and(actual_delivery_date.gte.${startISO},actual_delivery_date.lte.${endISO}),and(actual_delivery_date.is.null,estimated_delivery_date.gte.${startISO},estimated_delivery_date.lte.${endISO})`,
     );
   }
+  if (statusFilter !== "all") query = query.eq("status", statusFilter);
+  if (dirFilter !== "all") query = query.eq("direction", dirFilter);
   const { data } = await query;
   const rowsData = data ?? [];
 
