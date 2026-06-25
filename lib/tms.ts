@@ -169,9 +169,13 @@ function findStop(stops: Stop[], types: string[]): Stop | undefined {
   return stops.find((s) => types.includes(String(s.stopType ?? "").trim().toLowerCase()));
 }
 
-/** Signals that a stop is the trade-show side (venue/booth), not an origin/return. */
+/**
+ * Signals that a stop is the trade-show side (venue/booth), not an origin/return.
+ * Named venues require enough words to avoid matching same-named streets (e.g.
+ * "McCormick Dr" in Maryland is not Chicago's McCormick Place).
+ */
 const SHOW_VENUE_RE =
-  /\bbooth\b|\bconv\b|\bconvention\b|\bexpo\b|exhibit|fairground|pavilion|civic center|trade ?show|mccormick|javits|mandalay|moscone|sands expo|caesars forum|conv(?:ention)? ctr|conv(?:ention)? center/i;
+  /\bbooth\b|\bconv\b|\bconvention\b|\bexpo\b|exhibit|fairground|pavilion|civic center|trade ?show|mccormick place|javits|mandalay bay|moscone|sands expo|caesars forum|conv(?:ention)? ctr|conv(?:ention)? center/i;
 
 /** Pull a booth number out of free-text address ("… - Booth #3727, …"). */
 function boothFrom(...texts: (string | undefined)[]): string | undefined {
