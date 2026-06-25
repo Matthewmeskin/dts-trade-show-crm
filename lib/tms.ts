@@ -226,7 +226,6 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   set("status", mapStatus(item));
   set("mode", mapMode(item.mode ?? item.serviceType ?? item.shipmentMode));
   set("destination_type", mapDest(item.destination_type ?? item.destination));
-  set("pro_number", str(item.pro_number ?? item.proNumber ?? item.pro ?? item.tracking_number));
   set("pickup_date", dateStr(item.pickup_date ?? item.pickupDate ?? item.pickup));
   set("estimated_delivery_date", dateStr(item.estimated_delivery_date ?? item.deliveryDate ?? item.eta));
   set("actual_delivery_date", dateStr(item.actual_delivery_date ?? item.delivered_date ?? item.deliverStatusDate));
@@ -287,6 +286,15 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   // the DB compute it.
   set("billed_amount", billed != null ? round2(billed) : undefined);
   set("cost_amount", cost != null ? round2(cost) : undefined);
+
+  // Reference numbers: customer PO and shipper number, plus a carrier PRO
+  // fallback (Hyperion puts the PRO on the primary carrier).
+  set("po_ref", str(item.po_ref ?? item.poReference ?? item.poNumber ?? item.po ?? item.purchaseOrder ?? item.poRef));
+  set("shipper_number", str(item.shipper_number ?? item.shipperNum ?? item.shipperNumber));
+  set("pro_number", str(
+    item.pro_number ?? item.proNumber ?? item.pro ?? item.tracking_number ??
+      primaryCarrier?.carrierProNumber ?? primaryCarrier?.proNumber,
+  ));
 
   // Delivery / consignee (the move-out return party) + booth. Handles both the
   // structured Hyperion stops[] shape and the flat *Location string shape.
