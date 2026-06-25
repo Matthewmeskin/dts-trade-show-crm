@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseLoad } from "@/lib/tms";
+import { resolveVenueId, resolveShowId, type ShowLite } from "@/lib/tms-link";
 import type { TablesInsert } from "@/lib/database.types";
 
 export const dynamic = "force-dynamic";
@@ -59,21 +60,35 @@ export async function POST(req: NextRequest) {
   const parsed = items.map(parseLoad);
 
   // Which load numbers already exist, and are they already linked to an
-  // exhibitor? (drives inserted/updated reporting + don't-clobber-link logic)
+  // exhibitor / venue / show? (drives inserted/updated reporting + don't-clobber-link logic)
   const refs = parsed.filter(Boolean).map((p) => p!.ref);
   const existing = new Set<string>();
   const existingExhibitor = new Map<string, string | null>();
+  const existingVenue = new Map<string, string | null>();
+  const existingShow = new Map<string, string | null>();
   if (refs.length) {
     const { data } = await supabase
       .from("shipments")
-      .select("tms_reference_id, exhibitor_id")
+      .select("tms_reference_id, exhibitor_id, venue_id, show_id")
       .in("tms_reference_id", refs);
     for (const r of data ?? [])
       if (r.tms_reference_id) {
         existing.add(r.tms_reference_id);
         existingExhibitor.set(r.tms_reference_id, r.exhibitor_id);
+        existingVenue.set(r.tms_reference_id, r.venue_id);
+        existingShow.set(r.tms_reference_id, r.show_id);
       }
   }
+
+  // Existing venues + shows for confident auto-linking (link only, never create).
+  const [{ data: venueRows }, { data: showRows }] = await Promise.all([
+    supabase.from("venues").select("id, venue_name, city, state"),
+    supabase
+      .from("shows")
+      .select("id, venue_id, archived, move_in_start, move_out_end, show_start_date, show_end_date"),
+  ]);
+  const venues = venueRows ?? [];
+  const shows: ShowLite[] = showRows ?? [];
 
   // Resolve exhibitors by customer/company name (find-or-create), like carriers.
   const exhibitorIds = new Map<string, string>();
@@ -128,11 +143,30 @@ export async function POST(req: NextRequest) {
     // Link the exhibitor only when we resolved one AND the shipment isn't
     // already linked — never clobber an operator's manual exhibitor/show link.
     const alreadyLinked = existingExhibitor.get(p.ref);
+
+    // Auto-link venue + show to EXISTING records when confident and not already
+    // linked. Never creates records (that's the reviewed Suggestions flow).
+    const venue_id =
+      existingVenue.get(p.ref) == null
+        ? resolveVenueId(p.fields.tms_venue_raw, venues)
+        : undefined;
+    const linkedVenue = existingVenue.get(p.ref) ?? venue_id;
+    const show_id =
+      existingShow.get(p.ref) == null
+        ? resolveShowId(
+            linkedVenue ?? undefined,
+            p.fields.show_date ?? p.fields.pickup_date,
+            shows,
+          )
+        : undefined;
+
     const row: TablesInsert<"shipments"> = {
       tms_reference_id: p.ref,
       ...p.fields,
       ...(carrier_id ? { carrier_id } : {}),
       ...(exhibitor_id && !alreadyLinked ? { exhibitor_id } : {}),
+      ...(venue_id ? { venue_id } : {}),
+      ...(show_id ? { show_id } : {}),
       tms_sync_status: "synced",
       tms_last_synced_at: now,
     };
