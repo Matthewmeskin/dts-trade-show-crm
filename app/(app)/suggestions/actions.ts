@@ -32,6 +32,24 @@ export async function linkShipmentsToVenue(fd: FormData) {
 }
 
 /**
+ * Link a set of shipments to an existing show. A show defines its venue, so we
+ * set the show's venue on the loads too (keeps venue + show consistent).
+ */
+export async function linkShipmentsToShow(fd: FormData) {
+  const show_id = String(fd.get("show_id") ?? "");
+  const ids = idList(fd);
+  if (!show_id || !ids.length) return;
+  const supabase = await createClient();
+  const { data: show } = await supabase.from("shows").select("venue_id").eq("id", show_id).maybeSingle();
+  const patch: { show_id: string; venue_id?: string } = { show_id };
+  if (show?.venue_id) patch.venue_id = show.venue_id;
+  await supabase.from("shipments").update(patch).in("id", ids);
+  revalidatePath("/suggestions");
+  revalidatePath("/shows");
+  revalidatePath("/venues");
+}
+
+/**
  * Create a venue and link the cluster's shipments — but reuse an existing venue
  * if one already matches (don't create duplicates). Prefers a same-state match.
  */

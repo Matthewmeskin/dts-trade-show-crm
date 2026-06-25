@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { matchVenue, type VenueLite } from "@/lib/venue-match";
+import { resolveShowId, type ShowLite } from "@/lib/tms-link";
 import { formatDate } from "@/lib/format";
 import { SuggestionList, type Cluster } from "./suggestion-list";
 
@@ -19,7 +20,7 @@ export default async function SuggestionsPage({
   const sp = await searchParams;
   const groupMode: GroupMode = sp.group === "venue" ? "venue" : "show";
   const supabase = await createClient();
-  const [{ data: shipmentsData }, { data: venuesData }] = await Promise.all([
+  const [{ data: shipmentsData }, { data: venuesData }, { data: showsData }] = await Promise.all([
     supabase
       .from("shipments")
       .select(
@@ -28,10 +29,18 @@ export default async function SuggestionsPage({
       .not("tms_venue_raw", "is", null)
       .or("venue_id.is.null,show_id.is.null"),
     supabase.from("venues").select("id, venue_name, city, state").order("venue_name"),
+    supabase
+      .from("shows")
+      .select(
+        "id, show_name, edition_year, venue_id, archived, move_in_start, move_out_end, show_start_date, show_end_date",
+      )
+      .eq("archived", false)
+      .order("show_name"),
   ]);
 
   const venues: VenueLite[] = venuesData ?? [];
   const rows = shipmentsData ?? [];
+  const showsLite: ShowLite[] = showsData ?? [];
 
   // Group by street address, not just city: different addresses in the same city
   // are usually different venues/shows (e.g. the convention center vs. a
@@ -93,6 +102,19 @@ export default async function SuggestionsPage({
       const dateHints = [...new Set(
         g.flatMap((r) => [r.show_date, r.pickup_date]).filter(Boolean).map((d) => (d as string).slice(0, 10)),
       )].sort();
+      // Suggest the single plausible show at the matched venue for these dates
+      // (same logic the sync auto-link uses), so a match is one-click to accept.
+      const matchedShowId = matched ? resolveShowId(matched.id, dateHints[0], showsLite) : undefined;
+      const matchedShowRow = matchedShowId ? showsLite.find((sh) => sh.id === matchedShowId) : undefined;
+      const matchedShowFull = matchedShowRow
+        ? (showsData ?? []).find((sh) => sh.id === matchedShowRow.id)
+        : undefined;
+      const matchedShow = matchedShowFull
+        ? {
+            id: matchedShowFull.id,
+            name: `${matchedShowFull.show_name}${matchedShowFull.edition_year ? ` ${matchedShowFull.edition_year}` : ""}`,
+          }
+        : null;
       const dateRangeLabel =
         dateHints.length === 0
           ? null
@@ -110,6 +132,7 @@ export default async function SuggestionsPage({
         exhibitors,
         dateHints,
         matchedVenue: matched ? { id: matched.id, name: matched.venue_name } : null,
+        matchedShow,
         needsVenue: g.filter((r) => !r.venue_id).length,
         needsShow: g.filter((r) => !r.show_id).length,
         // Per-load detail so the operator can confirm which loads belong to a
@@ -137,6 +160,14 @@ export default async function SuggestionsPage({
       label: `${vn.venue_name}${vn.city ? ` — ${vn.city}${vn.state ? `, ${vn.state}` : ""}` : ""}`,
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
+
+  // Existing shows for the manual show picker (carry venue_id so the card can
+  // narrow the list to the cluster's venue).
+  const showOptions = (showsData ?? []).map((sh) => ({
+    id: sh.id,
+    label: `${sh.show_name}${sh.edition_year ? ` ${sh.edition_year}` : ""}`,
+    venueId: sh.venue_id,
+  }));
 
   return (
     <div>
@@ -177,7 +208,7 @@ export default async function SuggestionsPage({
           />
         </Card>
       ) : (
-        <SuggestionList clusters={clusters} venues={venueOptions} />
+        <SuggestionList clusters={clusters} venues={venueOptions} shows={showOptions} />
       )}
     </div>
   );
