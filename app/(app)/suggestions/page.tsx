@@ -1,13 +1,23 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { matchVenue, type VenueLite } from "@/lib/venue-match";
+import { formatDate } from "@/lib/format";
 import { SuggestionList, type Cluster } from "./suggestion-list";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Suggestions · DTS Trade Show CRM" };
 
-export default async function SuggestionsPage() {
+type GroupMode = "show" | "venue";
+
+export default async function SuggestionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ group?: string }>;
+}) {
+  const sp = await searchParams;
+  const groupMode: GroupMode = sp.group === "venue" ? "venue" : "show";
   const supabase = await createClient();
   const [{ data: shipmentsData }, { data: venuesData }] = await Promise.all([
     supabase
@@ -46,7 +56,36 @@ export default async function SuggestionsPage() {
     groups.set(key, g);
   }
 
-  const clusters: Cluster[] = [...groups.values()]
+  // "By show" mode splits each venue's loads into shows by date: a venue hosts
+  // many shows a year, so loads whose dates are more than ~6 weeks apart are
+  // almost certainly different shows. Undated loads ride with the first window.
+  const DAY = 86_400_000;
+  const SHOW_GAP_DAYS = 45;
+  const loadDate = (r: (typeof rows)[number]) => Date.parse((r.show_date ?? r.pickup_date) ?? "");
+  function splitByShowWindow(g: typeof rows): (typeof rows)[] {
+    const dated = g.filter((r) => Number.isFinite(loadDate(r))).sort((a, b) => loadDate(a) - loadDate(b));
+    const undated = g.filter((r) => !Number.isFinite(loadDate(r)));
+    if (dated.length === 0) return [g];
+    const out: (typeof rows)[] = [];
+    let cur: typeof rows = [];
+    let prev = loadDate(dated[0]);
+    for (const r of dated) {
+      if (cur.length && loadDate(r) - prev > SHOW_GAP_DAYS * DAY) {
+        out.push(cur);
+        cur = [];
+      }
+      cur.push(r);
+      prev = loadDate(r);
+    }
+    out.push(cur);
+    if (undated.length) out[0].push(...undated);
+    return out;
+  }
+
+  const finalGroups =
+    groupMode === "show" ? [...groups.values()].flatMap(splitByShowWindow) : [...groups.values()];
+
+  const clusters: Cluster[] = finalGroups
     .map((g) => {
       const venueTexts = [...new Set(g.map((r) => r.tms_venue_raw).filter(Boolean) as string[])];
       const matched = venueTexts.map((t) => matchVenue(t, venues)).find(Boolean) ?? null;
@@ -54,10 +93,17 @@ export default async function SuggestionsPage() {
       const dateHints = [...new Set(
         g.flatMap((r) => [r.show_date, r.pickup_date]).filter(Boolean).map((d) => (d as string).slice(0, 10)),
       )].sort();
+      const dateRangeLabel =
+        dateHints.length === 0
+          ? null
+          : dateHints.length === 1
+            ? formatDate(dateHints[0])
+            : `${formatDate(dateHints[0])} – ${formatDate(dateHints[dateHints.length - 1])}`;
       return {
         city: g[0].tms_venue_city,
         state: g[0].tms_venue_state,
         addressLabel: g.map((r) => streetLabel(r.tms_venue_raw)).find(Boolean) ?? null,
+        dateRangeLabel,
         shipmentIds: g.map((r) => r.id),
         count: g.length,
         venueTexts,
@@ -90,6 +136,30 @@ export default async function SuggestionsPage() {
         title="Suggestions"
         description="Venues and shows inferred from your TMS shipments — match, or create with AI and auto-link."
       />
+      {clusters.length > 0 ? (
+        <div className="mb-4 flex items-center gap-3">
+          <span className="text-xs font-medium text-slate-500">Group by</span>
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-medium">
+            <Link
+              href="/suggestions?group=show"
+              className={`rounded-md px-3 py-1.5 transition ${groupMode === "show" ? "bg-dts-maroon text-white" : "text-slate-600 hover:bg-slate-50"}`}
+            >
+              Show
+            </Link>
+            <Link
+              href="/suggestions?group=venue"
+              className={`rounded-md px-3 py-1.5 transition ${groupMode === "venue" ? "bg-dts-maroon text-white" : "text-slate-600 hover:bg-slate-50"}`}
+            >
+              Venue
+            </Link>
+          </div>
+          <span className="text-xs text-slate-400">
+            {groupMode === "show"
+              ? "Split each venue into separate shows by date."
+              : "All loads at one venue grouped together."}
+          </span>
+        </div>
+      ) : null}
       {clusters.length === 0 ? (
         <Card>
           <EmptyState
