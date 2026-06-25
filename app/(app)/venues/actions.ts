@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { TablesInsert } from "@/lib/database.types";
+import type { TablesInsert, TablesUpdate } from "@/lib/database.types";
 
 export type VenueFormState = {
   error: string | null;
@@ -35,6 +35,30 @@ function parseVenue(fd: FormData): {
       general_notes: str(fd, "general_notes"),
     },
   };
+}
+
+/**
+ * Save AI-discovered logistics onto a venue. Only writes the fields provided
+ * (the client sends what the user accepted) and never blanks an existing field.
+ */
+export async function applyVenueLogistics(fd: FormData) {
+  const id = String(fd.get("id") ?? "");
+  if (!id) return;
+  const patch: TablesUpdate<"venues"> = {
+    ...(str(fd, "address") ? { address: str(fd, "address") } : {}),
+    ...(str(fd, "city") ? { city: str(fd, "city") } : {}),
+    ...(str(fd, "state") ? { state: str(fd, "state") } : {}),
+    ...(str(fd, "dock_notes") ? { dock_notes: str(fd, "dock_notes") } : {}),
+    ...(str(fd, "union_rules") ? { union_rules: str(fd, "union_rules") } : {}),
+    ...(str(fd, "delivery_restrictions") ? { delivery_restrictions: str(fd, "delivery_restrictions") } : {}),
+    ...(str(fd, "parking_and_staging_notes") ? { parking_and_staging_notes: str(fd, "parking_and_staging_notes") } : {}),
+    ...(str(fd, "general_notes") ? { general_notes: str(fd, "general_notes") } : {}),
+  };
+  if (Object.keys(patch).length === 0) return;
+  const supabase = await createClient();
+  await supabase.from("venues").update(patch).eq("id", id);
+  revalidatePath(`/venues/${id}`);
+  revalidatePath("/venues");
 }
 
 export async function createVenue(
