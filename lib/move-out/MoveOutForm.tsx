@@ -27,7 +27,6 @@ const DTS = {
 };
 
 // Default bill-to. Overridable per carrier profile / per load.
-// NOTE: confirm the ZIP before going live.
 export const DTS_BILL_TO: Party = {
   company: "Diversified Transportation Services",
   address1: "19829 Hamilton Avenue",
