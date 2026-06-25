@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { HoverPreview } from "@/components/hover-preview";
@@ -155,27 +156,38 @@ export default async function CalendarPage({
         </div>
       </div>
 
-      {/* Filter bar — narrow the calendar to a status and/or direction. */}
+      {/* Colored filter pills — double as the color key. Click to filter; the
+          active pill is solid, the rest dimmed. */}
       {view !== "shows" ? (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Filter</span>
-          <Segmented
-            options={[
-              { label: "All status", href: href({ status: "all" }), active: statusFilter === "all" },
-              ...STATUSES.map((s) => ({
-                label: SHIPMENT_STATUS_META[s].label,
-                href: href({ status: s }),
-                active: statusFilter === s,
-              })),
-            ]}
-          />
-          <Segmented
-            options={[
-              { label: "All directions", href: href({ dir: "all" }), active: dirFilter === "all" },
-              { label: DIRECTION_META.move_in.label, href: href({ dir: "move_in" }), active: dirFilter === "move_in" },
-              { label: DIRECTION_META.move_out.label, href: href({ dir: "move_out" }), active: dirFilter === "move_out" },
-            ]}
-          />
+        <div className="mb-4 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:gap-5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 w-14 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:w-auto">Status</span>
+            <FilterPill href={href({ status: "all" })} active={statusFilter === "all"} className="bg-slate-100 text-slate-600">
+              All
+            </FilterPill>
+            {STATUSES.map((s) => {
+              const meta = SHIPMENT_STATUS_META[s];
+              return (
+                <FilterPill key={s} href={href({ status: s })} active={statusFilter === s} className={meta.badge} dot={meta.dot}>
+                  {meta.label}
+                </FilterPill>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 w-14 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:w-auto">Direction</span>
+            <FilterPill href={href({ dir: "all" })} active={dirFilter === "all"} className="bg-slate-100 text-slate-600">
+              All
+            </FilterPill>
+            {(["move_in", "move_out"] as const).map((d) => {
+              const meta = DIRECTION_META[d];
+              return (
+                <FilterPill key={d} href={href({ dir: d })} active={dirFilter === d} className={meta.badge} dot={meta.dot}>
+                  {meta.label}
+                </FilterPill>
+              );
+            })}
+          </div>
         </div>
       ) : null}
 
@@ -194,13 +206,7 @@ export default async function CalendarPage({
         />
       )}
 
-      {view === "shows" ? (
-        <ShowLegend />
-      ) : colorMode === "direction" ? (
-        <DirectionLegend />
-      ) : (
-        <ShipmentLegend />
-      )}
+      {view === "shows" ? <ShowLegend /> : null}
     </div>
   );
 }
@@ -413,48 +419,11 @@ async function ShipmentCalendar({
   );
 }
 
-function DirectionLegend() {
-  return (
-    <div className="mt-3 flex flex-wrap items-center gap-4">
-      {(["move_in", "move_out"] as const).map((d) => {
-        const meta = DIRECTION_META[d];
-        return (
-          <span key={d} className="flex items-center gap-1.5 text-xs text-slate-500">
-            <span className={`h-2.5 w-2.5 rounded-full ${meta.dot}`} />
-            {meta.label}
-          </span>
-        );
-      })}
-      <span className="flex items-center gap-1.5 text-xs text-slate-500">
-        <span className={`h-2.5 w-2.5 rounded-full ${NEUTRAL_META.dot}`} />
-        Unset
-      </span>
-    </div>
-  );
-}
-
 function CalRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-3">
       <dt className="shrink-0 text-slate-400">{label}</dt>
       <dd className="truncate text-right text-slate-700">{value}</dd>
-    </div>
-  );
-}
-
-function ShipmentLegend() {
-  const order: ShipmentStatus[] = ["quoted", "booked", "in_transit", "delivered", "issue"];
-  return (
-    <div className="mt-3 flex flex-wrap items-center gap-4">
-      {order.map((s) => {
-        const meta = SHIPMENT_STATUS_META[s];
-        return (
-          <span key={s} className="flex items-center gap-1.5 text-xs text-slate-500">
-            <span className={`h-2.5 w-2.5 rounded-full ${meta.dot}`} />
-            {meta.label}
-          </span>
-        );
-      })}
     </div>
   );
 }
@@ -470,6 +439,32 @@ function NavLink({ href, icon }: { href: string; icon: string }) {
       className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-lg text-slate-600 hover:bg-slate-100"
     >
       {icon}
+    </Link>
+  );
+}
+
+function FilterPill({
+  href,
+  active,
+  className,
+  dot,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  className: string;
+  dot?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition ${className} ${
+        active ? "font-semibold shadow-sm ring-1 ring-black/10" : "opacity-50 hover:opacity-100"
+      }`}
+    >
+      {dot ? <span className={`h-1.5 w-1.5 rounded-full ${dot}`} /> : null}
+      {children}
     </Link>
   );
 }
