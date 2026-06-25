@@ -77,10 +77,11 @@ export async function POST(req: NextRequest) {
   const existingExhibitor = new Map<string, string | null>();
   const existingVenue = new Map<string, string | null>();
   const existingShow = new Map<string, string | null>();
+  const existingDirection = new Map<string, string | null>();
   if (refs.length) {
     const { data } = await supabase
       .from("shipments")
-      .select("tms_reference_id, exhibitor_id, venue_id, show_id")
+      .select("tms_reference_id, exhibitor_id, venue_id, show_id, direction")
       .in("tms_reference_id", refs);
     for (const r of data ?? [])
       if (r.tms_reference_id) {
@@ -88,6 +89,7 @@ export async function POST(req: NextRequest) {
         existingExhibitor.set(r.tms_reference_id, r.exhibitor_id);
         existingVenue.set(r.tms_reference_id, r.venue_id);
         existingShow.set(r.tms_reference_id, r.show_id);
+        existingDirection.set(r.tms_reference_id, r.direction);
       }
   }
 
@@ -178,6 +180,8 @@ export async function POST(req: NextRequest) {
       ...(exhibitor_id && !alreadyLinked ? { exhibitor_id } : {}),
       ...(venue_id ? { venue_id, venue_auto_linked: true } : {}),
       ...(show_id ? { show_id, show_auto_linked: true } : {}),
+      // Inferred direction only when the operator hasn't set one (never clobber).
+      ...(p.direction && existingDirection.get(p.ref) == null ? { direction: p.direction } : {}),
       tms_sync_status: "synced",
       tms_last_synced_at: now,
     };
