@@ -23,10 +23,24 @@ export default async function SuggestionsPage() {
   const venues: VenueLite[] = venuesData ?? [];
   const rows = shipmentsData ?? [];
 
-  // Group by city|state — a venue cluster.
+  // Group by street address, not just city: different addresses in the same city
+  // are usually different venues/shows (e.g. the convention center vs. a
+  // marshalling yard vs. an advance warehouse). Key on the leading house number
+  // + city/state so name typos and "c/o" suffixes don't split a real address.
+  const leadingNumber = (raw: string | null) => raw?.match(/\b(\d{2,6})\s+[A-Za-z]/)?.[1] ?? null;
+  const groupKey = (r: (typeof rows)[number]) => {
+    const place = `${(r.tms_venue_city ?? "").toLowerCase()}|${(r.tms_venue_state ?? "").toLowerCase()}`;
+    const num = leadingNumber(r.tms_venue_raw);
+    return num ? `${num}|${place}` : place;
+  };
+  // A concise "123 Main St" label for the cluster heading.
+  const STREET_RE =
+    /\d{2,6}\s+[A-Za-z0-9.\- ]*?(?:Rd|Road|St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Ln|Lane|Way|Pkwy|Parkway|Pl|Place|Ct|Court|Hwy|Highway|Cir|Circle|Ter|Terrace)\b/i;
+  const streetLabel = (raw: string | null) => raw?.match(STREET_RE)?.[0].replace(/\s+/g, " ").trim() ?? null;
+
   const groups = new Map<string, typeof rows>();
   for (const r of rows) {
-    const key = `${(r.tms_venue_city ?? "").toLowerCase()}|${(r.tms_venue_state ?? "").toLowerCase()}`;
+    const key = groupKey(r);
     const g = groups.get(key) ?? [];
     g.push(r);
     groups.set(key, g);
@@ -43,6 +57,7 @@ export default async function SuggestionsPage() {
       return {
         city: g[0].tms_venue_city,
         state: g[0].tms_venue_state,
+        addressLabel: g.map((r) => streetLabel(r.tms_venue_raw)).find(Boolean) ?? null,
         shipmentIds: g.map((r) => r.id),
         count: g.length,
         venueTexts,
