@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
+import { Icon } from "@/components/icons";
 import { LinkRow } from "@/components/link-row";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { inputClass } from "@/components/form";
@@ -63,7 +64,7 @@ export default async function VenueRecordPage({
       .eq("venue_id", id),
     supabase
       .from("shipments")
-      .select("id, status, direction, pickup_date, exhibitor:exhibitors(company_name), show:shows(show_name)")
+      .select("id, status, direction, pickup_date, show_id, exhibitor:exhibitors(company_name), show:shows(show_name)")
       .eq("venue_id", id)
       .order("pickup_date", { ascending: true, nullsFirst: false }),
     supabase.from("shows").select("id, show_name, edition_year, venue_id").order("show_name"),
@@ -77,6 +78,10 @@ export default async function VenueRecordPage({
 
   const shows = showsRes.data ?? [];
   const shipments = shipRes.data ?? [];
+  // Loads on a show belong here; loads matched to the venue but not yet on a
+  // show are pending — surfaced separately so they don't read as confirmed.
+  const onShowShipments = shipments.filter((s) => s.show_id);
+  const needsShowShipments = shipments.filter((s) => !s.show_id);
   const unlinkedShipments = unlinkedShipRes.data ?? [];
   const carriers = (carrierRes.data ?? [])
     .map((r) => r.carrier)
@@ -149,7 +154,7 @@ export default async function VenueRecordPage({
 
           <Card className="mt-5">
             <CardHeader
-              title={`Loads at this venue (${shipments.length})`}
+              title={`Loads at this venue (${onShowShipments.length})`}
               icon="shipments"
               action={
                 <div className="flex items-center gap-2">
@@ -179,40 +184,88 @@ export default async function VenueRecordPage({
             {shipments.length === 0 ? (
               <EmptyState icon="shipments" title="No shipments routed through this venue yet" description="Attach an existing shipment or log a new one." />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
-                      <th className="px-5 py-3">Exhibitor</th>
-                      <th className="px-5 py-3">Direction</th>
-                      <th className="px-5 py-3">Status</th>
-                      <th className="px-5 py-3">Show</th>
-                      <th className="px-5 py-3">Pickup</th>
-                      <th className="px-5 py-3"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {shipments.map((s) => {
-                      const meta = SHIPMENT_STATUS_META[s.status];
-                      return (
-                        <LinkRow key={s.id} href={`/shipments/${s.id}`} className="group hover:bg-slate-50/60">
-                          <td className="px-5 py-3">
-                            <Link href={`/shipments/${s.id}`} className="font-medium text-slate-900 group-hover:text-dts-maroon">
+              <>
+                {onShowShipments.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
+                          <th className="px-5 py-3">Exhibitor</th>
+                          <th className="px-5 py-3">Direction</th>
+                          <th className="px-5 py-3">Status</th>
+                          <th className="px-5 py-3">Show</th>
+                          <th className="px-5 py-3">Pickup</th>
+                          <th className="px-5 py-3"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {onShowShipments.map((s) => {
+                          const meta = SHIPMENT_STATUS_META[s.status];
+                          return (
+                            <LinkRow key={s.id} href={`/shipments/${s.id}`} className="group hover:bg-slate-50/60">
+                              <td className="px-5 py-3">
+                                <Link href={`/shipments/${s.id}`} className="font-medium text-slate-900 group-hover:text-dts-maroon">
+                                  {s.exhibitor?.company_name ?? "Shipment"}
+                                </Link>
+                              </td>
+                              <td className="px-5 py-3 text-slate-600">
+                                {s.direction ? DIRECTION_META[s.direction].label : "—"}
+                              </td>
+                              <td className="px-5 py-3">
+                                <Badge className={meta.badge}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                                  {meta.label}
+                                </Badge>
+                              </td>
+                              <td className="px-5 py-3 text-slate-600">{s.show?.show_name ?? "—"}</td>
+                              <td className="px-5 py-3 text-slate-600">{formatDate(s.pickup_date)}</td>
+                              <td className="px-5 py-3 text-right">
+                                <form action={detachShipmentFromVenue}>
+                                  <input type="hidden" name="venue_id" value={id} />
+                                  <input type="hidden" name="shipment_id" value={s.id} />
+                                  <button type="submit" className="text-xs font-medium text-slate-400 hover:text-dts-maroon">
+                                    Remove
+                                  </button>
+                                </form>
+                              </td>
+                            </LinkRow>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="px-5 py-4 text-sm text-slate-500">No loads are on a show at this venue yet.</div>
+                )}
+
+                {needsShowShipments.length > 0 ? (
+                  <div className="border-t border-amber-100 bg-amber-50/40 px-5 py-3">
+                    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="inline-flex items-center gap-1.5 font-semibold text-amber-700">
+                        <Icon name="alert" className="h-3.5 w-3.5" />
+                        Needs a show ({needsShowShipments.length})
+                      </span>
+                      <span className="text-amber-700/80">Matched to this venue but not yet assigned to a show.</span>
+                      <Link href="/suggestions" className="ml-auto font-medium text-amber-800 underline-offset-2 hover:underline">
+                        Assign in Suggestions →
+                      </Link>
+                    </div>
+                    <div className="divide-y divide-amber-100/70 overflow-hidden rounded-lg border border-amber-100 bg-white">
+                      {needsShowShipments.map((s) => {
+                        const meta = SHIPMENT_STATUS_META[s.status];
+                        return (
+                          <div key={s.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+                            <Link href={`/shipments/${s.id}`} className="font-medium text-slate-900 hover:text-dts-maroon">
                               {s.exhibitor?.company_name ?? "Shipment"}
                             </Link>
-                          </td>
-                          <td className="px-5 py-3 text-slate-600">
-                            {s.direction ? DIRECTION_META[s.direction].label : "—"}
-                          </td>
-                          <td className="px-5 py-3">
                             <Badge className={meta.badge}>
                               <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
                               {meta.label}
                             </Badge>
-                          </td>
-                          <td className="px-5 py-3 text-slate-600">{s.show?.show_name ?? "—"}</td>
-                          <td className="px-5 py-3 text-slate-600">{formatDate(s.pickup_date)}</td>
-                          <td className="px-5 py-3 text-right">
+                            {s.direction ? (
+                              <span className="text-xs text-slate-500">{DIRECTION_META[s.direction].label}</span>
+                            ) : null}
+                            <span className="ml-auto text-xs text-slate-500">{formatDate(s.pickup_date)}</span>
                             <form action={detachShipmentFromVenue}>
                               <input type="hidden" name="venue_id" value={id} />
                               <input type="hidden" name="shipment_id" value={s.id} />
@@ -220,13 +273,13 @@ export default async function VenueRecordPage({
                                 Remove
                               </button>
                             </form>
-                          </td>
-                        </LinkRow>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </>
             )}
           </Card>
         </div>
