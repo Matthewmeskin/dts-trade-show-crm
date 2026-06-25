@@ -130,6 +130,14 @@ export default async function SuggestionsPage({
     })
     .sort((a, b) => b.count - a.count);
 
+  // All venues for the manual picker (pre-selected to the auto-match when known).
+  const venueOptions = venues
+    .map((vn) => ({
+      id: vn.id,
+      label: `${vn.venue_name}${vn.city ? ` — ${vn.city}${vn.state ? `, ${vn.state}` : ""}` : ""}`,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
   return (
     <div>
       <PageHeader
@@ -169,7 +177,7 @@ export default async function SuggestionsPage({
           />
         </Card>
       ) : (
-        <SuggestionList clusters={clusters} />
+        <SuggestionList clusters={clusters} venues={venueOptions} />
       )}
     </div>
   );

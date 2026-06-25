@@ -59,17 +59,19 @@ const CONF = {
   low: "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-500/20",
 };
 
-export function SuggestionList({ clusters }: { clusters: Cluster[] }) {
+export type VenueOption = { id: string; label: string };
+
+export function SuggestionList({ clusters, venues }: { clusters: Cluster[]; venues: VenueOption[] }) {
   return (
     <div className="space-y-4">
       {clusters.map((c, i) => (
-        <ClusterCard key={i} cluster={c} />
+        <ClusterCard key={i} cluster={c} venues={venues} />
       ))}
     </div>
   );
 }
 
-function ClusterCard({ cluster }: { cluster: Cluster }) {
+function ClusterCard({ cluster, venues }: { cluster: Cluster; venues: VenueOption[] }) {
   const router = useRouter();
   const place = [cluster.city, cluster.state].filter(Boolean).join(", ") || "Unknown location";
   const heading = cluster.addressLabel ?? place;
@@ -80,6 +82,8 @@ function ClusterCard({ cluster }: { cluster: Cluster }) {
   // venue id once matched or created — required before a show can be created.
   const [venueId, setVenueId] = useState<string | null>(cluster.matchedVenue?.id ?? null);
   const [venueLabel, setVenueLabel] = useState<string | null>(cluster.matchedVenue?.name ?? null);
+  // The venue picker's current choice — pre-selected to the auto-match if any.
+  const [pickVenue, setPickVenue] = useState<string>(cluster.matchedVenue?.id ?? "");
 
   // editable fields (seeded by AI discovery)
   const [v, setV] = useState({ name: "", address: "", city: cluster.city ?? "", state: cluster.state ?? "" });
@@ -152,13 +156,17 @@ function ClusterCard({ cluster }: { cluster: Cluster }) {
     }
   }
 
-  async function linkMatched() {
-    if (!cluster.matchedVenue) return;
+  async function linkVenue() {
+    if (!pickVenue || !selectedIds.length) return;
     setBusy("link");
+    setError(null);
     const fd = new FormData();
-    fd.set("venue_id", cluster.matchedVenue.id);
+    fd.set("venue_id", pickVenue);
     fd.set("shipment_ids", idsCsv);
     await linkShipmentsToVenue(fd);
+    // Remember the choice so a show can be created against it next.
+    setVenueId(pickVenue);
+    setVenueLabel(venues.find((vn) => vn.id === pickVenue)?.label ?? null);
     setBusy(null);
     router.refresh();
   }
@@ -241,15 +249,28 @@ function ClusterCard({ cluster }: { cluster: Cluster }) {
             <span className="text-[10px] text-slate-400">{showLoads ? "▾" : "▸"}</span>
             {showLoads ? "Hide loads" : `Review ${cluster.count} load${cluster.count === 1 ? "" : "s"}`}
           </button>
-          {cluster.matchedVenue && cluster.needsVenue > 0 ? (
-            <button
-              type="button"
-              onClick={linkMatched}
-              disabled={busy !== null || !selectedIds.length}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-            >
-              {busy === "link" ? "Linking…" : `Link ${selectedIds.length} to ${cluster.matchedVenue.name}`}
-            </button>
+          {cluster.needsVenue > 0 ? (
+            <div className="flex items-center gap-1.5">
+              <select
+                value={pickVenue}
+                onChange={(e) => setPickVenue(e.target.value)}
+                className="max-w-[14rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon"
+                title="Pick the venue these loads belong to"
+              >
+                <option value="">Select a venue…</option>
+                {venues.map((vn) => (
+                  <option key={vn.id} value={vn.id}>{vn.label}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={linkVenue}
+                disabled={busy !== null || !pickVenue || !selectedIds.length}
+                className="rounded-lg bg-dts-blue px-3 py-1.5 text-xs font-medium text-white transition hover:bg-dts-blue/90 disabled:opacity-60"
+              >
+                {busy === "link" ? "Linking…" : `Link ${selectedIds.length}`}
+              </button>
+            </div>
           ) : null}
           <button
             type="button"
