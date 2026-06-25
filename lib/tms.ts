@@ -54,6 +54,15 @@ function dateStr(v: unknown): string | undefined {
   if (m) return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
   return undefined;
 }
+/** Normalize a timestamp (ISO or US date) to an ISO string; undefined if unparseable. */
+function tsStr(v: unknown): string | undefined {
+  const s = str(v);
+  if (!s) return undefined;
+  const d = new Date(s);
+  if (!Number.isNaN(d.getTime())) return d.toISOString();
+  const day = dateStr(s);
+  return day ? new Date(`${day}T00:00:00Z`).toISOString() : undefined;
+}
 const intVal = (v: unknown) => {
   if (v == null || v === "") return undefined;
   const n = Number.parseInt(String(v), 10);
@@ -210,6 +219,8 @@ export type ParsedLoad = {
   ref: string;
   carrierName?: string;
   customerName?: string;
+  /** Inferred move-in/move-out — applied by the ingest only when not already set. */
+  direction?: (typeof Constants.public.Enums.shipment_direction)[number];
   fields: Partial<TablesInsert<"shipments">>;
 };
 
@@ -231,6 +242,9 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   set("actual_delivery_date", dateStr(item.actual_delivery_date ?? item.delivered_date ?? item.deliverStatusDate));
   set("tracking_url", str(item.tracking_url ?? item.carrierTrackingURL ?? item.carrier_tracking_url));
   set("tms_customer_id", extractCustomerId(item));
+  // When the load/quote was created in the TMS (Hyperion `createdate`) — shown
+  // as the "Quoted" date. Left null when the source doesn't provide it.
+  set("tms_created_at", tsStr(item.tms_created_at ?? item.createdate ?? item.createDate ?? item.created_date ?? item.dateCreated));
 
   // Hyperion carries handling units, money, and the carrier as arrays/nested
   // fields; aggregate them. Flat payloads (hand-built or the tracking feed)
@@ -325,13 +339,19 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
     pickup ? { full: pickup.full, city: pickup.city, state: pickup.state } : { full: pickupStr },
     drop ? { full: drop.full, city: drop.city, state: drop.state } : { full: deliveryStr },
   ];
-  const showSide = venueCandidates.find((c) => c.full && SHOW_VENUE_RE.test(c.full));
+  const showSideIdx = venueCandidates.findIndex((c) => c.full && SHOW_VENUE_RE.test(c.full));
+  const showSide = showSideIdx >= 0 ? venueCandidates[showSideIdx] : undefined;
   if (showSide?.full) {
     const parts = parseAddressParts(showSide.full);
     set("tms_venue_raw", showSide.full);
     set("tms_venue_city", showSide.city ?? parts.city);
     set("tms_venue_state", showSide.state ?? parts.state);
   }
+  // Infer direction from which end is the show: show on the delivery side means
+  // freight headed INTO the show (move-in); show on the pickup side means
+  // freight coming back FROM it (move-out). Index 0 = pickup, 1 = delivery.
+  const direction: (typeof Constants.public.Enums.shipment_direction)[number] | undefined =
+    showSideIdx === 1 ? "move_in" : showSideIdx === 0 ? "move_out" : undefined;
 
   // Origin: explicit fields win; otherwise parse the pickup location.
   const loc = parseLocation(item.pickup_location ?? item.pickupLocation ?? pickup?.full);
@@ -351,6 +371,7 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
       item.carrier_name ?? item.carrierName ?? primaryCarrier?.carrierName ?? primaryCarrier?.carrier_name,
     ),
     customerName: str(item.customer_name ?? item.customerName ?? item.customerCompany),
+    direction,
     fields,
   };
 }

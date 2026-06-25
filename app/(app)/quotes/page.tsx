@@ -14,7 +14,7 @@ export default async function QuotesPage() {
   const { data: rows } = await supabase
     .from("shipments")
     .select(
-      "id, status, mode, direction, destination_type, pickup_date, target_delivery_date, show_date, billed_amount, cost_amount, margin, created_at, tms_reference_id, origin_city, origin_state, destination_address, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name), venue:venues(venue_name)",
+      "id, status, mode, direction, destination_type, pickup_date, target_delivery_date, show_date, billed_amount, cost_amount, margin, created_at, tms_created_at, tms_reference_id, origin_city, origin_state, destination_address, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name), venue:venues(venue_name)",
     )
     .eq("status", "quoted")
     .order("created_at", { ascending: false });
@@ -103,7 +103,9 @@ export default async function QuotesPage() {
                           <span className="text-slate-300">—</span>
                         )}
                       </td>
-                      <td className="px-5 py-3 text-slate-500">{formatDate(s.created_at)}</td>
+                      <td className="px-5 py-3 text-slate-500">
+                        {s.tms_created_at ? formatDate(s.tms_created_at) : <span className="text-slate-300">—</span>}
+                      </td>
                     </ShipmentRow>
                   );
                 })}

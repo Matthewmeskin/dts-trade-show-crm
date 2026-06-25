@@ -21,6 +21,7 @@ export type ClusterShipment = {
 export type Cluster = {
   city: string | null;
   state: string | null;
+  addressLabel: string | null;
   shipmentIds: string[];
   count: number;
   venueTexts: string[];
@@ -70,6 +71,7 @@ export function SuggestionList({ clusters }: { clusters: Cluster[] }) {
 function ClusterCard({ cluster }: { cluster: Cluster }) {
   const router = useRouter();
   const place = [cluster.city, cluster.state].filter(Boolean).join(", ") || "Unknown location";
+  const heading = cluster.addressLabel ?? place;
 
   const [busy, setBusy] = useState<null | "discover" | "venue" | "show" | "link">(null);
   const [error, setError] = useState<string | null>(null);
@@ -205,7 +207,10 @@ function ClusterCard({ cluster }: { cluster: Cluster }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="font-heading text-base font-semibold text-slate-900">{place}</h3>
+            <h3 className="font-heading text-base font-semibold text-slate-900">{heading}</h3>
+            {cluster.addressLabel ? (
+              <span className="text-xs text-slate-400">{place}</span>
+            ) : null}
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
               {cluster.count} shipment{cluster.count === 1 ? "" : "s"}
             </span>
