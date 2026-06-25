@@ -22,6 +22,7 @@ export type Cluster = {
   city: string | null;
   state: string | null;
   addressLabel: string | null;
+  dateRangeLabel: string | null;
   shipmentIds: string[];
   count: number;
   venueTexts: string[];
@@ -214,6 +215,11 @@ function ClusterCard({ cluster }: { cluster: Cluster }) {
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
               {cluster.count} shipment{cluster.count === 1 ? "" : "s"}
             </span>
+            {cluster.dateRangeLabel ? (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                {cluster.dateRangeLabel}
+              </span>
+            ) : null}
             {cluster.matchedVenue ? (
               <span className="rounded-full bg-dts-blue/10 px-2 py-0.5 text-xs font-medium text-dts-blue">
                 Matches {cluster.matchedVenue.name}
