@@ -326,8 +326,18 @@ export type Database = {
           accessorials_flagged: boolean
           actual_delivery_date: string | null
           billed_amount: number | null
+          booth_number: string | null
           carrier_id: string | null
           check_in_number: string | null
+          consignee_city: string | null
+          consignee_company: string | null
+          consignee_contact: string | null
+          consignee_country: string | null
+          consignee_phone: string | null
+          consignee_state: string | null
+          consignee_street1: string | null
+          consignee_street2: string | null
+          consignee_zip: string | null
           cost_amount: number | null
           created_at: string
           destination_address: string | null
@@ -369,8 +379,18 @@ export type Database = {
           accessorials_flagged?: boolean
           actual_delivery_date?: string | null
           billed_amount?: number | null
+          booth_number?: string | null
           carrier_id?: string | null
           check_in_number?: string | null
+          consignee_city?: string | null
+          consignee_company?: string | null
+          consignee_contact?: string | null
+          consignee_country?: string | null
+          consignee_phone?: string | null
+          consignee_state?: string | null
+          consignee_street1?: string | null
+          consignee_street2?: string | null
+          consignee_zip?: string | null
           cost_amount?: number | null
           created_at?: string
           destination_address?: string | null
@@ -411,8 +431,18 @@ export type Database = {
           accessorials_flagged?: boolean
           actual_delivery_date?: string | null
           billed_amount?: number | null
+          booth_number?: string | null
           carrier_id?: string | null
           check_in_number?: string | null
+          consignee_city?: string | null
+          consignee_company?: string | null
+          consignee_contact?: string | null
+          consignee_country?: string | null
+          consignee_phone?: string | null
+          consignee_state?: string | null
+          consignee_street1?: string | null
+          consignee_street2?: string | null
+          consignee_zip?: string | null
           cost_amount?: number | null
           created_at?: string
           destination_address?: string | null

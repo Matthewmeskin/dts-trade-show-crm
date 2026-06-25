@@ -29,8 +29,9 @@ shipment-to-form mapping.
 | Company name | `shipment.exhibitor.company_name` |
 | Booth # | not stored — left blank |
 | Contact name / phone / email | `exhibitor.primary_contact_*` |
-| SHIP TO company / attn / phone | exhibitor (the consignee on a move-out) |
-| SHIP TO address | `shipment.destination_address` (free text); city/state/zip hand-filled |
+| Booth # | `shipment.booth_number` (parsed from the load's stop address by the sync) |
+| SHIP TO company / attn / phone | `shipment.consignee_company / consignee_contact / consignee_phone` → exhibitor fallback |
+| SHIP TO address | `shipment.consignee_street1/2/city/state/zip` → `destination_address` fallback |
 | Special instructions | `special_requirements` + `notes`, minus anything matched to a checkbox |
 | BILL TO | **default `DTS_BILL_TO` (DTS, 19829 Hamilton Ave, Torrance CA)** |
 | Other Carrier (checked) + carrier name | `shipment.carrier.carrier_name` |
@@ -58,10 +59,13 @@ liftgate, inside delivery, residential, do-not-stack, pad wrap, loading dock, ai
 Anything without a checkbox (e.g. **call before delivery**, **appointment required**, **notify**,
 **limited access**) flows into SPECIAL INSTRUCTIONS instead of being dropped.
 
-## Improving the data
-Today there's no structured consignee/return address or booth number on a shipment. To make the
-SHIP TO block complete without hand-filling, add those columns to `shipments` (or a move-out detail
-record) and map them in `mapShipmentToMoveOut`.
+## Where the consignee + booth come from
+`shipments` carries structured `consignee_*` columns and `booth_number`, populated by the TMS sync
+(`parseLoad` in `lib/tms.ts`). It reads the load's **delivery (drop) stop** for the return
+consignee — handling both Hyperion's structured `stops[]` shape and the flat `deliveryLocation`
+string — and parses the **booth number** out of the show-side stop's address text
+(e.g. "… Delta Motion - Booth #3727"). Existing shipments pick these up on their next sync (the
+nightly n8n run, or immediately when a shipment's load number is re-saved).
 
 ## Auto-generating for all move-outs
 Call `renderMoveOutForm` on a move-out status transition or in a batch job over all move-out
