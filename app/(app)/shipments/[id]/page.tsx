@@ -101,6 +101,16 @@ export default async function ShipmentRecordPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {s.direction === "move_out" ? (
+            <a
+              href={`/api/move-out/${s.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              <Icon name="documents" className="h-4 w-4" /> Move-out form
+            </a>
+          ) : null}
           <QuickEditShipment shipment={s} shows={showOptions} exhibitors={exhibitorOptions} />
           <ConfirmDelete
             action={deleteShipment}
