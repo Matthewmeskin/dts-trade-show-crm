@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { Field, inputClass } from "@/components/form";
-import { createVenueAndLink, createShowAndLink, linkShipmentsToVenue } from "./actions";
+import { createVenueAndLink, createShowAndLink, linkShipmentsToVenue, linkShipmentsToShow } from "./actions";
 
 export type ClusterShipment = {
   id: string;
@@ -29,6 +29,7 @@ export type Cluster = {
   exhibitors: string[];
   dateHints: string[];
   matchedVenue: { id: string; name: string } | null;
+  matchedShow: { id: string; name: string } | null;
   needsVenue: number;
   needsShow: number;
   shipments: ClusterShipment[];
@@ -60,30 +61,51 @@ const CONF = {
 };
 
 export type VenueOption = { id: string; label: string };
+export type ShowOption = { id: string; label: string; venueId: string | null };
 
-export function SuggestionList({ clusters, venues }: { clusters: Cluster[]; venues: VenueOption[] }) {
+export function SuggestionList({
+  clusters,
+  venues,
+  shows,
+}: {
+  clusters: Cluster[];
+  venues: VenueOption[];
+  shows: ShowOption[];
+}) {
   return (
     <div className="space-y-4">
       {clusters.map((c, i) => (
-        <ClusterCard key={i} cluster={c} venues={venues} />
+        <ClusterCard key={i} cluster={c} venues={venues} shows={shows} />
       ))}
     </div>
   );
 }
 
-function ClusterCard({ cluster, venues }: { cluster: Cluster; venues: VenueOption[] }) {
+function ClusterCard({
+  cluster,
+  venues,
+  shows,
+}: {
+  cluster: Cluster;
+  venues: VenueOption[];
+  shows: ShowOption[];
+}) {
   const router = useRouter();
   const place = [cluster.city, cluster.state].filter(Boolean).join(", ") || "Unknown location";
   const heading = cluster.addressLabel ?? place;
 
-  const [busy, setBusy] = useState<null | "discover" | "venue" | "show" | "link">(null);
+  const [busy, setBusy] = useState<null | "discover" | "venue" | "show" | "link" | "linkshow">(null);
   const [error, setError] = useState<string | null>(null);
   const [d, setD] = useState<Discovered | null>(null);
   // venue id once matched or created — required before a show can be created.
   const [venueId, setVenueId] = useState<string | null>(cluster.matchedVenue?.id ?? null);
   const [venueLabel, setVenueLabel] = useState<string | null>(cluster.matchedVenue?.name ?? null);
-  // The venue picker's current choice — pre-selected to the auto-match if any.
+  // The picker choices — pre-selected to the auto-match if any. The match is a
+  // one-click approve; the dropdown (revealed by "Change") is for overrides.
   const [pickVenue, setPickVenue] = useState<string>(cluster.matchedVenue?.id ?? "");
+  const [pickShow, setPickShow] = useState<string>(cluster.matchedShow?.id ?? "");
+  const [overrideVenue, setOverrideVenue] = useState(false);
+  const [overrideShow, setOverrideShow] = useState(false);
 
   // editable fields (seeded by AI discovery)
   const [v, setV] = useState({ name: "", address: "", city: cluster.city ?? "", state: cluster.state ?? "" });
@@ -156,17 +178,29 @@ function ClusterCard({ cluster, venues }: { cluster: Cluster; venues: VenueOptio
     }
   }
 
-  async function linkVenue() {
-    if (!pickVenue || !selectedIds.length) return;
+  async function linkVenueId(id: string) {
+    if (!id || !selectedIds.length) return;
     setBusy("link");
     setError(null);
     const fd = new FormData();
-    fd.set("venue_id", pickVenue);
+    fd.set("venue_id", id);
     fd.set("shipment_ids", idsCsv);
     await linkShipmentsToVenue(fd);
     // Remember the choice so a show can be created against it next.
-    setVenueId(pickVenue);
-    setVenueLabel(venues.find((vn) => vn.id === pickVenue)?.label ?? null);
+    setVenueId(id);
+    setVenueLabel(venues.find((vn) => vn.id === id)?.label ?? cluster.matchedVenue?.name ?? null);
+    setBusy(null);
+    router.refresh();
+  }
+
+  async function linkShowId(id: string) {
+    if (!id || !selectedIds.length) return;
+    setBusy("linkshow");
+    setError(null);
+    const fd = new FormData();
+    fd.set("show_id", id);
+    fd.set("shipment_ids", idsCsv);
+    await linkShipmentsToShow(fd);
     setBusy(null);
     router.refresh();
   }
@@ -211,6 +245,12 @@ function ClusterCard({ cluster, venues }: { cluster: Cluster; venues: VenueOptio
     router.refresh();
   }
 
+  // Existing shows to offer — narrowed to the cluster's venue when we know it.
+  const venueForShows = venueId ?? (pickVenue || null) ?? cluster.matchedVenue?.id ?? null;
+  const showChoices = venueForShows ? shows.filter((sh) => sh.venueId === venueForShows) : shows;
+  const mv = cluster.matchedVenue;
+  const ms = cluster.matchedShow;
+
   return (
     <Card className="p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -233,6 +273,11 @@ function ClusterCard({ cluster, venues }: { cluster: Cluster; venues: VenueOptio
                 Matches {cluster.matchedVenue.name}
               </span>
             ) : null}
+            {cluster.matchedShow ? (
+              <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
+                Show: {cluster.matchedShow.name}
+              </span>
+            ) : null}
           </div>
           <div className="mt-1 text-xs text-slate-500">
             {cluster.needsVenue > 0 ? `${cluster.needsVenue} need a venue` : "venue linked"}
@@ -240,7 +285,7 @@ function ClusterCard({ cluster, venues }: { cluster: Cluster; venues: VenueOptio
             {cluster.needsShow > 0 ? `${cluster.needsShow} need a show` : "show linked"}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <button
             type="button"
             onClick={() => setShowLoads((o) => !o)}
@@ -249,29 +294,91 @@ function ClusterCard({ cluster, venues }: { cluster: Cluster; venues: VenueOptio
             <span className="text-[10px] text-slate-400">{showLoads ? "▾" : "▸"}</span>
             {showLoads ? "Hide loads" : `Review ${cluster.count} load${cluster.count === 1 ? "" : "s"}`}
           </button>
+
+          {/* Venue: one-click approve when matched, dropdown to override/pick. */}
           {cluster.needsVenue > 0 ? (
-            <div className="flex items-center gap-1.5">
-              <select
-                value={pickVenue}
-                onChange={(e) => setPickVenue(e.target.value)}
-                className="max-w-[14rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon"
-                title="Pick the venue these loads belong to"
-              >
-                <option value="">Select a venue…</option>
-                {venues.map((vn) => (
-                  <option key={vn.id} value={vn.id}>{vn.label}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={linkVenue}
-                disabled={busy !== null || !pickVenue || !selectedIds.length}
-                className="rounded-lg bg-dts-blue px-3 py-1.5 text-xs font-medium text-white transition hover:bg-dts-blue/90 disabled:opacity-60"
-              >
-                {busy === "link" ? "Linking…" : `Link ${selectedIds.length}`}
-              </button>
-            </div>
+            mv && !overrideVenue ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => linkVenueId(mv.id)}
+                  disabled={busy !== null || !selectedIds.length}
+                  className="rounded-lg bg-dts-blue px-3 py-1.5 text-xs font-medium text-white transition hover:bg-dts-blue/90 disabled:opacity-60"
+                >
+                  {busy === "link" ? "Linking…" : `Link ${selectedIds.length} to ${mv.name}`}
+                </button>
+                <button type="button" onClick={() => setOverrideVenue(true)} className="text-xs font-medium text-slate-500 hover:text-slate-900">
+                  Change
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={pickVenue}
+                  onChange={(e) => setPickVenue(e.target.value)}
+                  className="max-w-[14rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon"
+                  title="Pick the venue these loads belong to"
+                >
+                  <option value="">Select a venue…</option>
+                  {venues.map((vn) => (
+                    <option key={vn.id} value={vn.id}>{vn.label}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => linkVenueId(pickVenue)}
+                  disabled={busy !== null || !pickVenue || !selectedIds.length}
+                  className="rounded-lg bg-dts-blue px-3 py-1.5 text-xs font-medium text-white transition hover:bg-dts-blue/90 disabled:opacity-60"
+                >
+                  {busy === "link" ? "Linking…" : `Link ${selectedIds.length}`}
+                </button>
+              </div>
+            )
           ) : null}
+
+          {/* Show: one-click approve when matched, dropdown to override/pick. */}
+          {cluster.needsShow > 0 ? (
+            ms && !overrideShow ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => linkShowId(ms.id)}
+                  disabled={busy !== null || !selectedIds.length}
+                  className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-purple-700 disabled:opacity-60"
+                >
+                  {busy === "linkshow" ? "Linking…" : `Link ${selectedIds.length} to ${ms.name}`}
+                </button>
+                {showChoices.length > 1 ? (
+                  <button type="button" onClick={() => setOverrideShow(true)} className="text-xs font-medium text-slate-500 hover:text-slate-900">
+                    Change
+                  </button>
+                ) : null}
+              </div>
+            ) : showChoices.length ? (
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={pickShow}
+                  onChange={(e) => setPickShow(e.target.value)}
+                  className="max-w-[14rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon"
+                  title="Pick the show these loads belong to"
+                >
+                  <option value="">Select a show…</option>
+                  {showChoices.map((sh) => (
+                    <option key={sh.id} value={sh.id}>{sh.label}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => linkShowId(pickShow)}
+                  disabled={busy !== null || !pickShow || !selectedIds.length}
+                  className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-purple-700 disabled:opacity-60"
+                >
+                  {busy === "linkshow" ? "Linking…" : `Link ${selectedIds.length}`}
+                </button>
+              </div>
+            ) : null
+          ) : null}
+
           <button
             type="button"
             onClick={discover}
