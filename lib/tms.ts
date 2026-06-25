@@ -224,17 +224,77 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   };
 
   set("status", mapStatus(item));
-  set("mode", mapMode(item.mode ?? item.serviceType));
+  set("mode", mapMode(item.mode ?? item.serviceType ?? item.shipmentMode));
   set("destination_type", mapDest(item.destination_type ?? item.destination));
-  set("pro_number", str(item.pro_number ?? item.proNumber ?? item.pro ?? item.tracking_number));
   set("pickup_date", dateStr(item.pickup_date ?? item.pickupDate ?? item.pickup));
   set("estimated_delivery_date", dateStr(item.estimated_delivery_date ?? item.deliveryDate ?? item.eta));
   set("actual_delivery_date", dateStr(item.actual_delivery_date ?? item.delivered_date ?? item.deliverStatusDate));
-  set("pieces", intVal(item.pieces ?? item.totalPieces ?? item.piece_count));
-  set("weight", numVal(item.weight ?? item.totalWeight ?? item.weight_lbs));
-  set("package_type", str(item.package_type ?? item.packaging ?? item.packageType));
   set("tracking_url", str(item.tracking_url ?? item.carrierTrackingURL ?? item.carrier_tracking_url));
   set("tms_customer_id", extractCustomerId(item));
+
+  // Hyperion carries handling units, money, and the carrier as arrays/nested
+  // fields; aggregate them. Flat payloads (hand-built or the tracking feed)
+  // still set the top-level fields directly via the ?? fallbacks.
+  const lineItems: Record<string, unknown>[] = Array.isArray(item.items)
+    ? (item.items as Record<string, unknown>[])
+    : [];
+  const accessorials: Record<string, unknown>[] = Array.isArray(item.accessorials)
+    ? (item.accessorials as Record<string, unknown>[])
+    : [];
+  const carriers: Record<string, unknown>[] = Array.isArray(item.carriers)
+    ? (item.carriers as Record<string, unknown>[])
+    : [];
+  const primaryCarrier = carriers.find((c) => boolVal(c.isPrimary)) ?? carriers[0];
+
+  /** Sum a numeric field across rows (first matching key per row); undefined if none present. */
+  const sumField = (rows: Record<string, unknown>[], keys: string[]): number | undefined => {
+    let total = 0;
+    let seen = false;
+    for (const r of rows) {
+      for (const k of keys) {
+        if (r[k] != null && r[k] !== "") {
+          const n = numVal(r[k]);
+          if (n != null) {
+            total += n;
+            seen = true;
+          }
+          break;
+        }
+      }
+    }
+    return seen ? total : undefined;
+  };
+  const addParts = (...parts: (number | undefined)[]) => {
+    const present = parts.filter((n): n is number => n != null);
+    return present.length ? present.reduce((a, b) => a + b, 0) : undefined;
+  };
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+
+  set("pieces", intVal(item.pieces ?? item.totalPieces ?? item.piece_count) ?? (
+    lineItems.length ? lineItems.reduce((a, r) => a + (intVal(r.pieces ?? r.handlingUnits) ?? 0), 0) || undefined : undefined
+  ));
+  set("weight", numVal(item.weight ?? item.totalWeight ?? item.weight_lbs) ?? sumField(lineItems, ["weight"]));
+  set("package_type", str(item.package_type ?? item.packaging ?? item.packageType ?? primaryCarrier?.packaging ?? lineItems[0]?.packaging));
+
+  const billed =
+    numVal(item.billed_amount ?? item.billed ?? item.customer_total ?? item.totalBilled) ??
+    addParts(sumField(lineItems, ["billed"]), sumField(accessorials, ["bill", "billed"]));
+  const cost =
+    numVal(item.cost_amount ?? item.cost ?? item.carrier_total ?? item.totalCost) ??
+    addParts(sumField(lineItems, ["cost"]), sumField(accessorials, ["cost"]));
+  // margin is a generated column (billed − cost) — set the two inputs and let
+  // the DB compute it.
+  set("billed_amount", billed != null ? round2(billed) : undefined);
+  set("cost_amount", cost != null ? round2(cost) : undefined);
+
+  // Reference numbers: customer PO and shipper number, plus a carrier PRO
+  // fallback (Hyperion puts the PRO on the primary carrier).
+  set("po_ref", str(item.po_ref ?? item.poReference ?? item.poNumber ?? item.po ?? item.purchaseOrder ?? item.poRef));
+  set("shipper_number", str(item.shipper_number ?? item.shipperNum ?? item.shipperNumber));
+  set("pro_number", str(
+    item.pro_number ?? item.proNumber ?? item.pro ?? item.tracking_number ??
+      primaryCarrier?.carrierProNumber ?? primaryCarrier?.proNumber,
+  ));
 
   // Delivery / consignee (the move-out return party) + booth. Handles both the
   // structured Hyperion stops[] shape and the flat *Location string shape.
@@ -287,7 +347,9 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
 
   return {
     ref,
-    carrierName: str(item.carrier_name ?? item.carrierName),
+    carrierName: str(
+      item.carrier_name ?? item.carrierName ?? primaryCarrier?.carrierName ?? primaryCarrier?.carrier_name,
+    ),
     customerName: str(item.customer_name ?? item.customerName ?? item.customerCompany),
     fields,
   };

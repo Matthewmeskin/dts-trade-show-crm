@@ -7,6 +7,17 @@ import { Icon } from "@/components/icons";
 import { Field, inputClass } from "@/components/form";
 import { createVenueAndLink, createShowAndLink, linkShipmentsToVenue } from "./actions";
 
+export type ClusterShipment = {
+  id: string;
+  ref: string | null;
+  venueRaw: string | null;
+  booth: string | null;
+  exhibitor: string | null;
+  date: string | null;
+  hasVenue: boolean;
+  hasShow: boolean;
+};
+
 export type Cluster = {
   city: string | null;
   state: string | null;
@@ -18,6 +29,7 @@ export type Cluster = {
   matchedVenue: { id: string; name: string } | null;
   needsVenue: number;
   needsShow: number;
+  shipments: ClusterShipment[];
 };
 
 type Discovered = {
@@ -74,16 +86,36 @@ function ClusterCard({ cluster }: { cluster: Cluster }) {
   });
   const [open, setOpen] = useState(false);
 
-  const idsCsv = cluster.shipmentIds.join(",");
+  // Which loads in this cluster the actions apply to. One city often holds
+  // several different shows, so the operator can narrow the set before linking.
+  const [selected, setSelected] = useState<Set<string>>(new Set(cluster.shipmentIds));
+  const [showLoads, setShowLoads] = useState(false);
+
+  const selectedIds = cluster.shipmentIds.filter((id) => selected.has(id));
+  const idsCsv = selectedIds.join(",");
+  const allSelected = selectedIds.length === cluster.shipmentIds.length;
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function setAll(on: boolean) {
+    setSelected(on ? new Set(cluster.shipmentIds) : new Set());
+  }
 
   async function discover() {
+    if (!selectedIds.length) { setError("Select at least one load first."); return; }
     setBusy("discover");
     setError(null);
     try {
       const res = await fetch("/api/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shipmentIds: cluster.shipmentIds }),
+        body: JSON.stringify({ shipmentIds: selectedIds }),
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
@@ -190,14 +222,22 @@ function ClusterCard({ cluster }: { cluster: Cluster }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowLoads((o) => !o)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            <span className="text-[10px] text-slate-400">{showLoads ? "▾" : "▸"}</span>
+            {showLoads ? "Hide loads" : `Review ${cluster.count} load${cluster.count === 1 ? "" : "s"}`}
+          </button>
           {cluster.matchedVenue && cluster.needsVenue > 0 ? (
             <button
               type="button"
               onClick={linkMatched}
-              disabled={busy !== null}
+              disabled={busy !== null || !selectedIds.length}
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
             >
-              {busy === "link" ? "Linking…" : `Link to ${cluster.matchedVenue.name}`}
+              {busy === "link" ? "Linking…" : `Link ${selectedIds.length} to ${cluster.matchedVenue.name}`}
             </button>
           ) : null}
           <button
@@ -221,6 +261,48 @@ function ClusterCard({ cluster }: { cluster: Cluster }) {
         ) : null}
         {cluster.dateHints.length ? <div>🗓 {cluster.dateHints.join(" · ")}</div> : null}
       </div>
+
+      {showLoads ? (
+        <div className="mt-3 rounded-lg border border-slate-200">
+          <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+            <span className="text-xs font-medium text-slate-600">
+              {selectedIds.length} of {cluster.count} selected
+            </span>
+            <button
+              type="button"
+              onClick={() => setAll(!allSelected)}
+              className="text-xs font-medium text-dts-blue hover:underline"
+            >
+              {allSelected ? "Clear all" : "Select all"}
+            </button>
+          </div>
+          <ul className="divide-y divide-slate-100">
+            {cluster.shipments.map((sh) => (
+              <li key={sh.id}>
+                <label className="flex cursor-pointer items-start gap-3 px-3 py-2 transition hover:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(sh.id)}
+                    onChange={() => toggle(sh.id)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-dts-maroon focus:ring-dts-maroon"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                      {sh.ref ? <span className="font-medium text-slate-700">Load {sh.ref}</span> : null}
+                      {sh.booth ? <span className="text-slate-500">Booth {sh.booth}</span> : null}
+                      {sh.date ? <span className="text-slate-400">{sh.date}</span> : null}
+                      {sh.hasVenue ? <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">venue ✓</span> : null}
+                      {sh.hasShow ? <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">show ✓</span> : null}
+                    </span>
+                    {sh.venueRaw ? <span className="mt-0.5 block truncate text-xs text-slate-500">📍 {sh.venueRaw}</span> : null}
+                    {sh.exhibitor ? <span className="block truncate text-xs text-slate-400">🏢 {sh.exhibitor}</span> : null}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {error ? (
         <p className="mt-3 rounded-lg bg-dts-maroon/5 px-3 py-2 text-xs text-dts-maroon">{error}</p>
@@ -247,8 +329,8 @@ function ClusterCard({ cluster }: { cluster: Cluster }) {
               <Field label="City" htmlFor="vc"><input id="vc" value={v.city} onChange={(e) => setV({ ...v, city: e.target.value })} className={inputClass} /></Field>
               <Field label="State" htmlFor="vs"><input id="vs" value={v.state} onChange={(e) => setV({ ...v, state: e.target.value })} className={inputClass} /></Field>
             </div>
-            <button type="button" onClick={saveVenue} disabled={busy !== null} className="mt-3 rounded-lg bg-dts-maroon px-3 py-1.5 text-xs font-medium text-white transition hover:bg-dts-maroon-dark disabled:opacity-60">
-              {busy === "venue" ? "Creating…" : "Create venue & link"}
+            <button type="button" onClick={saveVenue} disabled={busy !== null || !selectedIds.length} className="mt-3 rounded-lg bg-dts-maroon px-3 py-1.5 text-xs font-medium text-white transition hover:bg-dts-maroon-dark disabled:opacity-60">
+              {busy === "venue" ? "Creating…" : `Create venue & link ${selectedIds.length}`}
             </button>
           </div>
 
@@ -266,8 +348,8 @@ function ClusterCard({ cluster }: { cluster: Cluster }) {
               <Field label="Move-in start" htmlFor="smi"><input id="smi" type="date" value={s.moveIn} onChange={(e) => setS({ ...s, moveIn: e.target.value })} className={inputClass} /></Field>
               <Field label="Move-out end" htmlFor="smo"><input id="smo" type="date" value={s.moveOut} onChange={(e) => setS({ ...s, moveOut: e.target.value })} className={inputClass} /></Field>
             </div>
-            <button type="button" onClick={saveShow} disabled={busy !== null || !venueId} className="mt-3 rounded-lg bg-dts-maroon px-3 py-1.5 text-xs font-medium text-white transition hover:bg-dts-maroon-dark disabled:opacity-60" title={!venueId ? "Create or link the venue first" : undefined}>
-              {busy === "show" ? "Creating…" : "Create show & link"}
+            <button type="button" onClick={saveShow} disabled={busy !== null || !venueId || !selectedIds.length} className="mt-3 rounded-lg bg-dts-maroon px-3 py-1.5 text-xs font-medium text-white transition hover:bg-dts-maroon-dark disabled:opacity-60" title={!venueId ? "Create or link the venue first" : undefined}>
+              {busy === "show" ? "Creating…" : `Create show & link ${selectedIds.length}`}
             </button>
           </div>
 

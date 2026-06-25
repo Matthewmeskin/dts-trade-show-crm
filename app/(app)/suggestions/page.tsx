@@ -13,7 +13,7 @@ export default async function SuggestionsPage() {
     supabase
       .from("shipments")
       .select(
-        "id, tms_venue_raw, tms_venue_city, tms_venue_state, venue_id, show_id, pickup_date, show_date, exhibitor:exhibitors(company_name)",
+        "id, tms_reference_id, tms_venue_raw, tms_venue_city, tms_venue_state, booth_number, venue_id, show_id, pickup_date, show_date, exhibitor:exhibitors(company_name)",
       )
       .not("tms_venue_raw", "is", null)
       .or("venue_id.is.null,show_id.is.null"),
@@ -51,6 +51,20 @@ export default async function SuggestionsPage() {
         matchedVenue: matched ? { id: matched.id, name: matched.venue_name } : null,
         needsVenue: g.filter((r) => !r.venue_id).length,
         needsShow: g.filter((r) => !r.show_id).length,
+        // Per-load detail so the operator can confirm which loads belong to a
+        // show before linking — one city often holds several different shows.
+        shipments: g
+          .map((r) => ({
+            id: r.id,
+            ref: r.tms_reference_id,
+            venueRaw: r.tms_venue_raw,
+            booth: r.booth_number,
+            exhibitor: r.exhibitor?.company_name ?? null,
+            date: (r.show_date ?? r.pickup_date)?.slice(0, 10) ?? null,
+            hasVenue: !!r.venue_id,
+            hasShow: !!r.show_id,
+          }))
+          .sort((a, b) => (a.venueRaw ?? "").localeCompare(b.venueRaw ?? "")),
       };
     })
     .sort((a, b) => b.count - a.count);
