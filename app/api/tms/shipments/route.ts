@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { parseLoad } from "@/lib/tms";
+import { parseLoad, type ParsedLoad } from "@/lib/tms";
 import { resolveVenueId, resolveShowId, type ShowLite } from "@/lib/tms-link";
 import type { TablesInsert } from "@/lib/database.types";
 
@@ -57,7 +57,18 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createAdminClient();
-  const parsed = items.map(parseLoad);
+
+  // This is a trade-show CRM. The Hyperion quote feed carries the whole
+  // company's general freight, so only keep QUOTED loads that show a
+  // trade-show signal — a detected convention venue or a booth number.
+  // Booked / in-transit / delivered loads pass through untouched (those syncs
+  // are already scoped to trade-show freight). Without this gate the Quotes
+  // tab fills with thousands of unrelated freight quotes.
+  const isTradeShow = (p: ParsedLoad) =>
+    p.fields.tms_venue_raw != null || p.fields.booth_number != null;
+  const parsed = items
+    .map(parseLoad)
+    .filter((p) => !p || p.fields.status !== "quoted" || isTradeShow(p));
 
   // Which load numbers already exist, and are they already linked to an
   // exhibitor / venue / show? (drives inserted/updated reporting + don't-clobber-link logic)
