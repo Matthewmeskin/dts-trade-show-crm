@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
+import { Icon } from "@/components/icons";
 import { HoverPreview } from "@/components/hover-preview";
 import { ShipmentSidePanel } from "@/app/(app)/shipments/shipment-side-panel";
 import { SHOW_STATUS_META, type ShowWithStatus, type ShowStatus } from "@/lib/shows";
@@ -54,6 +55,7 @@ type CalEvent = {
   exhibitor: string | null;
   show: string | null;
   direction: ShipmentDirection | null;
+  checkIn: string | null;
   carrier: string | null;
   venue: string | null;
   pickup: string | null;
@@ -188,6 +190,15 @@ export default async function CalendarPage({
               );
             })}
           </div>
+          <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 sm:ml-auto">
+            <span className="font-semibold uppercase tracking-wide text-slate-400">Move-out</span>
+            <span className="inline-flex items-center gap-1">
+              <Icon name="check" className="h-3 w-3 text-emerald-600" /> checked in
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-full border border-amber-400 bg-amber-50" /> no check-in #
+            </span>
+          </div>
         </div>
       ) : null}
 
@@ -263,7 +274,7 @@ async function ShipmentCalendar({
   let query = supabase
     .from("shipments")
     .select(
-      "id, status, direction, pickup_date, estimated_delivery_date, actual_delivery_date, pro_number, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name), venue:venues(venue_name)",
+      "id, status, direction, check_in_number, pickup_date, estimated_delivery_date, actual_delivery_date, pro_number, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name), venue:venues(venue_name)",
     );
   if (basis === "pickup") {
     query = query.gte("pickup_date", startISO).lte("pickup_date", endISO);
@@ -301,6 +312,7 @@ async function ShipmentCalendar({
       exhibitor,
       show: s.show?.show_name ?? null,
       direction: s.direction,
+      checkIn: s.check_in_number,
       carrier: s.carrier?.carrier_name ?? null,
       venue: s.venue?.venue_name ?? null,
       pickup: s.pickup_date,
@@ -374,7 +386,17 @@ async function ShipmentCalendar({
                           className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left hover:bg-slate-50"
                         >
                           <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${meta.dot}`} />
-                          <span className={`truncate text-xs font-medium ${meta.text}`}>{e.label}</span>
+                          <span className={`min-w-0 flex-1 truncate text-xs font-medium ${meta.text}`}>{e.label}</span>
+                          {e.direction === "move_out" ? (
+                            e.checkIn ? (
+                              <Icon name="check" className="h-3 w-3 shrink-0 text-emerald-600" aria-label={`Checked in: ${e.checkIn}`} />
+                            ) : (
+                              <span
+                                className="h-2.5 w-2.5 shrink-0 rounded-full border border-amber-400 bg-amber-50"
+                                title="Move-out — no check-in number yet"
+                              />
+                            )
+                          ) : null}
                         </ShipmentSidePanel>
                       }
                     >
@@ -386,6 +408,9 @@ async function ShipmentCalendar({
                         <dl className="space-y-1 text-xs">
                           {e.show ? <CalRow label="Show" value={e.show} /> : null}
                           {e.direction ? <CalRow label="Direction" value={DIRECTION_META[e.direction].label} /> : null}
+                          {e.direction === "move_out" ? (
+                            <CalRow label="Check-in #" value={e.checkIn ?? "Not added"} />
+                          ) : null}
                           {e.venue ? <CalRow label="Venue" value={e.venue} /> : null}
                           {e.carrier ? <CalRow label="Carrier" value={e.carrier} /> : null}
                           <CalRow label="Pickup" value={formatDate(e.pickup)} />
