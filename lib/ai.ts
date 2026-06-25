@@ -187,6 +187,135 @@ export async function classifyTradeShowLoads(
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Trade-show discovery (web search)                                           */
+/* -------------------------------------------------------------------------- */
+
+export type DiscoveredShow = {
+  venue_name: string | null;
+  venue_address: string | null;
+  venue_city: string | null;
+  venue_state: string | null;
+  show_name: string | null;
+  edition_year: number | null;
+  website_url: string | null;
+  exhibitor_manual_url: string | null;
+  exhibitor_list_url: string | null;
+  show_start_date: string | null;
+  show_end_date: string | null;
+  move_in_start: string | null;
+  move_out_end: string | null;
+  confidence: "high" | "medium" | "low";
+  notes: string | null;
+  sources: string[];
+};
+
+export type DiscoverResult =
+  | { status: "ok"; data: DiscoveredShow }
+  | { status: "unconfigured" }
+  | { status: "error"; message: string };
+
+const DISCOVER_SYSTEM = `You research trade shows for DTS, a freight brokerage's trade show division. You are given freight clues about shipments going to ONE trade show: messy venue text from shipping labels, a city/state, exhibitor company names, and freight date hints. Use web search to identify (a) the VENUE and (b) the specific TRADE SHOW happening there on those dates.
+
+Search the web to find the show's official website, exhibitor/service manual (the "exhibitor kit" or "freight/shipping" PDF or page), and exhibitor list if available. Prefer the official show site and the general service contractor (Freeman, GES, etc.) pages.
+
+Return ONLY a JSON object (no markdown, no preamble) with these keys, using null when unsure:
+{
+ "venue_name","venue_address","venue_city","venue_state",
+ "show_name","edition_year",
+ "website_url","exhibitor_manual_url","exhibitor_list_url",
+ "show_start_date","show_end_date","move_in_start","move_out_end",  // ISO YYYY-MM-DD
+ "confidence","notes","sources"  // confidence: high|medium|low; sources: array of URLs you used
+}
+Only assert a show_name and dates you can corroborate from search results near the freight dates and city. Do not invent URLs.`;
+
+/** Pull a JSON object out of the model's reply (tolerant of fences / stray text). */
+function looseJson(raw: string): Record<string, unknown> | null {
+  let s = raw.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  const start = s.indexOf("{");
+  const end = s.lastIndexOf("}");
+  if (start !== -1 && end > start) s = s.slice(start, end + 1);
+  try {
+    const v = JSON.parse(s);
+    return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+const conf = (v: unknown): "high" | "medium" | "low" =>
+  v === "high" || v === "medium" || v === "low" ? v : "low";
+
+export async function discoverTradeShow(input: {
+  city: string | null;
+  state: string | null;
+  venueTexts: string[];
+  exhibitors: string[];
+  dateHints: string[];
+}): Promise<DiscoverResult> {
+  if (!process.env.ANTHROPIC_API_KEY) return { status: "unconfigured" };
+
+  try {
+    const client = new Anthropic();
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 2000,
+      system: DISCOVER_SYSTEM,
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }],
+      messages: [
+        {
+          role: "user",
+          content: `Freight clues for one trade show:\n- City/State: ${[input.city, input.state].filter(Boolean).join(", ") || "(unknown)"}\n- Venue text from labels:\n${input.venueTexts.map((t) => `  • ${t}`).join("\n") || "  (none)"}\n- Exhibitors shipping in: ${input.exhibitors.join(", ") || "(unknown)"}\n- Freight date hints: ${input.dateHints.join(", ") || "(unknown)"}\n\nIdentify the venue and the show, then return the JSON object.`,
+        },
+      ],
+    });
+
+    const text = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("")
+      .trim();
+    const j = looseJson(text);
+    if (!j) return { status: "error", message: "Could not parse the AI response." };
+
+    const sources = Array.isArray(j.sources)
+      ? (j.sources as unknown[]).map((x) => String(x)).filter(Boolean).slice(0, 8)
+      : [];
+    const year = Number.parseInt(String(j.edition_year ?? ""), 10);
+
+    return {
+      status: "ok",
+      data: {
+        venue_name: str(j.venue_name),
+        venue_address: str(j.venue_address),
+        venue_city: str(j.venue_city) ?? input.city,
+        venue_state: str(j.venue_state) ?? input.state,
+        show_name: str(j.show_name),
+        edition_year: Number.isFinite(year) ? year : null,
+        website_url: str(j.website_url),
+        exhibitor_manual_url: str(j.exhibitor_manual_url),
+        exhibitor_list_url: str(j.exhibitor_list_url),
+        show_start_date: str(j.show_start_date),
+        show_end_date: str(j.show_end_date),
+        move_in_start: str(j.move_in_start),
+        move_out_end: str(j.move_out_end),
+        confidence: conf(j.confidence),
+        notes: str(j.notes),
+        sources,
+      },
+    };
+  } catch (e) {
+    const message =
+      e instanceof Anthropic.APIError
+        ? `${e.status ?? ""} ${e.message}`.trim()
+        : e instanceof Error
+          ? e.message
+          : "Unknown error";
+    return { status: "error", message };
+  }
+}
+
 export async function generateSituationSummary(
   data: DashboardData,
 ): Promise<SummaryResult> {
