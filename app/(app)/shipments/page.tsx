@@ -41,6 +41,8 @@ export default async function ShipmentsPage({
     .select(
       "id, status, mode, destination_type, direction, target_delivery_date, show_date, estimated_delivery_date, actual_delivery_date, pickup_date, pro_number, tms_reference_id, margin, weight, pieces, origin_city, origin_state, destination_address, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(carrier_name), venue:venues(venue_name)",
     )
+    // Quotes live on their own Quotes tab — keep them out of active shipments.
+    .neq("status", "quoted")
     .order("pickup_date", { ascending: true, nullsFirst: false });
 
   if (sp.status && (Constants.public.Enums.shipment_status as readonly string[]).includes(sp.status))
@@ -94,10 +96,12 @@ export default async function ShipmentsPage({
 
   // Build status tabs preserving other filters.
   const statusTabs = [{ label: "All", value: "" }].concat(
-    Constants.public.Enums.shipment_status.map((s) => ({
-      label: SHIPMENT_STATUS_META[s].label,
-      value: s,
-    })),
+    Constants.public.Enums.shipment_status
+      .filter((s) => s !== "quoted")
+      .map((s) => ({
+        label: SHIPMENT_STATUS_META[s].label,
+        value: s,
+      })),
   );
   const tabHref = (value: string) => {
     const p = new URLSearchParams();
