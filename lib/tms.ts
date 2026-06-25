@@ -164,7 +164,8 @@ function findStop(stops: Stop[], types: string[]): Stop | undefined {
 function boothFrom(...texts: (string | undefined)[]): string | undefined {
   for (const t of texts) {
     if (!t) continue;
-    const m = t.match(/booth\s*#?\s*([A-Za-z0-9][A-Za-z0-9-]*)/i);
+    // Require a digit in the token so stray words ("Booth #LAST …") don't match.
+    const m = t.match(/booth\s*#?\s*([A-Za-z0-9-]*\d[A-Za-z0-9-]*)/i);
     if (m) return m[1];
   }
   return undefined;
