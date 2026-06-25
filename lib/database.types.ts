@@ -367,6 +367,9 @@ export type Database = {
           package_type: string | null
           status: Database["public"]["Enums"]["shipment_status"]
           tms_customer_id: string | null
+          tms_venue_raw: string | null
+          tms_venue_city: string | null
+          tms_venue_state: string | null
           tms_last_synced_at: string | null
           tms_reference_id: string | null
           tms_sync_status: Database["public"]["Enums"]["tms_sync_status"]
@@ -419,6 +422,9 @@ export type Database = {
           special_requirements?: string | null
           status?: Database["public"]["Enums"]["shipment_status"]
           tms_customer_id?: string | null
+          tms_venue_raw?: string | null
+          tms_venue_city?: string | null
+          tms_venue_state?: string | null
           tms_last_synced_at?: string | null
           tms_reference_id?: string | null
           tms_sync_status?: Database["public"]["Enums"]["tms_sync_status"]
@@ -471,6 +477,9 @@ export type Database = {
           special_requirements?: string | null
           status?: Database["public"]["Enums"]["shipment_status"]
           tms_customer_id?: string | null
+          tms_venue_raw?: string | null
+          tms_venue_city?: string | null
+          tms_venue_state?: string | null
           tms_last_synced_at?: string | null
           tms_reference_id?: string | null
           tms_sync_status?: Database["public"]["Enums"]["tms_sync_status"]

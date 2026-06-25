@@ -160,6 +160,10 @@ function findStop(stops: Stop[], types: string[]): Stop | undefined {
   return stops.find((s) => types.includes(String(s.stopType ?? "").trim().toLowerCase()));
 }
 
+/** Signals that a stop is the trade-show side (venue/booth), not an origin/return. */
+const SHOW_VENUE_RE =
+  /\bbooth\b|\bconv\b|\bconvention\b|\bexpo\b|exhibit|fairground|pavilion|civic center|trade ?show|mccormick|javits|mandalay|moscone|sands expo|caesars forum|conv(?:ention)? ctr|conv(?:ention)? center/i;
+
 /** Pull a booth number out of free-text address ("… - Booth #3727, …"). */
 function boothFrom(...texts: (string | undefined)[]): string | undefined {
   for (const t of texts) {
@@ -253,6 +257,21 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   set("consignee_zip", drop?.zip ?? da.zip);
   set("consignee_country", drop?.country);
   set("booth_number", boothFrom(pickupStr, deliveryStr));
+
+  // Trade-show venue context: the show-side stop (the one with the booth or a
+  // convention-venue keyword). Raw text is messy on purpose — it's the input
+  // for fuzzy matching + AI venue/show discovery.
+  const venueCandidates: { full?: string; city?: string; state?: string }[] = [
+    pickup ? { full: pickup.full, city: pickup.city, state: pickup.state } : { full: pickupStr },
+    drop ? { full: drop.full, city: drop.city, state: drop.state } : { full: deliveryStr },
+  ];
+  const showSide = venueCandidates.find((c) => c.full && SHOW_VENUE_RE.test(c.full));
+  if (showSide?.full) {
+    const parts = parseAddressParts(showSide.full);
+    set("tms_venue_raw", showSide.full);
+    set("tms_venue_city", showSide.city ?? parts.city);
+    set("tms_venue_state", showSide.state ?? parts.state);
+  }
 
   // Origin: explicit fields win; otherwise parse the pickup location.
   const loc = parseLocation(item.pickup_location ?? item.pickupLocation ?? pickup?.full);
