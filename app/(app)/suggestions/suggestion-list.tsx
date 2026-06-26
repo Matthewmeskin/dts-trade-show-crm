@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/ui";
@@ -526,7 +527,15 @@ function ShowGroupRow({
                   <input type="checkbox" checked={selected.has(sh.id)} onChange={() => toggle(sh.id)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-dts-maroon focus:ring-dts-maroon" />
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                      {sh.ref ? <span className="font-medium text-slate-700">Load {sh.ref}</span> : null}
+                      <Link
+                        href={`/shipments/${sh.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-medium text-dts-maroon hover:underline"
+                      >
+                        {sh.ref ? `Load ${sh.ref}` : "Open load"}
+                      </Link>
                       {sh.booth ? <span className="text-slate-500">Booth {sh.booth}</span> : null}
                       {sh.date ? <span className="text-slate-400">{sh.date}</span> : null}
                       {sh.hasShow ? <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">show ✓</span> : null}
