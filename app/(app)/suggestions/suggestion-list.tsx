@@ -17,6 +17,7 @@ import {
 export type ClusterShipment = {
   id: string;
   ref: string | null;
+  tmsUrl: string | null;
   venueRaw: string | null;
   booth: string | null;
   exhibitor: string | null;
@@ -527,15 +528,29 @@ function ShowGroupRow({
                   <input type="checkbox" checked={selected.has(sh.id)} onChange={() => toggle(sh.id)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-dts-maroon focus:ring-dts-maroon" />
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                      <Link
-                        href={`/shipments/${sh.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="font-medium text-dts-maroon hover:underline"
-                      >
-                        {sh.ref ? `Load ${sh.ref}` : "Open load"}
-                      </Link>
+                      {sh.tmsUrl ? (
+                        <a
+                          href={sh.tmsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 font-medium text-dts-maroon hover:underline"
+                          title="Open in Hyperion TMS"
+                        >
+                          {sh.ref ? `Load ${sh.ref}` : "Open load"}
+                          <Icon name="external" className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <Link
+                          href={`/shipments/${sh.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-medium text-dts-maroon hover:underline"
+                        >
+                          {sh.ref ? `Load ${sh.ref}` : "Open load"}
+                        </Link>
+                      )}
                       {sh.booth ? <span className="text-slate-500">Booth {sh.booth}</span> : null}
                       {sh.date ? <span className="text-slate-400">{sh.date}</span> : null}
                       {sh.hasShow ? <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">show ✓</span> : null}

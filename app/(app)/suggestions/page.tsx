@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { matchVenue, type VenueLite } from "@/lib/venue-match";
 import { resolveShowId, type ShowLite } from "@/lib/tms-link";
+import { hyperionShipmentUrl } from "@/lib/tms";
 import { formatDate } from "@/lib/format";
 import { SuggestionList, type Cluster } from "./suggestion-list";
 
@@ -24,7 +25,7 @@ export default async function SuggestionsPage() {
     supabase
       .from("shipments")
       .select(
-        "id, tms_reference_id, tms_venue_raw, tms_venue_city, tms_venue_state, booth_number, destination_type, destination_address, venue_id, show_id, pickup_date, show_date, exhibitor:exhibitors(company_name)",
+        "id, tms_reference_id, tms_customer_id, tms_venue_raw, tms_venue_city, tms_venue_state, booth_number, destination_type, destination_address, venue_id, show_id, pickup_date, show_date, exhibitor:exhibitors(company_name)",
       )
       .not("tms_venue_raw", "is", null)
       .or("venue_id.is.null,show_id.is.null"),
@@ -121,6 +122,7 @@ export default async function SuggestionsPage() {
             .map((r) => ({
               id: r.id,
               ref: r.tms_reference_id,
+              tmsUrl: hyperionShipmentUrl(r.tms_customer_id, r.tms_reference_id),
               venueRaw: r.tms_venue_raw,
               booth: r.booth_number,
               exhibitor: r.exhibitor?.company_name ?? null,
