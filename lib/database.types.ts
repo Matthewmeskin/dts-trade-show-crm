@@ -82,6 +82,13 @@ export type Database = {
       }
       carriers: {
         Row: {
+          bill_to_address1: string | null
+          bill_to_address2: string | null
+          bill_to_city: string | null
+          bill_to_company: string | null
+          bill_to_phone: string | null
+          bill_to_state: string | null
+          bill_to_zip: string | null
           carrier_name: string
           created_at: string
           id: string
@@ -89,6 +96,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bill_to_address1?: string | null
+          bill_to_address2?: string | null
+          bill_to_city?: string | null
+          bill_to_company?: string | null
+          bill_to_phone?: string | null
+          bill_to_state?: string | null
+          bill_to_zip?: string | null
           carrier_name: string
           created_at?: string
           id?: string
@@ -96,6 +110,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bill_to_address1?: string | null
+          bill_to_address2?: string | null
+          bill_to_city?: string | null
+          bill_to_company?: string | null
+          bill_to_phone?: string | null
+          bill_to_state?: string | null
+          bill_to_zip?: string | null
           carrier_name?: string
           created_at?: string
           id?: string

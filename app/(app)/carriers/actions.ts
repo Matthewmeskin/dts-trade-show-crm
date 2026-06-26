@@ -21,7 +21,19 @@ function parseCarrier(fd: FormData): {
 } {
   const carrier_name = str(fd, "carrier_name");
   if (!carrier_name) return { fieldErrors: { carrier_name: "Carrier name is required." } };
-  return { data: { carrier_name, trade_show_notes: str(fd, "trade_show_notes") } };
+  return {
+    data: {
+      carrier_name,
+      trade_show_notes: str(fd, "trade_show_notes"),
+      bill_to_company: str(fd, "bill_to_company"),
+      bill_to_address1: str(fd, "bill_to_address1"),
+      bill_to_address2: str(fd, "bill_to_address2"),
+      bill_to_city: str(fd, "bill_to_city"),
+      bill_to_state: str(fd, "bill_to_state"),
+      bill_to_zip: str(fd, "bill_to_zip"),
+      bill_to_phone: str(fd, "bill_to_phone"),
+    },
+  };
 }
 
 export async function createCarrier(
