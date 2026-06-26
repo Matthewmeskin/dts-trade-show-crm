@@ -18,6 +18,7 @@ import {
   type ShipmentDirection,
 } from "@/lib/shipments";
 import { formatDate, formatShortDate, formatCurrency } from "@/lib/format";
+import { DateRangeFields } from "@/components/date-range-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,8 @@ export default async function ShipmentsPage({
     carrier?: string;
     show?: string;
     direction?: string;
+    from?: string;
+    to?: string;
     q?: string;
   }>;
 }) {
@@ -53,6 +56,9 @@ export default async function ShipmentsPage({
     query = query.eq("direction", sp.direction as ShipmentDirection);
   if (sp.carrier) query = query.eq("carrier_id", sp.carrier);
   if (sp.show) query = query.eq("show_id", sp.show);
+  // Date range filters on the load's pickup date.
+  if (sp.from) query = query.gte("pickup_date", sp.from);
+  if (sp.to) query = query.lte("pickup_date", sp.to);
 
   // Search matches PRO #, load # (TMS reference), or customer (exhibitor name).
   const term = sp.q?.trim();
@@ -106,11 +112,20 @@ export default async function ShipmentsPage({
   const tabHref = (value: string) => {
     const p = new URLSearchParams();
     if (value) p.set("status", value);
-    for (const k of ["mode", "carrier", "show", "direction", "q"] as const) {
+    for (const k of ["mode", "carrier", "show", "direction", "from", "to", "q"] as const) {
       if (sp[k]) p.set(k, sp[k]!);
     }
     return `/shipments${p.toString() ? `?${p}` : ""}`;
   };
+  // Same as the current view but with the date range dropped.
+  const clearDatesHref = (() => {
+    const p = new URLSearchParams();
+    if (sp.status) p.set("status", sp.status);
+    for (const k of ["mode", "carrier", "show", "direction", "q"] as const) {
+      if (sp[k]) p.set(k, sp[k]!);
+    }
+    return `/shipments${p.toString() ? `?${p}` : ""}`;
+  })();
 
   return (
     <div>
@@ -172,10 +187,16 @@ export default async function ShipmentsPage({
             <option key={m} value={m}>{m}</option>
           ))}
         </select>
+        <DateRangeFields from={sp.from} to={sp.to} label="Pickup" />
         <input name="q" defaultValue={sp.q ?? ""} placeholder="Search PRO #, load #, customer…" className="w-56 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon" />
         <button type="submit" className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100">
           Filter
         </button>
+        {sp.from || sp.to ? (
+          <Link href={clearDatesHref} className="text-sm font-medium text-slate-400 hover:text-slate-700">
+            Clear dates
+          </Link>
+        ) : null}
       </form>
 
       <Card>

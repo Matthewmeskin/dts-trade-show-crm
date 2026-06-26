@@ -3,15 +3,16 @@ import { LinkRow } from "@/components/link-row";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/icons";
+import { DateRangeFields } from "@/components/date-range-fields";
 
 export const dynamic = "force-dynamic";
 
 export default async function ExhibitorsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; industry?: string }>;
+  searchParams: Promise<{ q?: string; industry?: string; from?: string; to?: string }>;
 }) {
-  const { q = "", industry = "" } = await searchParams;
+  const { q = "", industry = "", from = "", to = "" } = await searchParams;
   const supabase = await createClient();
 
   let query = supabase.from("exhibitors").select("*").order("company_name");
@@ -22,11 +23,15 @@ export default async function ExhibitorsPage({
     await Promise.all([
       query,
       supabase.from("show_exhibitors").select("exhibitor_id, show_id"),
-      supabase.from("shipments").select("exhibitor_id, show_id"),
+      supabase.from("shipments").select("exhibitor_id, show_id, pickup_date"),
       supabase.from("exhibitors").select("industry"),
     ]);
 
-  // Shows = distinct shows from manual links AND shipment show links.
+  // When a date range is set, count only loads that pick up in the window, and
+  // narrow the directory to exhibitors that have such loads.
+  const hasRange = !!(from || to);
+  const inRange = (p: string | null) => (!from || (!!p && p >= from)) && (!to || (!!p && p <= to));
+
   const showSets = new Map<string, Set<string>>();
   const loadCount = new Map<string, number>();
   const addShow = (eid: string | null, sid: string | null) => {
@@ -35,16 +40,20 @@ export default async function ExhibitorsPage({
     set.add(sid);
     showSets.set(eid, set);
   };
-  for (const l of links ?? []) addShow(l.exhibitor_id, l.show_id);
   for (const s of ships ?? []) {
+    if (hasRange && !inRange(s.pickup_date)) continue;
     addShow(s.exhibitor_id, s.show_id);
     if (s.exhibitor_id) loadCount.set(s.exhibitor_id, (loadCount.get(s.exhibitor_id) ?? 0) + 1);
   }
+  // Manual show links carry no date, so only fold them in when not date-filtering.
+  if (!hasRange) for (const l of links ?? []) addShow(l.exhibitor_id, l.show_id);
+
   const industries = [
     ...new Set((allForFilter ?? []).map((e) => e.industry).filter(Boolean)),
   ].sort() as string[];
 
-  const rows = exhibitors ?? [];
+  let rows = exhibitors ?? [];
+  if (hasRange) rows = rows.filter((e) => (loadCount.get(e.id) ?? 0) > 0);
 
   return (
     <div>
@@ -75,6 +84,7 @@ export default async function ExhibitorsPage({
               </option>
             ))}
           </select>
+          <DateRangeFields from={from} to={to} label="Pickup" />
           <input
             name="q"
             defaultValue={q}
@@ -87,6 +97,14 @@ export default async function ExhibitorsPage({
           >
             Filter
           </button>
+          {from || to ? (
+            <Link
+              href={`/exhibitors${(() => { const p = new URLSearchParams(); if (industry) p.set("industry", industry); if (q) p.set("q", q); return p.toString() ? `?${p}` : ""; })()}`}
+              className="text-sm font-medium text-slate-400 hover:text-slate-700"
+            >
+              Clear dates
+            </Link>
+          ) : null}
         </form>
       </div>
 
@@ -94,10 +112,10 @@ export default async function ExhibitorsPage({
         {rows.length === 0 ? (
           <EmptyState
             icon="exhibitors"
-            title={q || industry ? "No exhibitors match" : "No exhibitors yet"}
+            title={q || industry || from || to ? "No exhibitors match" : "No exhibitors yet"}
             description={
-              q || industry
-                ? "Try a different search or filter."
+              q || industry || from || to
+                ? "Try a different search, filter, or date range."
                 : "Add your first exhibitor to the directory."
             }
           />
