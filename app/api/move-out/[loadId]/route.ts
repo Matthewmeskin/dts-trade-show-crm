@@ -24,9 +24,32 @@ type Joined = {
     primary_contact_phone: string | null;
     primary_contact_email: string | null;
   } | null;
-  carrier: { carrier_name: string | null } | null;
+  carrier: {
+    carrier_name: string | null;
+    bill_to_company: string | null;
+    bill_to_address1: string | null;
+    bill_to_address2: string | null;
+    bill_to_city: string | null;
+    bill_to_state: string | null;
+    bill_to_zip: string | null;
+    bill_to_phone: string | null;
+  } | null;
   show: { show_name: string | null } | null;
 };
+
+/** A carrier's own bill-to, when they have one set; otherwise null (use DTS). */
+function carrierBillTo(carrier: Joined["carrier"]): Party | null {
+  if (!carrier?.bill_to_company || !carrier.bill_to_address1) return null;
+  return {
+    company: carrier.bill_to_company,
+    address1: carrier.bill_to_address1,
+    address2: carrier.bill_to_address2 ?? undefined,
+    city: carrier.bill_to_city ?? "",
+    state: carrier.bill_to_state ?? "",
+    zip: carrier.bill_to_zip ?? "",
+    phone: carrier.bill_to_phone ?? undefined,
+  };
+}
 
 /* ---------------------------- Accessorial mapping ---------------------------- */
 /** Split free-text requirement notes into individual phrases. */
@@ -106,7 +129,8 @@ function mapShipmentToMoveOut(
     contactPhone: exhibitor?.primary_contact_phone ?? undefined,
     contactEmail: exhibitor?.primary_contact_email ?? undefined,
     shipTo,
-    billTo: DTS_BILL_TO, // no per-carrier override stored yet
+    // Per-carrier bill-to when set, otherwise the default DTS bill-to.
+    billTo: carrierBillTo(carrier) ?? DTS_BILL_TO,
     carrier: { name: carrier?.carrier_name ?? "" },
     levelOfService: "ground", // always ground for move-outs
     accessorials,
@@ -132,7 +156,7 @@ export async function GET(
   const { data: shipment, error } = await supabase
     .from("shipments")
     .select(
-      "*, exhibitor:exhibitors(company_name, primary_contact_name, primary_contact_phone, primary_contact_email), carrier:carriers(carrier_name), show:shows(show_name)",
+      "*, exhibitor:exhibitors(company_name, primary_contact_name, primary_contact_phone, primary_contact_email), carrier:carriers(carrier_name, bill_to_company, bill_to_address1, bill_to_address2, bill_to_city, bill_to_state, bill_to_zip, bill_to_phone), show:shows(show_name)",
     )
     .eq("id", loadId)
     .single();

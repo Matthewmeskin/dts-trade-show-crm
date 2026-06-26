@@ -38,6 +38,33 @@ export function CarrierForm({
             <textarea id="trade_show_notes" name="trade_show_notes" rows={5} defaultValue={d?.trade_show_notes ?? ""} className={inputClass} />
           </Field>
         </FormSection>
+
+        <FormSection
+          title="Bill-to for move-out form"
+          description="Shown as BILL TO on the outbound move-out form for this carrier. Leave blank to use the default DTS bill-to."
+        >
+          <Field label="Bill-to company" htmlFor="bill_to_company" className="sm:col-span-2">
+            <input id="bill_to_company" name="bill_to_company" defaultValue={d?.bill_to_company ?? ""} className={inputClass} placeholder="e.g. Diversified Transportation Services" />
+          </Field>
+          <Field label="Address" htmlFor="bill_to_address1">
+            <input id="bill_to_address1" name="bill_to_address1" defaultValue={d?.bill_to_address1 ?? ""} className={inputClass} />
+          </Field>
+          <Field label="Address line 2" htmlFor="bill_to_address2">
+            <input id="bill_to_address2" name="bill_to_address2" defaultValue={d?.bill_to_address2 ?? ""} className={inputClass} />
+          </Field>
+          <Field label="City" htmlFor="bill_to_city">
+            <input id="bill_to_city" name="bill_to_city" defaultValue={d?.bill_to_city ?? ""} className={inputClass} />
+          </Field>
+          <Field label="State" htmlFor="bill_to_state">
+            <input id="bill_to_state" name="bill_to_state" defaultValue={d?.bill_to_state ?? ""} className={inputClass} />
+          </Field>
+          <Field label="ZIP" htmlFor="bill_to_zip">
+            <input id="bill_to_zip" name="bill_to_zip" defaultValue={d?.bill_to_zip ?? ""} className={inputClass} />
+          </Field>
+          <Field label="Phone" htmlFor="bill_to_phone">
+            <input id="bill_to_phone" name="bill_to_phone" defaultValue={d?.bill_to_phone ?? ""} className={inputClass} />
+          </Field>
+        </FormSection>
       </Card>
 
       {state.error ? (
