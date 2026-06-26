@@ -107,6 +107,10 @@ function mapShipmentToMoveOut(
 
   const s = (k: string) => (shipment[k] as string | null) ?? undefined;
 
+  // 4 labels per handling unit (pallet/crate); pieces = number of pallets/crates.
+  const pieces = shipment.pieces as number | null;
+  const numberOfLabels = pieces != null && pieces > 0 ? pieces * 4 : undefined;
+
   // SHIP TO = the consignee on the load (the move-out return party), pulled from
   // the Hyperion delivery stop by the TMS sync. Falls back to the exhibitor /
   // flat destination_address for older rows that predate the structured sync.
@@ -135,7 +139,7 @@ function mapShipmentToMoveOut(
     levelOfService: "ground", // always ground for move-outs
     accessorials,
     extraInstructions,
-    numberOfLabels: (shipment.pieces as number | null) ?? undefined,
+    numberOfLabels,
   };
 }
 
