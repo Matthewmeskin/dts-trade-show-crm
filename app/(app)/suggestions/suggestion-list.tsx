@@ -257,8 +257,11 @@ function ClusterCard({
     setBusy(null);
     if (res.error) { setError(res.error); return; }
     if (res.venueId) { setVenueId(res.venueId); setVenueLabel(v.name); }
-    setModal(null);
-    router.refresh();
+    // In the show flow, keep the modal open so they can create the show next.
+    if (modal?.kind === "venue") {
+      setModal(null);
+      router.refresh();
+    }
   }
 
   async function saveShow(loadIds: string[]) {
@@ -349,7 +352,6 @@ function ClusterCard({
           <ShowGroupRow
             key={g.id}
             group={g}
-            venueAssigned={!!venueId}
             showsAtVenue={showsAtVenue}
             busyParent={busy !== null}
             onDiscover={() => runDiscover(g.loadIds, "show")}
@@ -364,32 +366,51 @@ function ClusterCard({
             <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:p-8" onClick={() => setModal(null)} role="dialog" aria-modal="true">
               <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between">
-                  <h2 className="font-heading text-lg font-semibold text-slate-900">
-                    {modal.kind === "venue" ? "Create venue from web search" : "Create show from web search"}
-                  </h2>
+                  <h2 className="font-heading text-lg font-semibold text-slate-900">Create from web search</h2>
                   {d ? <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${CONF[d.confidence]}`}>AI: {d.confidence}</span> : null}
                 </div>
                 {d?.notes ? <p className="mt-1 text-xs text-slate-500">{d.notes}</p> : null}
 
-                {modal.kind === "venue" ? (
-                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Field label="Venue name" htmlFor="vn"><input id="vn" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} className={inputClass} /></Field>
-                    <Field label="Address" htmlFor="va"><input id="va" value={v.address} onChange={(e) => setV({ ...v, address: e.target.value })} className={inputClass} /></Field>
-                    <Field label="City" htmlFor="vc"><input id="vc" value={v.city} onChange={(e) => setV({ ...v, city: e.target.value })} className={inputClass} /></Field>
-                    <Field label="State" htmlFor="vs"><input id="vs" value={v.state} onChange={(e) => setV({ ...v, state: e.target.value })} className={inputClass} /></Field>
+                {/* Venue — created first (both flows need a venue). */}
+                <div className="mt-4 rounded-lg border border-slate-200 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-slate-800">Venue</h3>
+                    {venueId ? <span className="text-xs text-emerald-600">✓ {venueLabel}</span> : null}
                   </div>
-                ) : (
-                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Field label="Show name" htmlFor="sn"><input id="sn" value={s.name} onChange={(e) => setS({ ...s, name: e.target.value })} className={inputClass} /></Field>
-                    <Field label="Edition year" htmlFor="sy"><input id="sy" value={s.year} onChange={(e) => setS({ ...s, year: e.target.value })} className={inputClass} /></Field>
-                    <Field label="Website" htmlFor="sw" className="sm:col-span-2"><input id="sw" value={s.website} onChange={(e) => setS({ ...s, website: e.target.value })} className={inputClass} /></Field>
-                    <Field label="Exhibitor manual URL" htmlFor="sm" className="sm:col-span-2"><input id="sm" value={s.manual} onChange={(e) => setS({ ...s, manual: e.target.value })} className={inputClass} /></Field>
-                    <Field label="Show start" htmlFor="ss"><input id="ss" type="date" value={s.start} onChange={(e) => setS({ ...s, start: e.target.value })} className={inputClass} /></Field>
-                    <Field label="Show end" htmlFor="se"><input id="se" type="date" value={s.end} onChange={(e) => setS({ ...s, end: e.target.value })} className={inputClass} /></Field>
-                    <Field label="Move-in start" htmlFor="smi"><input id="smi" type="date" value={s.moveIn} onChange={(e) => setS({ ...s, moveIn: e.target.value })} className={inputClass} /></Field>
-                    <Field label="Move-out end" htmlFor="smo"><input id="smo" type="date" value={s.moveOut} onChange={(e) => setS({ ...s, moveOut: e.target.value })} className={inputClass} /></Field>
+                  {venueId ? null : (
+                    <>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <Field label="Venue name" htmlFor="vn"><input id="vn" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} className={inputClass} /></Field>
+                        <Field label="Address" htmlFor="va"><input id="va" value={v.address} onChange={(e) => setV({ ...v, address: e.target.value })} className={inputClass} /></Field>
+                        <Field label="City" htmlFor="vc"><input id="vc" value={v.city} onChange={(e) => setV({ ...v, city: e.target.value })} className={inputClass} /></Field>
+                        <Field label="State" htmlFor="vs"><input id="vs" value={v.state} onChange={(e) => setV({ ...v, state: e.target.value })} className={inputClass} /></Field>
+                      </div>
+                      <button type="button" onClick={saveVenue} disabled={busy !== null} className="mt-3 rounded-lg bg-dts-maroon px-3 py-1.5 text-xs font-medium text-white transition hover:bg-dts-maroon-dark disabled:opacity-60">
+                        {busy === "createvenue" ? "Creating…" : "Create venue & link"}
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* Show — only when triggered from a date group. */}
+                {modal.kind === "show" ? (
+                  <div className="mt-3 rounded-lg border border-slate-200 p-3">
+                    <h3 className="mb-2 text-sm font-semibold text-slate-800">Show</h3>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <Field label="Show name" htmlFor="sn"><input id="sn" value={s.name} onChange={(e) => setS({ ...s, name: e.target.value })} className={inputClass} /></Field>
+                      <Field label="Edition year" htmlFor="sy"><input id="sy" value={s.year} onChange={(e) => setS({ ...s, year: e.target.value })} className={inputClass} /></Field>
+                      <Field label="Website" htmlFor="sw" className="sm:col-span-2"><input id="sw" value={s.website} onChange={(e) => setS({ ...s, website: e.target.value })} className={inputClass} /></Field>
+                      <Field label="Exhibitor manual URL" htmlFor="sm" className="sm:col-span-2"><input id="sm" value={s.manual} onChange={(e) => setS({ ...s, manual: e.target.value })} className={inputClass} /></Field>
+                      <Field label="Show start" htmlFor="ss"><input id="ss" type="date" value={s.start} onChange={(e) => setS({ ...s, start: e.target.value })} className={inputClass} /></Field>
+                      <Field label="Show end" htmlFor="se"><input id="se" type="date" value={s.end} onChange={(e) => setS({ ...s, end: e.target.value })} className={inputClass} /></Field>
+                      <Field label="Move-in start" htmlFor="smi"><input id="smi" type="date" value={s.moveIn} onChange={(e) => setS({ ...s, moveIn: e.target.value })} className={inputClass} /></Field>
+                      <Field label="Move-out end" htmlFor="smo"><input id="smo" type="date" value={s.moveOut} onChange={(e) => setS({ ...s, moveOut: e.target.value })} className={inputClass} /></Field>
+                    </div>
+                    <button type="button" onClick={() => saveShow(modal.loadIds)} disabled={busy !== null || !venueId} title={!venueId ? "Create the venue first" : undefined} className="mt-3 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-purple-700 disabled:opacity-60">
+                      {busy === "createvenue" ? "Saving…" : "Create show & link"}
+                    </button>
                   </div>
-                )}
+                ) : null}
 
                 {d?.sources.length ? (
                   <div className="mt-3 text-xs text-slate-400">
@@ -399,16 +420,8 @@ function ClusterCard({
                   </div>
                 ) : null}
 
-                <div className="mt-5 flex items-center justify-end gap-3">
-                  <button type="button" onClick={() => setModal(null)} className="text-sm font-medium text-slate-500 hover:text-slate-900">Cancel</button>
-                  <button
-                    type="button"
-                    onClick={() => (modal.kind === "venue" ? saveVenue() : saveShow(modal.loadIds))}
-                    disabled={busy !== null}
-                    className="rounded-lg bg-dts-maroon px-4 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark disabled:opacity-60"
-                  >
-                    {busy === "createvenue" ? "Creating…" : modal.kind === "venue" ? "Create venue & link" : "Create show & link"}
-                  </button>
+                <div className="mt-5 flex items-center justify-end">
+                  <button type="button" onClick={() => setModal(null)} className="text-sm font-medium text-slate-500 hover:text-slate-900">Close</button>
                 </div>
               </div>
             </div>,
@@ -421,14 +434,12 @@ function ClusterCard({
 
 function ShowGroupRow({
   group,
-  venueAssigned,
   showsAtVenue,
   busyParent,
   onDiscover,
   onLinked,
 }: {
   group: ShowGroup;
-  venueAssigned: boolean;
   showsAtVenue: { id: string; label: string }[];
   busyParent: boolean;
   onDiscover: () => void;
@@ -505,7 +516,7 @@ function ShowGroupRow({
                   <span className="text-xs text-slate-300">or</span>
                 </>
               ) : null}
-              <button type="button" onClick={onDiscover} disabled={disabled || !venueAssigned} title={!venueAssigned ? "Assign the venue first" : undefined} className="inline-flex items-center gap-1.5 rounded-lg border border-dts-maroon/30 bg-dts-maroon/5 px-3 py-1.5 text-xs font-medium text-dts-maroon transition hover:bg-dts-maroon/10 disabled:opacity-60">
+              <button type="button" onClick={onDiscover} disabled={disabled} className="inline-flex items-center gap-1.5 rounded-lg border border-dts-maroon/30 bg-dts-maroon/5 px-3 py-1.5 text-xs font-medium text-dts-maroon transition hover:bg-dts-maroon/10 disabled:opacity-60">
                 <Icon name="sparkles" className="h-3.5 w-3.5" /> Search the web
               </button>
             </>
