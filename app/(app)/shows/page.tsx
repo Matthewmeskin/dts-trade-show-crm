@@ -5,6 +5,7 @@ import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { SHOW_STATUS_META, type ShowStatus } from "@/lib/shows";
 import { formatDate } from "@/lib/format";
+import { DateRangeFields } from "@/components/date-range-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +20,9 @@ const STATUS_TABS: { label: string; value: string }[] = [
 export default async function ShowsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; from?: string; to?: string }>;
 }) {
-  const { status = "", q = "" } = await searchParams;
+  const { status = "", q = "", from = "", to = "" } = await searchParams;
   const supabase = await createClient();
 
   let query = supabase
@@ -42,7 +43,19 @@ export default async function ShowsPage({
   ]);
 
   const venueById = new Map((venues ?? []).map((v) => [v.id, v]));
-  const rows = shows ?? [];
+  // A show is "in range" if its move-in→move-out span overlaps [from, to].
+  const hasRange = !!(from || to);
+  const rows = (shows ?? []).filter((s) => {
+    if (!hasRange) return true;
+    const start = (s.move_in_start ?? s.show_start_date)?.slice(0, 10) ?? null;
+    const end = (s.move_out_end ?? s.show_end_date ?? s.move_in_start ?? s.show_start_date)?.slice(0, 10) ?? null;
+    if (!start && !end) return false;
+    const lo = start ?? end!;
+    const hi = end ?? start!;
+    if (from && hi < from) return false;
+    if (to && lo > to) return false;
+    return true;
+  });
 
   return (
     <div>
@@ -67,6 +80,8 @@ export default async function ShowsPage({
             const params = new URLSearchParams();
             if (t.value) params.set("status", t.value);
             if (q) params.set("q", q);
+            if (from) params.set("from", from);
+            if (to) params.set("to", to);
             const href = `/shows${params.toString() ? `?${params}` : ""}`;
             return (
               <Link
@@ -83,14 +98,26 @@ export default async function ShowsPage({
             );
           })}
         </div>
-        <form className="relative">
+        <form className="flex flex-wrap items-center gap-2">
           {status ? <input type="hidden" name="status" value={status} /> : null}
+          <DateRangeFields from={from} to={to} label="Show" />
           <input
             name="q"
             defaultValue={q}
             placeholder="Search shows…"
             className="w-56 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon"
           />
+          <button type="submit" className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100">
+            Filter
+          </button>
+          {from || to ? (
+            <Link
+              href={`/shows${(() => { const p = new URLSearchParams(); if (status) p.set("status", status); if (q) p.set("q", q); return p.toString() ? `?${p}` : ""; })()}`}
+              className="text-sm font-medium text-slate-400 hover:text-slate-700"
+            >
+              Clear dates
+            </Link>
+          ) : null}
         </form>
       </div>
 
@@ -98,10 +125,10 @@ export default async function ShowsPage({
         {rows.length === 0 ? (
           <EmptyState
             icon="shows"
-            title={q || status ? "No shows match" : "No shows yet"}
+            title={q || status || from || to ? "No shows match" : "No shows yet"}
             description={
-              q || status
-                ? "Try a different filter or search term."
+              q || status || from || to
+                ? "Try a different filter, date range, or search term."
                 : "Create your first show to get started."
             }
           />

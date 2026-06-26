@@ -3,15 +3,16 @@ import { LinkRow } from "@/components/link-row";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/icons";
+import { DateRangeFields } from "@/components/date-range-fields";
 
 export const dynamic = "force-dynamic";
 
 export default async function CarriersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; from?: string; to?: string }>;
 }) {
-  const { q = "" } = await searchParams;
+  const { q = "", from = "", to = "" } = await searchParams;
   const supabase = await createClient();
 
   let query = supabase.from("carriers").select("*").order("carrier_name");
@@ -20,16 +21,23 @@ export default async function CarriersPage({
   const [{ data: carriers }, { data: cv }, { data: ships }] = await Promise.all([
     query,
     supabase.from("carrier_venues").select("carrier_id"),
-    supabase.from("shipments").select("carrier_id"),
+    supabase.from("shipments").select("carrier_id, pickup_date"),
   ]);
 
   const venueCount = new Map<string, number>();
   for (const r of cv ?? []) venueCount.set(r.carrier_id, (venueCount.get(r.carrier_id) ?? 0) + 1);
+
+  // With a date range set, count only loads that pick up in the window and
+  // narrow the directory to carriers that have such loads.
+  const hasRange = !!(from || to);
+  const inRange = (p: string | null) => (!from || (!!p && p >= from)) && (!to || (!!p && p <= to));
   const shipCount = new Map<string, number>();
   for (const r of ships ?? []) {
+    if (hasRange && !inRange(r.pickup_date)) continue;
     if (r.carrier_id) shipCount.set(r.carrier_id, (shipCount.get(r.carrier_id) ?? 0) + 1);
   }
-  const rows = carriers ?? [];
+  let rows = carriers ?? [];
+  if (hasRange) rows = rows.filter((c) => (shipCount.get(c.id) ?? 0) > 0);
 
   return (
     <div>
@@ -47,13 +55,25 @@ export default async function CarriersPage({
       />
 
       <div className="mb-4 flex justify-end">
-        <form>
+        <form className="flex flex-wrap items-center gap-2">
+          <DateRangeFields from={from} to={to} label="Pickup" />
           <input
             name="q"
             defaultValue={q}
             placeholder="Search carriers…"
             className="w-56 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon"
           />
+          <button type="submit" className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100">
+            Filter
+          </button>
+          {from || to ? (
+            <Link
+              href={`/carriers${q ? `?q=${encodeURIComponent(q)}` : ""}`}
+              className="text-sm font-medium text-slate-400 hover:text-slate-700"
+            >
+              Clear dates
+            </Link>
+          ) : null}
         </form>
       </div>
 
@@ -61,8 +81,8 @@ export default async function CarriersPage({
         {rows.length === 0 ? (
           <EmptyState
             icon="carriers"
-            title={q ? "No carriers match" : "No carriers yet"}
-            description={q ? "Try a different search." : "Add your first carrier to the directory."}
+            title={q || from || to ? "No carriers match" : "No carriers yet"}
+            description={q || from || to ? "Try a different search or date range." : "Add your first carrier to the directory."}
           />
         ) : (
           <div className="overflow-x-auto">
