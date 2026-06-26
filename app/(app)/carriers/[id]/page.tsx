@@ -145,6 +145,27 @@ export default async function CarrierRecordPage({
 
         <div className="space-y-5">
           <Card>
+            <CardHeader title="Bill-to (move-out form)" icon="documents" />
+            <div className="p-5 text-sm">
+              {carrier.bill_to_company ? (
+                <div className="space-y-0.5 text-slate-700">
+                  <div className="font-medium text-slate-900">{carrier.bill_to_company}</div>
+                  {carrier.bill_to_address1 ? (
+                    <div>{[carrier.bill_to_address1, carrier.bill_to_address2].filter(Boolean).join(", ")}</div>
+                  ) : null}
+                  <div>{[carrier.bill_to_city, carrier.bill_to_state, carrier.bill_to_zip].filter(Boolean).join("  ")}</div>
+                  {carrier.bill_to_phone ? <div className="text-slate-500">{carrier.bill_to_phone}</div> : null}
+                </div>
+              ) : (
+                <p className="text-slate-500">
+                  Using the default DTS bill-to.{" "}
+                  <span className="text-slate-400">Edit this carrier to set a custom bill-to for the move-out form.</span>
+                </p>
+              )}
+            </div>
+          </Card>
+
+          <Card>
             <CardHeader title={`Shows serviced (${shows.length})`} icon="shows" />
             <div className="border-b border-slate-100 px-5 py-2.5">
               <form action={addShowToCarrier} className="flex items-center gap-1.5">
