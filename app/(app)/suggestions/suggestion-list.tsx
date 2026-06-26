@@ -535,8 +535,8 @@ function ShowGroupRow({
           <ul className="divide-y divide-slate-100">
             {group.shipments.map((sh) => (
               <li key={sh.id}>
-                <label className="flex cursor-pointer items-start gap-3 px-3 py-2 transition hover:bg-slate-50">
-                  <input type="checkbox" checked={selected.has(sh.id)} onChange={() => toggle(sh.id)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-dts-maroon focus:ring-dts-maroon" />
+                <div className="flex items-start gap-3 px-3 py-2">
+                  <input type="checkbox" checked={selected.has(sh.id)} onChange={() => toggle(sh.id)} className="mt-0.5 h-4 w-4 cursor-pointer rounded border-slate-300 text-dts-maroon focus:ring-dts-maroon" title="Include this load when linking the show" />
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                       {sh.tmsUrl ? (
@@ -569,7 +569,7 @@ function ShowGroupRow({
                     {sh.venueRaw ? <span className="mt-0.5 block truncate text-xs text-slate-500">📍 {sh.venueRaw}</span> : null}
                     {sh.exhibitor ? <span className="block truncate text-xs text-slate-400">🏢 {sh.exhibitor}</span> : null}
                   </span>
-                </label>
+                </div>
               </li>
             ))}
           </ul>
