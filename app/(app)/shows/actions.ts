@@ -171,6 +171,32 @@ export async function updateShow(
   redirect(back.startsWith("/") ? back : `/shows/${id}?flash=updated`);
 }
 
+/** Inline-save just the sales/lead-gen fields from the sales calendar grid. */
+export async function updateShowSales(fd: FormData) {
+  const id = String(fd.get("id") ?? "");
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase
+    .from("shows")
+    .update({
+      exhibitor_count: int(fd, "exhibitor_count"),
+      industry_vertical: str(fd, "industry_vertical"),
+      decorator: str(fd, "decorator"),
+      advance_warehouse_window: str(fd, "advance_warehouse_window"),
+      direct_to_show_window: str(fd, "direct_to_show_window"),
+      sales_people: str(fd, "sales_people"),
+      lead_gen_owner: str(fd, "lead_gen_owner"),
+      lead_gen_start_date: str(fd, "lead_gen_start_date"),
+      lead_gen_completion_date: str(fd, "lead_gen_completion_date"),
+      move_in_schedule_url: str(fd, "move_in_schedule_url"),
+      emailed_two_weeks: fd.get("emailed_two_weeks") === "on",
+      instantly_created: fd.get("instantly_created") === "on",
+    })
+    .eq("id", id);
+  revalidatePath("/shows/sales");
+  revalidatePath(`/shows/${id}`);
+}
+
 export async function deleteShow(fd: FormData) {
   const id = String(fd.get("id") ?? "");
   if (!id) return;
