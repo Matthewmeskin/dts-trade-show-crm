@@ -277,6 +277,51 @@ export function ShowForm({
           </Field>
         </FormSection>
 
+        <FormSection
+          title="Sales & lead gen"
+          description="Sales pipeline tracking. Start-call (−60d), email-team (−14d) and week-before (−7d) dates are computed from the show start date."
+        >
+          <Field label="# of exhibitors" htmlFor="exhibitor_count">
+            <input id="exhibitor_count" name="exhibitor_count" type="number" defaultValue={d?.exhibitor_count ?? ""} className={inputClass} placeholder="e.g. 435" />
+          </Field>
+          <Field label="Decorator" htmlFor="decorator" hint="General service contractor (Freeman, GES, …).">
+            <input id="decorator" name="decorator" defaultValue={d?.decorator ?? ""} className={inputClass} placeholder="Freeman" />
+          </Field>
+          <Field label="Advance warehouse ship window" htmlFor="advance_warehouse_window">
+            <input id="advance_warehouse_window" name="advance_warehouse_window" defaultValue={d?.advance_warehouse_window ?? ""} className={inputClass} placeholder="e.g. Dec 5–30" />
+          </Field>
+          <Field label="Direct-to-show ship window" htmlFor="direct_to_show_window">
+            <input id="direct_to_show_window" name="direct_to_show_window" defaultValue={d?.direct_to_show_window ?? ""} className={inputClass} placeholder="e.g. Jan 4–5" />
+          </Field>
+          <Field label="Sales people" htmlFor="sales_people">
+            <input id="sales_people" name="sales_people" defaultValue={d?.sales_people ?? ""} className={inputClass} placeholder="e.g. Jean and Jas" />
+          </Field>
+          <Field label="Lead gen owner" htmlFor="lead_gen_owner">
+            <input id="lead_gen_owner" name="lead_gen_owner" defaultValue={d?.lead_gen_owner ?? ""} className={inputClass} placeholder="e.g. Anie" />
+          </Field>
+          <Field label="Lead gen start" htmlFor="lead_gen_start_date">
+            <input id="lead_gen_start_date" name="lead_gen_start_date" type="date" defaultValue={d?.lead_gen_start_date ?? ""} className={inputClass} />
+          </Field>
+          <Field label="Lead gen completion" htmlFor="lead_gen_completion_date">
+            <input id="lead_gen_completion_date" name="lead_gen_completion_date" type="date" defaultValue={d?.lead_gen_completion_date ?? ""} className={inputClass} />
+          </Field>
+          <Field label="Move-in schedule link" htmlFor="move_in_schedule_url" className="sm:col-span-2">
+            <input id="move_in_schedule_url" name="move_in_schedule_url" type="url" inputMode="url" defaultValue={d?.move_in_schedule_url ?? ""} className={inputClass} placeholder="https://…" />
+          </Field>
+          <Field label="Team emailed (2 weeks out)" htmlFor="emailed_two_weeks" className="sm:col-span-2">
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input id="emailed_two_weeks" name="emailed_two_weeks" type="checkbox" defaultChecked={d?.emailed_two_weeks ?? false} className="h-4 w-4 rounded border-slate-300 text-dts-maroon focus:ring-dts-maroon" />
+              The 2-weeks-to-go team email has gone out
+            </label>
+          </Field>
+          <Field label="Instantly emails created" htmlFor="instantly_created" className="sm:col-span-2">
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input id="instantly_created" name="instantly_created" type="checkbox" defaultChecked={d?.instantly_created ?? false} className="h-4 w-4 rounded border-slate-300 text-dts-maroon focus:ring-dts-maroon" />
+              Instantly campaign emails created
+            </label>
+          </Field>
+        </FormSection>
+
         <FormSection title="Revenue">
           <Field label="Estimated revenue" htmlFor="estimated_revenue">
             <input id="estimated_revenue" name="estimated_revenue" inputMode="decimal" defaultValue={d?.estimated_revenue ?? ""} className={inputClass} placeholder="0.00" />

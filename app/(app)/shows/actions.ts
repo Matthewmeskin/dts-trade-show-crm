@@ -113,6 +113,18 @@ function parseShow(fd: FormData): {
       actual_revenue: num(fd, "actual_revenue"),
       competitor_notes: str(fd, "competitor_notes"),
       general_notes: str(fd, "general_notes"),
+      // Sales / lead-gen pipeline
+      exhibitor_count: int(fd, "exhibitor_count"),
+      decorator: str(fd, "decorator"),
+      advance_warehouse_window: str(fd, "advance_warehouse_window"),
+      direct_to_show_window: str(fd, "direct_to_show_window"),
+      sales_people: str(fd, "sales_people"),
+      lead_gen_owner: str(fd, "lead_gen_owner"),
+      lead_gen_start_date: str(fd, "lead_gen_start_date"),
+      lead_gen_completion_date: str(fd, "lead_gen_completion_date"),
+      move_in_schedule_url: str(fd, "move_in_schedule_url"),
+      emailed_two_weeks: fd.get("emailed_two_weeks") === "on",
+      instantly_created: fd.get("instantly_created") === "on",
     },
   };
 }
@@ -152,6 +164,7 @@ export async function updateShow(
   if (error) return { error: error.message };
 
   revalidatePath("/shows");
+  revalidatePath("/shows/sales");
   revalidatePath(`/shows/${id}`);
   revalidatePath("/calendar");
   const back = String(fd.get("redirect_to") ?? "");

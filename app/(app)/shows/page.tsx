@@ -72,6 +72,13 @@ export default async function ShowsPage({
         }
       />
 
+      <div className="mb-4 flex flex-wrap items-center gap-1">
+        <span className="rounded-lg bg-dts-maroon px-3 py-1.5 text-sm font-medium text-white">Shows</span>
+        <Link href="/shows/sales" className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
+          Sales calendar
+        </Link>
+      </div>
+
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1">
