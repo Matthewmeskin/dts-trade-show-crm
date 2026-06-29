@@ -13,6 +13,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/", icon: "dashboard" },
   { label: "Calendar", href: "/calendar", icon: "calendar" },
   { label: "Shows", href: "/shows", icon: "shows" },
+  { label: "Sales Calendar", href: "/shows/sales", icon: "calendar" },
   { label: "Venues", href: "/venues", icon: "venues" },
   { label: "Exhibitors", href: "/exhibitors", icon: "exhibitors" },
   { label: "Shipments", href: "/shipments", icon: "shipments" },
