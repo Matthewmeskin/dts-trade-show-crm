@@ -9,7 +9,13 @@ import { signOut } from "@/app/login/actions";
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
-  return pathname === href || pathname.startsWith(`${href}/`);
+  if (pathname === href) return true;
+  if (!pathname.startsWith(`${href}/`)) return false;
+  // Don't light up a parent (e.g. /shows) when a more specific nav item
+  // (e.g. /shows/sales) is the actual match.
+  return !NAV_ITEMS.some(
+    (i) => i.href !== href && i.href.startsWith(`${href}/`) && (pathname === i.href || pathname.startsWith(`${i.href}/`)),
+  );
 }
 
 export function Sidebar({
