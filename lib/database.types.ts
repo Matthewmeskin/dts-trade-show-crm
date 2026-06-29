@@ -45,6 +45,13 @@ export type Database = {
             referencedRelation: "shows"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "carrier_shows_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows_with_status"
+            referencedColumns: ["id"]
+          },
         ]
       }
       carrier_venues: {
@@ -248,6 +255,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "documents_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "documents_show_id_fkey"
             columns: ["show_id"]
             isOneToOne: false
@@ -370,36 +384,36 @@ export type Database = {
           exhibitor_id: string | null
           id: string
           margin: number | null
-          show_date: string | null
-          target_delivery_date: string | null
           mode: Database["public"]["Enums"]["shipment_mode"] | null
           notes: string | null
           origin_city: string | null
           origin_state: string | null
           origin_street: string | null
           origin_zip: string | null
+          package_type: string | null
           pickup_date: string | null
           pieces: number | null
           po_ref: string | null
           pro_number: string | null
           shipper_number: string | null
+          show_auto_linked: boolean
+          show_date: string | null
           show_id: string | null
           special_requirements: string | null
-          package_type: string | null
           status: Database["public"]["Enums"]["shipment_status"]
+          target_delivery_date: string | null
           tms_created_at: string | null
           tms_customer_id: string | null
-          tms_venue_raw: string | null
-          tms_venue_city: string | null
-          tms_venue_state: string | null
           tms_last_synced_at: string | null
           tms_reference_id: string | null
           tms_sync_status: Database["public"]["Enums"]["tms_sync_status"]
+          tms_venue_city: string | null
+          tms_venue_raw: string | null
+          tms_venue_state: string | null
           tracking_url: string | null
           updated_at: string
-          venue_id: string | null
           venue_auto_linked: boolean
-          show_auto_linked: boolean
+          venue_id: string | null
           weight: number | null
         }
         Insert: {
@@ -426,38 +440,39 @@ export type Database = {
             | null
           direction?: Database["public"]["Enums"]["shipment_direction"] | null
           estimated_delivery_date?: string | null
-          show_date?: string | null
-          target_delivery_date?: string | null
           exhibitor_id?: string | null
           id?: string
+          margin?: number | null
           mode?: Database["public"]["Enums"]["shipment_mode"] | null
           notes?: string | null
           origin_city?: string | null
           origin_state?: string | null
           origin_street?: string | null
           origin_zip?: string | null
+          package_type?: string | null
           pickup_date?: string | null
           pieces?: number | null
           po_ref?: string | null
-          package_type?: string | null
           pro_number?: string | null
           shipper_number?: string | null
+          show_auto_linked?: boolean
+          show_date?: string | null
           show_id?: string | null
           special_requirements?: string | null
           status?: Database["public"]["Enums"]["shipment_status"]
+          target_delivery_date?: string | null
           tms_created_at?: string | null
           tms_customer_id?: string | null
-          tms_venue_raw?: string | null
-          tms_venue_city?: string | null
-          tms_venue_state?: string | null
           tms_last_synced_at?: string | null
           tms_reference_id?: string | null
           tms_sync_status?: Database["public"]["Enums"]["tms_sync_status"]
+          tms_venue_city?: string | null
+          tms_venue_raw?: string | null
+          tms_venue_state?: string | null
           tracking_url?: string | null
           updated_at?: string
-          venue_id?: string | null
           venue_auto_linked?: boolean
-          show_auto_linked?: boolean
+          venue_id?: string | null
           weight?: number | null
         }
         Update: {
@@ -484,38 +499,39 @@ export type Database = {
             | null
           direction?: Database["public"]["Enums"]["shipment_direction"] | null
           estimated_delivery_date?: string | null
-          show_date?: string | null
-          target_delivery_date?: string | null
           exhibitor_id?: string | null
           id?: string
+          margin?: number | null
           mode?: Database["public"]["Enums"]["shipment_mode"] | null
           notes?: string | null
           origin_city?: string | null
           origin_state?: string | null
           origin_street?: string | null
           origin_zip?: string | null
+          package_type?: string | null
           pickup_date?: string | null
           pieces?: number | null
           po_ref?: string | null
-          package_type?: string | null
           pro_number?: string | null
           shipper_number?: string | null
+          show_auto_linked?: boolean
+          show_date?: string | null
           show_id?: string | null
           special_requirements?: string | null
           status?: Database["public"]["Enums"]["shipment_status"]
+          target_delivery_date?: string | null
           tms_created_at?: string | null
           tms_customer_id?: string | null
-          tms_venue_raw?: string | null
-          tms_venue_city?: string | null
-          tms_venue_state?: string | null
           tms_last_synced_at?: string | null
           tms_reference_id?: string | null
           tms_sync_status?: Database["public"]["Enums"]["tms_sync_status"]
+          tms_venue_city?: string | null
+          tms_venue_raw?: string | null
+          tms_venue_state?: string | null
           tracking_url?: string | null
           updated_at?: string
-          venue_id?: string | null
           venue_auto_linked?: boolean
-          show_auto_linked?: boolean
+          venue_id?: string | null
           weight?: number | null
         }
         Relationships: [
@@ -524,13 +540,6 @@ export type Database = {
             columns: ["carrier_id"]
             isOneToOne: false
             referencedRelation: "carriers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "shipments_venue_id_fkey"
-            columns: ["venue_id"]
-            isOneToOne: false
-            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
           {
@@ -552,6 +561,13 @@ export type Database = {
             columns: ["show_id"]
             isOneToOne: false
             referencedRelation: "shows_with_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -660,144 +676,177 @@ export type Database = {
       shows: {
         Row: {
           actual_revenue: number | null
-          advance_warehouse_cutoff: string | null
-          advance_warehouse_open: string | null
           advance_warehouse_address: string | null
-          advance_warehouse_name: string | null
           advance_warehouse_care_of: string | null
+          advance_warehouse_city: string | null
+          advance_warehouse_country: string | null
+          advance_warehouse_cutoff: string | null
+          advance_warehouse_name: string | null
+          advance_warehouse_open: string | null
+          advance_warehouse_state: string | null
           advance_warehouse_street1: string | null
           advance_warehouse_street2: string | null
-          advance_warehouse_city: string | null
-          advance_warehouse_state: string | null
+          advance_warehouse_window: string | null
           advance_warehouse_zip: string | null
-          advance_warehouse_country: string | null
-          direct_to_show_address: string | null
-          direct_to_show_name: string | null
-          direct_to_show_care_of: string | null
-          direct_to_show_street1: string | null
-          direct_to_show_street2: string | null
-          direct_to_show_city: string | null
-          direct_to_show_state: string | null
-          direct_to_show_zip: string | null
-          direct_to_show_country: string | null
           archived: boolean
           competitor_notes: string | null
           created_at: string
+          decorator: string | null
+          direct_to_show_address: string | null
+          direct_to_show_care_of: string | null
+          direct_to_show_city: string | null
+          direct_to_show_country: string | null
           direct_to_show_end: string | null
+          direct_to_show_name: string | null
           direct_to_show_start: string | null
+          direct_to_show_state: string | null
+          direct_to_show_street1: string | null
+          direct_to_show_street2: string | null
+          direct_to_show_window: string | null
+          direct_to_show_zip: string | null
           edition_year: number | null
+          emailed_two_weeks: boolean
           estimated_revenue: number | null
-          general_notes: string | null
+          exhibitor_count: number | null
           exhibitor_list_url: string | null
           exhibitor_manual_url: string | null
-          website_url: string | null
+          general_notes: string | null
           gsc_contact_id: string | null
           id: string
           industry_vertical: string | null
+          instantly_created: boolean
+          lead_gen_completion_date: string | null
+          lead_gen_owner: string | null
+          lead_gen_start_date: string | null
           move_in_end: string | null
+          move_in_schedule_url: string | null
           move_in_start: string | null
           move_out_end: string | null
           move_out_start: string | null
+          sales_people: string | null
           show_end_date: string | null
           show_management_company: string | null
           show_name: string
           show_start_date: string | null
           updated_at: string
           venue_id: string | null
+          website_url: string | null
         }
         Insert: {
           actual_revenue?: number | null
-          advance_warehouse_cutoff?: string | null
-          advance_warehouse_open?: string | null
           advance_warehouse_address?: string | null
-          advance_warehouse_name?: string | null
           advance_warehouse_care_of?: string | null
+          advance_warehouse_city?: string | null
+          advance_warehouse_country?: string | null
+          advance_warehouse_cutoff?: string | null
+          advance_warehouse_name?: string | null
+          advance_warehouse_open?: string | null
+          advance_warehouse_state?: string | null
           advance_warehouse_street1?: string | null
           advance_warehouse_street2?: string | null
-          advance_warehouse_city?: string | null
-          advance_warehouse_state?: string | null
+          advance_warehouse_window?: string | null
           advance_warehouse_zip?: string | null
-          advance_warehouse_country?: string | null
-          direct_to_show_address?: string | null
-          direct_to_show_name?: string | null
-          direct_to_show_care_of?: string | null
-          direct_to_show_street1?: string | null
-          direct_to_show_street2?: string | null
-          direct_to_show_city?: string | null
-          direct_to_show_state?: string | null
-          direct_to_show_zip?: string | null
-          direct_to_show_country?: string | null
           archived?: boolean
           competitor_notes?: string | null
           created_at?: string
+          decorator?: string | null
+          direct_to_show_address?: string | null
+          direct_to_show_care_of?: string | null
+          direct_to_show_city?: string | null
+          direct_to_show_country?: string | null
           direct_to_show_end?: string | null
+          direct_to_show_name?: string | null
           direct_to_show_start?: string | null
+          direct_to_show_state?: string | null
+          direct_to_show_street1?: string | null
+          direct_to_show_street2?: string | null
+          direct_to_show_window?: string | null
+          direct_to_show_zip?: string | null
           edition_year?: number | null
+          emailed_two_weeks?: boolean
           estimated_revenue?: number | null
-          general_notes?: string | null
+          exhibitor_count?: number | null
           exhibitor_list_url?: string | null
           exhibitor_manual_url?: string | null
-          website_url?: string | null
+          general_notes?: string | null
           gsc_contact_id?: string | null
           id?: string
           industry_vertical?: string | null
+          instantly_created?: boolean
+          lead_gen_completion_date?: string | null
+          lead_gen_owner?: string | null
+          lead_gen_start_date?: string | null
           move_in_end?: string | null
+          move_in_schedule_url?: string | null
           move_in_start?: string | null
           move_out_end?: string | null
           move_out_start?: string | null
+          sales_people?: string | null
           show_end_date?: string | null
           show_management_company?: string | null
           show_name: string
           show_start_date?: string | null
           updated_at?: string
           venue_id?: string | null
+          website_url?: string | null
         }
         Update: {
           actual_revenue?: number | null
-          advance_warehouse_cutoff?: string | null
-          advance_warehouse_open?: string | null
           advance_warehouse_address?: string | null
-          advance_warehouse_name?: string | null
           advance_warehouse_care_of?: string | null
+          advance_warehouse_city?: string | null
+          advance_warehouse_country?: string | null
+          advance_warehouse_cutoff?: string | null
+          advance_warehouse_name?: string | null
+          advance_warehouse_open?: string | null
+          advance_warehouse_state?: string | null
           advance_warehouse_street1?: string | null
           advance_warehouse_street2?: string | null
-          advance_warehouse_city?: string | null
-          advance_warehouse_state?: string | null
+          advance_warehouse_window?: string | null
           advance_warehouse_zip?: string | null
-          advance_warehouse_country?: string | null
-          direct_to_show_address?: string | null
-          direct_to_show_name?: string | null
-          direct_to_show_care_of?: string | null
-          direct_to_show_street1?: string | null
-          direct_to_show_street2?: string | null
-          direct_to_show_city?: string | null
-          direct_to_show_state?: string | null
-          direct_to_show_zip?: string | null
-          direct_to_show_country?: string | null
           archived?: boolean
           competitor_notes?: string | null
           created_at?: string
+          decorator?: string | null
+          direct_to_show_address?: string | null
+          direct_to_show_care_of?: string | null
+          direct_to_show_city?: string | null
+          direct_to_show_country?: string | null
           direct_to_show_end?: string | null
+          direct_to_show_name?: string | null
           direct_to_show_start?: string | null
+          direct_to_show_state?: string | null
+          direct_to_show_street1?: string | null
+          direct_to_show_street2?: string | null
+          direct_to_show_window?: string | null
+          direct_to_show_zip?: string | null
           edition_year?: number | null
+          emailed_two_weeks?: boolean
           estimated_revenue?: number | null
-          general_notes?: string | null
+          exhibitor_count?: number | null
           exhibitor_list_url?: string | null
           exhibitor_manual_url?: string | null
-          website_url?: string | null
+          general_notes?: string | null
           gsc_contact_id?: string | null
           id?: string
           industry_vertical?: string | null
+          instantly_created?: boolean
+          lead_gen_completion_date?: string | null
+          lead_gen_owner?: string | null
+          lead_gen_start_date?: string | null
           move_in_end?: string | null
+          move_in_schedule_url?: string | null
           move_in_start?: string | null
           move_out_end?: string | null
           move_out_start?: string | null
+          sales_people?: string | null
           show_end_date?: string | null
           show_management_company?: string | null
           show_name?: string
           show_start_date?: string | null
           updated_at?: string
           venue_id?: string | null
+          website_url?: string | null
         }
         Relationships: [
           {
@@ -1148,8 +1197,14 @@ export type Database = {
     }
     Functions: {
       is_admin: { Args: never; Returns: boolean }
-      merge_venues: { Args: { p_target: string; p_source: string }; Returns: undefined }
-      merge_shows: { Args: { p_target: string; p_source: string }; Returns: undefined }
+      merge_shows: {
+        Args: { p_source: string; p_target: string }
+        Returns: undefined
+      }
+      merge_venues: {
+        Args: { p_source: string; p_target: string }
+        Returns: undefined
+      }
       show_status: {
         Args: { s: Database["public"]["Tables"]["shows"]["Row"] }
         Returns: Database["public"]["Enums"]["show_status"]
