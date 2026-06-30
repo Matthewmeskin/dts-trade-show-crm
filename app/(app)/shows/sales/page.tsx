@@ -54,7 +54,6 @@ export default async function SalesCalendarPage({
       lead_gen_owner: s.lead_gen_owner,
       lead_gen_start_date: s.lead_gen_start_date,
       lead_gen_completion_date: s.lead_gen_completion_date,
-      move_in_schedule_url: s.move_in_schedule_url,
       emailed_two_weeks: !!s.emailed_two_weeks,
       instantly_created: !!s.instantly_created,
     }));
