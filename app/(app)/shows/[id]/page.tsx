@@ -362,7 +362,6 @@ async function OverviewTab({ show, links, sales }: { show: ShowWithStatus; links
           <CardHeader title="Sales & lead gen" icon="reports" />
           <dl className="divide-y divide-slate-100 text-sm">
             <DetailRow label="# Exhibitors" value={sales?.exhibitor_count != null ? String(sales.exhibitor_count) : null} />
-            <DetailRow label="Decorator" value={sales?.decorator} />
             <DetailRow label="Sales people" value={sales?.sales_people} />
             <DetailRow label="Lead gen owner" value={sales?.lead_gen_owner} />
             <DetailRow label="Start calling (−60d)" value={formatDate(startCallDate(sales?.show_start_date))} />
@@ -370,8 +369,6 @@ async function OverviewTab({ show, links, sales }: { show: ShowWithStatus; links
             <DetailRow label="Week before (−7d)" value={formatDate(weekBeforeDate(sales?.show_start_date))} />
             <DetailRow label="Lead gen start" value={formatDate(sales?.lead_gen_start_date)} />
             <DetailRow label="Lead gen done" value={formatDate(sales?.lead_gen_completion_date)} />
-            <DetailRow label="Adv. warehouse window" value={sales?.advance_warehouse_window} />
-            <DetailRow label="Direct-to-show window" value={sales?.direct_to_show_window} />
             <DetailRow label="Team emailed (2 wks)" value={sales?.emailed_two_weeks ? "Yes" : "No"} />
             <DetailRow label="Instantly created" value={sales?.instantly_created ? "Yes" : "No"} />
             <LinkDetailRow label="Move-in schedule" href={sales?.move_in_schedule_url ?? null} />

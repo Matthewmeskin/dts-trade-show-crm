@@ -281,17 +281,8 @@ export function ShowForm({
           title="Sales & lead gen"
           description="Sales pipeline tracking. Start-call (−60d), email-team (−14d) and week-before (−7d) dates are computed from the show start date."
         >
-          <Field label="# of exhibitors" htmlFor="exhibitor_count">
+          <Field label="# of exhibitors" htmlFor="exhibitor_count" hint="Decorator is the “Show management company” above; ship windows are the Advance-warehouse and Direct-to-show dates below.">
             <input id="exhibitor_count" name="exhibitor_count" type="number" defaultValue={d?.exhibitor_count ?? ""} className={inputClass} placeholder="e.g. 435" />
-          </Field>
-          <Field label="Decorator" htmlFor="decorator" hint="General service contractor (Freeman, GES, …).">
-            <input id="decorator" name="decorator" defaultValue={d?.decorator ?? ""} className={inputClass} placeholder="Freeman" />
-          </Field>
-          <Field label="Advance warehouse ship window" htmlFor="advance_warehouse_window">
-            <input id="advance_warehouse_window" name="advance_warehouse_window" defaultValue={d?.advance_warehouse_window ?? ""} className={inputClass} placeholder="e.g. Dec 5–30" />
-          </Field>
-          <Field label="Direct-to-show ship window" htmlFor="direct_to_show_window">
-            <input id="direct_to_show_window" name="direct_to_show_window" defaultValue={d?.direct_to_show_window ?? ""} className={inputClass} placeholder="e.g. Jan 4–5" />
           </Field>
           <Field label="Sales people" htmlFor="sales_people">
             <input id="sales_people" name="sales_people" defaultValue={d?.sales_people ?? ""} className={inputClass} placeholder="e.g. Jean and Jas" />

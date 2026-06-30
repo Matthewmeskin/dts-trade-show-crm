@@ -15,9 +15,9 @@ export type SalesGridRow = {
   past: boolean;
   exhibitor_count: number | null;
   industry_vertical: string | null;
-  decorator: string | null;
-  advance_warehouse_window: string | null;
-  direct_to_show_window: string | null;
+  show_management_company: string | null; // shown as "Decorator"
+  advWhse: string; // read-only window from the show's advance-warehouse dates
+  direct: string; // read-only window from the show's direct-to-show dates
   sales_people: string | null;
   lead_gen_owner: string | null;
   lead_gen_start_date: string | null;
@@ -77,9 +77,9 @@ export function SalesGrid({ rows }: { rows: SalesGridRow[] }) {
             <div className="border-t border-slate-100 py-1.5 text-xs text-slate-600">{r.showDates}</div>
             <div className="border-t border-slate-100 py-1.5"><input name="exhibitor_count" type="number" defaultValue={r.exhibitor_count ?? ""} className={inp} /></div>
             <div className="border-t border-slate-100 py-1.5"><input name="industry_vertical" defaultValue={r.industry_vertical ?? ""} className={inp} /></div>
-            <div className="border-t border-slate-100 py-1.5"><input name="decorator" defaultValue={r.decorator ?? ""} className={inp} /></div>
-            <div className="border-t border-slate-100 py-1.5"><input name="advance_warehouse_window" defaultValue={r.advance_warehouse_window ?? ""} className={inp} /></div>
-            <div className="border-t border-slate-100 py-1.5"><input name="direct_to_show_window" defaultValue={r.direct_to_show_window ?? ""} className={inp} /></div>
+            <div className="border-t border-slate-100 py-1.5"><input name="show_management_company" defaultValue={r.show_management_company ?? ""} className={inp} /></div>
+            <div className="border-t border-slate-100 py-1.5 text-xs text-slate-500">{r.advWhse}</div>
+            <div className="border-t border-slate-100 py-1.5 text-xs text-slate-500">{r.direct}</div>
             <div className="border-t border-slate-100 py-1.5 text-xs text-slate-500">{r.startCall}</div>
             <div className="border-t border-slate-100 py-1.5">
               <div className="text-xs text-slate-500">{r.emailTeam}</div>
