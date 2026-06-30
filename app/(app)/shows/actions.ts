@@ -115,9 +115,6 @@ function parseShow(fd: FormData): {
       general_notes: str(fd, "general_notes"),
       // Sales / lead-gen pipeline
       exhibitor_count: int(fd, "exhibitor_count"),
-      decorator: str(fd, "decorator"),
-      advance_warehouse_window: str(fd, "advance_warehouse_window"),
-      direct_to_show_window: str(fd, "direct_to_show_window"),
       sales_people: str(fd, "sales_people"),
       lead_gen_owner: str(fd, "lead_gen_owner"),
       lead_gen_start_date: str(fd, "lead_gen_start_date"),
@@ -181,9 +178,7 @@ export async function updateShowSales(fd: FormData) {
     .update({
       exhibitor_count: int(fd, "exhibitor_count"),
       industry_vertical: str(fd, "industry_vertical"),
-      decorator: str(fd, "decorator"),
-      advance_warehouse_window: str(fd, "advance_warehouse_window"),
-      direct_to_show_window: str(fd, "direct_to_show_window"),
+      show_management_company: str(fd, "show_management_company"),
       sales_people: str(fd, "sales_people"),
       lead_gen_owner: str(fd, "lead_gen_owner"),
       lead_gen_start_date: str(fd, "lead_gen_start_date"),

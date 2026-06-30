@@ -21,7 +21,7 @@ export default async function SalesCalendarPage({
   const { data: shows } = await supabase
     .from("shows")
     .select(
-      "id, show_name, edition_year, show_start_date, show_end_date, exhibitor_count, industry_vertical, decorator, advance_warehouse_window, direct_to_show_window, sales_people, lead_gen_owner, lead_gen_start_date, lead_gen_completion_date, move_in_schedule_url, emailed_two_weeks, instantly_created, archived",
+      "id, show_name, edition_year, show_start_date, show_end_date, exhibitor_count, industry_vertical, show_management_company, advance_warehouse_open, advance_warehouse_cutoff, direct_to_show_start, direct_to_show_end, sales_people, lead_gen_owner, lead_gen_start_date, lead_gen_completion_date, move_in_schedule_url, emailed_two_weeks, instantly_created, archived",
     )
     .eq("archived", false);
 
@@ -43,9 +43,13 @@ export default async function SalesCalendarPage({
       past: (s.show_end_date ?? s.show_start_date)! < today,
       exhibitor_count: s.exhibitor_count,
       industry_vertical: s.industry_vertical,
-      decorator: s.decorator,
-      advance_warehouse_window: s.advance_warehouse_window,
-      direct_to_show_window: s.direct_to_show_window,
+      show_management_company: s.show_management_company,
+      advWhse: s.advance_warehouse_open || s.advance_warehouse_cutoff
+        ? formatDateRange(s.advance_warehouse_open, s.advance_warehouse_cutoff)
+        : "—",
+      direct: s.direct_to_show_start || s.direct_to_show_end
+        ? formatDateRange(s.direct_to_show_start, s.direct_to_show_end)
+        : "—",
       sales_people: s.sales_people,
       lead_gen_owner: s.lead_gen_owner,
       lead_gen_start_date: s.lead_gen_start_date,
