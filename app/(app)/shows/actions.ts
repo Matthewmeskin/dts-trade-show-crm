@@ -183,7 +183,6 @@ export async function updateShowSales(fd: FormData) {
       lead_gen_owner: str(fd, "lead_gen_owner"),
       lead_gen_start_date: str(fd, "lead_gen_start_date"),
       lead_gen_completion_date: str(fd, "lead_gen_completion_date"),
-      move_in_schedule_url: str(fd, "move_in_schedule_url"),
       emailed_two_weeks: fd.get("emailed_two_weeks") === "on",
       instantly_created: fd.get("instantly_created") === "on",
     })
