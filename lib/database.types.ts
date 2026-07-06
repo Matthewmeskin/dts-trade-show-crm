@@ -18,16 +18,19 @@ export type Database = {
         Row: {
           carrier_id: string
           id: string
+          preferred: boolean
           show_id: string
         }
         Insert: {
           carrier_id: string
           id?: string
+          preferred?: boolean
           show_id: string
         }
         Update: {
           carrier_id?: string
           id?: string
+          preferred?: boolean
           show_id?: string
         }
         Relationships: [
@@ -718,6 +721,17 @@ export type Database = {
           lead_gen_completion_date: string | null
           lead_gen_owner: string | null
           lead_gen_start_date: string | null
+          marshalling_yard_address: string | null
+          marshalling_yard_care_of: string | null
+          marshalling_yard_city: string | null
+          marshalling_yard_country: string | null
+          marshalling_yard_cutoff: string | null
+          marshalling_yard_name: string | null
+          marshalling_yard_open: string | null
+          marshalling_yard_state: string | null
+          marshalling_yard_street1: string | null
+          marshalling_yard_street2: string | null
+          marshalling_yard_zip: string | null
           move_in_end: string | null
           move_in_schedule_url: string | null
           move_in_start: string | null
@@ -776,6 +790,17 @@ export type Database = {
           lead_gen_completion_date?: string | null
           lead_gen_owner?: string | null
           lead_gen_start_date?: string | null
+          marshalling_yard_address?: string | null
+          marshalling_yard_care_of?: string | null
+          marshalling_yard_city?: string | null
+          marshalling_yard_country?: string | null
+          marshalling_yard_cutoff?: string | null
+          marshalling_yard_name?: string | null
+          marshalling_yard_open?: string | null
+          marshalling_yard_state?: string | null
+          marshalling_yard_street1?: string | null
+          marshalling_yard_street2?: string | null
+          marshalling_yard_zip?: string | null
           move_in_end?: string | null
           move_in_schedule_url?: string | null
           move_in_start?: string | null
@@ -834,6 +859,17 @@ export type Database = {
           lead_gen_completion_date?: string | null
           lead_gen_owner?: string | null
           lead_gen_start_date?: string | null
+          marshalling_yard_address?: string | null
+          marshalling_yard_care_of?: string | null
+          marshalling_yard_city?: string | null
+          marshalling_yard_country?: string | null
+          marshalling_yard_cutoff?: string | null
+          marshalling_yard_name?: string | null
+          marshalling_yard_open?: string | null
+          marshalling_yard_state?: string | null
+          marshalling_yard_street1?: string | null
+          marshalling_yard_street2?: string | null
+          marshalling_yard_zip?: string | null
           move_in_end?: string | null
           move_in_schedule_url?: string | null
           move_in_start?: string | null

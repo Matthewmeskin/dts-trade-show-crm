@@ -17,7 +17,7 @@ function FreightAddressFields({
   prefix,
   values,
 }: {
-  prefix: "advance_warehouse" | "direct_to_show";
+  prefix: "advance_warehouse" | "direct_to_show" | "marshalling_yard";
   values: FreightAddressParts;
 }) {
   const f = (k: string) => `${prefix}_${k}`;
@@ -226,6 +226,7 @@ export function ShowForm({
             parts are left empty (the parse step composes parts → *_address). */}
         <input type="hidden" name="advance_warehouse_address_legacy" value={d?.advance_warehouse_address ?? ""} />
         <input type="hidden" name="direct_to_show_address_legacy" value={d?.direct_to_show_address ?? ""} />
+        <input type="hidden" name="marshalling_yard_address_legacy" value={d?.marshalling_yard_address ?? ""} />
 
         <FormSection
           title="Advance warehouse"
@@ -274,6 +275,31 @@ export function ShowForm({
           </Field>
           <Field label="Direct-to-show end" htmlFor="direct_to_show_end">
             <input id="direct_to_show_end" name="direct_to_show_end" type="date" defaultValue={d?.direct_to_show_end ?? ""} className={inputClass} />
+          </Field>
+        </FormSection>
+
+        <FormSection
+          title="Marshalling yard"
+          description="Staging / marshalling yard — shipping label and date window."
+        >
+          <FreightAddressFields
+            prefix="marshalling_yard"
+            values={{
+              name: d?.marshalling_yard_name,
+              care_of: d?.marshalling_yard_care_of,
+              street1: d?.marshalling_yard_street1,
+              street2: d?.marshalling_yard_street2,
+              city: d?.marshalling_yard_city,
+              state: d?.marshalling_yard_state,
+              zip: d?.marshalling_yard_zip,
+              country: d?.marshalling_yard_country,
+            }}
+          />
+          <Field label="Marshalling yard open" htmlFor="marshalling_yard_open">
+            <input id="marshalling_yard_open" name="marshalling_yard_open" type="date" defaultValue={d?.marshalling_yard_open ?? ""} className={inputClass} />
+          </Field>
+          <Field label="Marshalling yard cutoff" htmlFor="marshalling_yard_cutoff">
+            <input id="marshalling_yard_cutoff" name="marshalling_yard_cutoff" type="date" defaultValue={d?.marshalling_yard_cutoff ?? ""} className={inputClass} />
           </Field>
         </FormSection>
 
