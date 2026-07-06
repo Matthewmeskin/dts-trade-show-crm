@@ -14,6 +14,7 @@ import {
   addShowToCarrier,
   removeShowFromCarrier,
 } from "../actions";
+import { togglePreferredCarrier } from "@/app/(app)/shows/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export default async function CarrierRecordPage({
     supabase.from("venues").select("id, venue_name").order("venue_name"),
     supabase
       .from("carrier_shows")
-      .select("show:shows(id, show_name, edition_year)")
+      .select("preferred, show:shows(id, show_name, edition_year)")
       .eq("carrier_id", id),
     supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
     supabase
@@ -56,8 +57,8 @@ export default async function CarrierRecordPage({
   const available = (allVenuesRes.data ?? []).filter((v) => !linkedIds.has(v.id));
 
   const shows = (showLinkRes.data ?? [])
-    .map((r) => r.show)
-    .filter((s): s is NonNullable<typeof s> => Boolean(s))
+    .filter((r) => r.show)
+    .map((r) => ({ id: r.show!.id, show_name: r.show!.show_name, edition_year: r.show!.edition_year, preferred: r.preferred }))
     .sort((a, b) => a.show_name.localeCompare(b.show_name));
   const linkedShowIds = new Set(shows.map((s) => s.id));
   const availableShows = (allShowsRes.data ?? []).filter((s) => !linkedShowIds.has(s.id));
@@ -188,10 +189,19 @@ export default async function CarrierRecordPage({
             ) : (
               <ul className="divide-y divide-slate-100">
                 {shows.map((s) => (
-                  <li key={s.id} className="flex items-center justify-between px-5 py-3">
-                    <Link href={`/shows/${s.id}`} className="text-sm font-medium text-slate-900 hover:text-dts-maroon">
+                  <li key={s.id} className="flex items-center gap-3 px-5 py-3">
+                    <form action={togglePreferredCarrier} className="flex">
+                      <input type="hidden" name="show_id" value={s.id} />
+                      <input type="hidden" name="carrier_id" value={id} />
+                      <input type="hidden" name="preferred" value={s.preferred ? "0" : "1"} />
+                      <button type="submit" title={s.preferred ? "Preferred for this show — click to unstar" : "Mark preferred for this show"} className={`text-lg leading-none ${s.preferred ? "text-amber-500" : "text-slate-300 hover:text-amber-400"}`}>
+                        {s.preferred ? "★" : "☆"}
+                      </button>
+                    </form>
+                    <Link href={`/shows/${s.id}`} className="flex-1 text-sm font-medium text-slate-900 hover:text-dts-maroon">
                       {s.show_name}
                       {s.edition_year ? <span className="ml-1 text-slate-400">{s.edition_year}</span> : null}
+                      {s.preferred ? <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">Preferred</span> : null}
                     </Link>
                     <form action={removeShowFromCarrier}>
                       <input type="hidden" name="carrier_id" value={id} />

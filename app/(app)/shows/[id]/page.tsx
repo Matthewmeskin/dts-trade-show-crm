@@ -21,6 +21,9 @@ import {
   addExhibitorToShow,
   removeExhibitorFromShow,
   attachShipmentToShow,
+  addCarrierToShow,
+  removeCarrierFromShow,
+  togglePreferredCarrier,
 } from "../actions";
 import { documentDownload } from "@/app/(app)/documents/actions";
 import { DeleteDocButton } from "@/app/(app)/documents/delete-doc-button";
@@ -209,7 +212,7 @@ type ShowLinks = ({
 
 async function OverviewTab({ show, links, sales }: { show: ShowWithStatus; links: ShowLinks; sales: Tables<"shows"> | null }) {
   const supabase = await createClient();
-  const [venueRes, contactRes] = await Promise.all([
+  const [venueRes, contactRes, prefRes] = await Promise.all([
     show.venue_id
       ? supabase
           .from("venues")
@@ -224,9 +227,18 @@ async function OverviewTab({ show, links, sales }: { show: ShowWithStatus; links
           .eq("id", show.gsc_contact_id)
           .single()
       : Promise.resolve({ data: null }),
+    show.id
+      ? supabase
+          .from("carrier_shows")
+          .select("carrier:carriers(id, carrier_name)")
+          .eq("show_id", show.id)
+          .eq("preferred", true)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
   const venue = venueRes.data;
   const contact = contactRes.data;
+  const preferredCarrier = prefRes.data?.carrier ?? null;
   const deadline = nextCriticalDeadline(show);
 
   const variance =
@@ -250,6 +262,12 @@ async function OverviewTab({ show, links, sales }: { show: ShowWithStatus; links
             <DateCell label="Move-out end" value={show.move_out_end} />
             <DateCell label="Direct-to-show start" value={show.direct_to_show_start} />
             <DateCell label="Direct-to-show end" value={show.direct_to_show_end} />
+            {sales?.marshalling_yard_open || sales?.marshalling_yard_cutoff ? (
+              <>
+                <DateCell label="Marshalling yard open" value={sales?.marshalling_yard_open ?? null} />
+                <DateCell label="Marshalling yard cutoff" value={sales?.marshalling_yard_cutoff ?? null} />
+              </>
+            ) : null}
           </div>
         </Card>
 
@@ -274,16 +292,28 @@ async function OverviewTab({ show, links, sales }: { show: ShowWithStatus; links
             zip: links?.direct_to_show_zip,
             country: links?.direct_to_show_country,
           });
+          const my = composeFreightAddress({
+            name: sales?.marshalling_yard_name,
+            care_of: sales?.marshalling_yard_care_of,
+            street1: sales?.marshalling_yard_street1,
+            street2: sales?.marshalling_yard_street2,
+            city: sales?.marshalling_yard_city,
+            state: sales?.marshalling_yard_state,
+            zip: sales?.marshalling_yard_zip,
+            country: sales?.marshalling_yard_country,
+          });
           // Fall back to the legacy single-line address when no parts are set.
           const awLines = aw.lines.length ? aw.lines : asLines(links?.advance_warehouse_address);
           const dtsLines = dts.lines.length ? dts.lines : asLines(links?.direct_to_show_address);
-          if (!awLines.length && !dtsLines.length) return null;
+          const myLines = my.lines.length ? my.lines : asLines(sales?.marshalling_yard_address);
+          if (!awLines.length && !dtsLines.length && !myLines.length) return null;
           return (
             <Card>
               <CardHeader title="Freight addresses" icon="venues" />
               <dl className="divide-y divide-slate-100 text-sm">
-                <AddressRow label="Advance warehouse" lines={awLines} />
-                <AddressRow label="Direct to show" lines={dtsLines} />
+                {awLines.length ? <AddressRow label="Advance warehouse" lines={awLines} /> : null}
+                {dtsLines.length ? <AddressRow label="Direct to show" lines={dtsLines} /> : null}
+                {myLines.length ? <AddressRow label="Marshalling yard" lines={myLines} /> : null}
               </dl>
             </Card>
           );
@@ -353,6 +383,16 @@ async function OverviewTab({ show, links, sales }: { show: ShowWithStatus; links
                     contact.company ||
                     "—"
                   : null
+              }
+            />
+            <DetailRow
+              label="Preferred carrier"
+              value={
+                preferredCarrier ? (
+                  <Link href={`/carriers/${preferredCarrier.id}`} className="text-dts-blue hover:underline">
+                    <span className="text-amber-500">★</span> {preferredCarrier.carrier_name}
+                  </Link>
+                ) : null
               }
             />
           </dl>
@@ -689,40 +729,62 @@ async function ShipmentsTab({ showId }: { showId: string }) {
 
 async function CarriersTab({ showId }: { showId: string }) {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("shipments")
-    .select("carrier_id, carrier:carriers(id, carrier_name)")
-    .eq("show_id", showId)
-    .not("carrier_id", "is", null);
+  const [linkRes, shipRes, allRes] = await Promise.all([
+    supabase.from("carrier_shows").select("carrier_id, preferred, carrier:carriers(id, carrier_name)").eq("show_id", showId),
+    supabase.from("shipments").select("carrier_id").eq("show_id", showId).not("carrier_id", "is", null),
+    supabase.from("carriers").select("id, carrier_name").order("carrier_name"),
+  ]);
 
-  const counts = new Map<string, { name: string; count: number }>();
-  for (const row of data ?? []) {
-    if (!row.carrier) continue;
-    const prev = counts.get(row.carrier.id) ?? { name: row.carrier.carrier_name, count: 0 };
-    prev.count += 1;
-    counts.set(row.carrier.id, prev);
-  }
-  const carriers = [...counts.entries()].sort((a, b) => b[1].count - a[1].count);
+  const shipCount = new Map<string, number>();
+  for (const r of shipRes.data ?? []) if (r.carrier_id) shipCount.set(r.carrier_id, (shipCount.get(r.carrier_id) ?? 0) + 1);
+
+  const linked = (linkRes.data ?? [])
+    .map((r) => ({ id: r.carrier?.id ?? r.carrier_id, name: r.carrier?.carrier_name ?? "Carrier", preferred: r.preferred }))
+    .sort((a, b) => Number(b.preferred) - Number(a.preferred) || a.name.localeCompare(b.name));
+  const linkedIds = new Set(linked.map((c) => c.id));
+  const available = (allRes.data ?? []).filter((c) => !linkedIds.has(c.id));
 
   return (
     <Card>
-      <CardHeader title={`Carriers (${carriers.length})`} icon="carriers" />
-      {carriers.length === 0 ? (
-        <EmptyState
-          icon="carriers"
-          title="No carriers yet"
-          description="Carriers appear here once shipments are assigned to them on this show."
-        />
+      <CardHeader title={`Carriers (${linked.length})`} icon="carriers" />
+      <div className="border-b border-slate-100 px-5 py-2.5">
+        <form action={addCarrierToShow} className="flex items-center gap-1.5">
+          <input type="hidden" name="show_id" value={showId} />
+          <select name="carrier_id" required defaultValue="" className={`${inputClass} h-8 flex-1 py-1 text-xs`} disabled={available.length === 0}>
+            <option value="" disabled>{available.length === 0 ? "All carriers linked" : "Add carrier…"}</option>
+            {available.map((c) => (
+              <option key={c.id} value={c.id}>{c.carrier_name}</option>
+            ))}
+          </select>
+          <button type="submit" disabled={available.length === 0} className="rounded-lg bg-dts-maroon px-3 py-1.5 text-xs font-medium text-white hover:bg-dts-maroon-dark disabled:opacity-50">
+            Add
+          </button>
+        </form>
+      </div>
+      {linked.length === 0 ? (
+        <EmptyState icon="carriers" title="No carriers linked" description="Add a carrier and star the preferred one for this show." />
       ) : (
         <ul className="divide-y divide-slate-100">
-          {carriers.map(([cid, c]) => (
-            <li key={cid} className="flex items-center justify-between px-5 py-3">
-              <Link href={`/carriers/${cid}`} className="text-sm font-medium text-slate-900 hover:text-dts-maroon">
+          {linked.map((c) => (
+            <li key={c.id} className="flex items-center gap-3 px-5 py-3">
+              <form action={togglePreferredCarrier} className="flex">
+                <input type="hidden" name="show_id" value={showId} />
+                <input type="hidden" name="carrier_id" value={c.id} />
+                <input type="hidden" name="preferred" value={c.preferred ? "0" : "1"} />
+                <button type="submit" title={c.preferred ? "Preferred carrier — click to unstar" : "Mark preferred carrier"} className={`text-lg leading-none ${c.preferred ? "text-amber-500" : "text-slate-300 hover:text-amber-400"}`}>
+                  {c.preferred ? "★" : "☆"}
+                </button>
+              </form>
+              <Link href={`/carriers/${c.id}`} className="flex-1 text-sm font-medium text-slate-900 hover:text-dts-maroon">
                 {c.name}
+                {c.preferred ? <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">Preferred</span> : null}
               </Link>
-              <span className="text-xs text-slate-400">
-                {c.count} shipment{c.count === 1 ? "" : "s"}
-              </span>
+              <span className="text-xs text-slate-400">{shipCount.get(c.id) ?? 0} shipment{(shipCount.get(c.id) ?? 0) === 1 ? "" : "s"}</span>
+              <form action={removeCarrierFromShow}>
+                <input type="hidden" name="show_id" value={showId} />
+                <input type="hidden" name="carrier_id" value={c.id} />
+                <button type="submit" className="text-xs font-medium text-slate-400 hover:text-dts-maroon">Remove</button>
+              </form>
             </li>
           ))}
         </ul>

@@ -59,7 +59,7 @@ function parseShow(fd: FormData): {
   // Read each freight address's structured parts, and compose them into the
   // legacy single-line *_address column (falling back to any existing value the
   // form carries in a hidden field so it isn't wiped when parts are empty).
-  const freight = (prefix: "advance_warehouse" | "direct_to_show") => {
+  const freight = (prefix: "advance_warehouse" | "direct_to_show" | "marshalling_yard") => {
     const parts: FreightAddressParts = {};
     for (const k of FREIGHT_ADDRESS_KEYS) parts[k] = str(fd, `${prefix}_${k}`);
     const address =
@@ -68,6 +68,7 @@ function parseShow(fd: FormData): {
   };
   const aw = freight("advance_warehouse");
   const dts = freight("direct_to_show");
+  const my = freight("marshalling_yard");
 
   return {
     data: {
@@ -89,6 +90,17 @@ function parseShow(fd: FormData): {
       direct_to_show_zip: dts.parts.zip ?? null,
       direct_to_show_country: dts.parts.country ?? null,
       direct_to_show_address: dts.address,
+      marshalling_yard_name: my.parts.name ?? null,
+      marshalling_yard_care_of: my.parts.care_of ?? null,
+      marshalling_yard_street1: my.parts.street1 ?? null,
+      marshalling_yard_street2: my.parts.street2 ?? null,
+      marshalling_yard_city: my.parts.city ?? null,
+      marshalling_yard_state: my.parts.state ?? null,
+      marshalling_yard_zip: my.parts.zip ?? null,
+      marshalling_yard_country: my.parts.country ?? null,
+      marshalling_yard_address: my.address,
+      marshalling_yard_open: str(fd, "marshalling_yard_open"),
+      marshalling_yard_cutoff: str(fd, "marshalling_yard_cutoff"),
       show_name: show_name!,
       edition_year: int(fd, "edition_year"),
       industry_vertical: str(fd, "industry_vertical"),
@@ -223,6 +235,48 @@ export async function removeExhibitorFromShow(fd: FormData) {
     .eq("show_id", show_id)
     .eq("exhibitor_id", exhibitor_id);
   revalidatePath(`/shows/${show_id}`);
+}
+
+/** Link a carrier to this show (from the show's Carriers tab). */
+export async function addCarrierToShow(fd: FormData) {
+  const show_id = String(fd.get("show_id") ?? "");
+  const carrier_id = String(fd.get("carrier_id") ?? "");
+  if (!show_id || !carrier_id) return;
+  const supabase = await createClient();
+  await supabase
+    .from("carrier_shows")
+    .upsert({ show_id, carrier_id }, { onConflict: "carrier_id,show_id" });
+  revalidatePath(`/shows/${show_id}`);
+  revalidatePath(`/carriers/${carrier_id}`);
+}
+
+export async function removeCarrierFromShow(fd: FormData) {
+  const show_id = String(fd.get("show_id") ?? "");
+  const carrier_id = String(fd.get("carrier_id") ?? "");
+  if (!show_id || !carrier_id) return;
+  const supabase = await createClient();
+  await supabase.from("carrier_shows").delete().eq("show_id", show_id).eq("carrier_id", carrier_id);
+  revalidatePath(`/shows/${show_id}`);
+  revalidatePath(`/carriers/${carrier_id}`);
+}
+
+/** Star a carrier as preferred for this show (one preferred per show). */
+export async function togglePreferredCarrier(fd: FormData) {
+  const show_id = String(fd.get("show_id") ?? "");
+  const carrier_id = String(fd.get("carrier_id") ?? "");
+  if (!show_id || !carrier_id) return;
+  const makePreferred = String(fd.get("preferred") ?? "") === "1";
+  const supabase = await createClient();
+  // Ensure the link exists, then set the flag (clearing others when starring).
+  await supabase.from("carrier_shows").upsert({ show_id, carrier_id }, { onConflict: "carrier_id,show_id" });
+  if (makePreferred) {
+    await supabase.from("carrier_shows").update({ preferred: false }).eq("show_id", show_id);
+    await supabase.from("carrier_shows").update({ preferred: true }).eq("show_id", show_id).eq("carrier_id", carrier_id);
+  } else {
+    await supabase.from("carrier_shows").update({ preferred: false }).eq("show_id", show_id).eq("carrier_id", carrier_id);
+  }
+  revalidatePath(`/shows/${show_id}`);
+  revalidatePath(`/carriers/${carrier_id}`);
 }
 
 /** Link an already-logged shipment to this show. */
