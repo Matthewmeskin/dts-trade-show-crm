@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { TablesInsert } from "@/lib/database.types";
+import { extractCustomerId } from "@/lib/tms";
 import {
   classifyTradeShowLoads,
   type LoadInput,
@@ -43,6 +45,7 @@ type Normalized = {
   delivery_location: string | null;
   carrier_name: string | null;
   customer_name: string | null;
+  tms_customer_id: string | null;
   po_ref: string | null;
   shipper_number: string | null;
   billed_amount: number | null;
@@ -73,6 +76,7 @@ function normalize(load: RawLoad): Normalized | null {
     delivery_location: str(dropStop?.fullAddress ?? dropStop?.addressLine ?? load.deliveryLocation ?? load.delivery_location),
     carrier_name: str(primary?.carrierName ?? load.carrierName ?? load.carrier_name),
     customer_name: str(load.customerName ?? load.customer_name ?? load.customerCompany),
+    tms_customer_id: extractCustomerId(load) ?? null,
     po_ref: str(load.poReference ?? load.po_ref ?? load.poReferenceNo),
     shipper_number: str(load.shipperNum ?? load.shipperNumber ?? load.shipper_number),
     billed_amount: items.length ? sum("billed") || null : num(load.billed ?? load.totalBilled),
@@ -190,30 +194,39 @@ export async function POST(req: NextRequest) {
   let stored = 0;
   for (const v of candidates) {
     const n = byLoad.get(v.load_number)!;
-    const { error } = await supabase.from("tms_load_candidates").upsert(
-      {
-        load_number: n.load_number,
-        tms_status: n.tms_status,
-        mode: n.mode,
-        pickup_location: n.pickup_location,
-        delivery_location: n.delivery_location,
-        carrier_name: n.carrier_name,
-        customer_name: n.customer_name,
-        po_ref: n.po_ref,
-        shipper_number: n.shipper_number,
-        billed_amount: n.billed_amount,
-        cost_amount: n.cost_amount,
-        pieces: n.pieces,
-        weight: n.weight,
-        ai_is_candidate: true,
-        ai_confidence: v.confidence,
-        ai_reason: v.reason,
-        matched_venue: v.venue,
-        review_status: existingReview.get(n.load_number) ?? "new",
-        updated_at: now,
-      },
-      { onConflict: "load_number" },
-    );
+    const row: TablesInsert<"tms_load_candidates"> = {
+      load_number: n.load_number,
+      tms_status: n.tms_status,
+      mode: n.mode,
+      pickup_location: n.pickup_location,
+      delivery_location: n.delivery_location,
+      carrier_name: n.carrier_name,
+      customer_name: n.customer_name,
+      tms_customer_id: n.tms_customer_id,
+      po_ref: n.po_ref,
+      shipper_number: n.shipper_number,
+      billed_amount: n.billed_amount,
+      cost_amount: n.cost_amount,
+      pieces: n.pieces,
+      weight: n.weight,
+      ai_is_candidate: true,
+      ai_confidence: v.confidence,
+      ai_reason: v.reason,
+      matched_venue: v.venue,
+      review_status: existingReview.get(n.load_number) ?? "new",
+      updated_at: now,
+    };
+    let { error } = await supabase
+      .from("tms_load_candidates")
+      .upsert(row, { onConflict: "load_number" });
+    // Self-heal if the tms_customer_id migration hasn't been applied yet: retry
+    // without the unknown column so scans keep working (link just won't build).
+    if (error?.code === "PGRST204" && "tms_customer_id" in row) {
+      delete row.tms_customer_id;
+      ({ error } = await supabase
+        .from("tms_load_candidates")
+        .upsert(row, { onConflict: "load_number" }));
+    }
     if (!error) stored += 1;
   }
 

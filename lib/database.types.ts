@@ -1032,6 +1032,7 @@ export type Database = {
           po_ref: string | null
           review_status: string
           shipper_number: string | null
+          tms_customer_id: string | null
           tms_status: string | null
           updated_at: string
           weight: number | null
@@ -1055,6 +1056,7 @@ export type Database = {
           po_ref?: string | null
           review_status?: string
           shipper_number?: string | null
+          tms_customer_id?: string | null
           tms_status?: string | null
           updated_at?: string
           weight?: number | null
@@ -1078,6 +1080,7 @@ export type Database = {
           po_ref?: string | null
           review_status?: string
           shipper_number?: string | null
+          tms_customer_id?: string | null
           tms_status?: string | null
           updated_at?: string
           weight?: number | null
