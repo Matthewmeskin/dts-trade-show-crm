@@ -103,7 +103,9 @@ async function Financials() {
     .from("shipments")
     .select(
       "show_id, carrier_id, billed_amount, cost_amount, show:shows(show_name, edition_year), carrier:carriers(carrier_name)",
-    );
+    )
+    // Quotes aren't real revenue yet — count only booked and above.
+    .neq("status", "quoted");
   const ships = data ?? [];
 
   type Car = { id: string | null; name: string; count: number; billed: number; cost: number };
