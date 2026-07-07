@@ -27,11 +27,13 @@ export type SalesGridRow = {
 };
 
 const COLS =
-  "minmax(180px,1.4fr) 148px 52px minmax(120px,1fr) minmax(118px,1fr) 118px 118px 82px 118px 82px minmax(120px,1fr) 110px 120px 120px 46px 58px";
+  "minmax(180px,1.4fr) 148px 68px minmax(120px,1fr) minmax(118px,1fr) 118px 118px 82px 118px 82px minmax(120px,1fr) 110px 120px 120px 46px 58px";
 
 // Ghost inputs: look like plain text until you focus them.
 const inp =
   "w-full rounded bg-transparent px-1.5 py-1 text-xs text-slate-700 outline-none transition hover:bg-white focus:bg-white focus:ring-1 focus:ring-dts-maroon";
+// Number field without the native spinner arrows (they steal width and clip the count).
+const numInp = `${inp} [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`;
 const ro = "min-w-0 truncate text-xs text-slate-500";
 const head =
   "flex items-center px-2 pb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400";
@@ -52,7 +54,7 @@ export function SalesGrid({ rows }: { rows: SalesGridRow[] }) {
 
   return (
     <div className="overflow-x-auto">
-      <div className="grid min-w-[1440px]" style={{ gridTemplateColumns: COLS }}>
+      <div className="grid min-w-[1456px]" style={{ gridTemplateColumns: COLS }}>
         <div className={head}>Show</div>
         <div className={head}>Show dates</div>
         <div className={head}># Exh</div>
@@ -89,7 +91,7 @@ export function SalesGrid({ rows }: { rows: SalesGridRow[] }) {
                 </Link>
               </div>
               <div className={cell}><span className={ro}>{r.showDates}</span></div>
-              <div className={cell}><input name="exhibitor_count" type="number" defaultValue={r.exhibitor_count ?? ""} className={inp} /></div>
+              <div className={cell}><input name="exhibitor_count" type="number" inputMode="numeric" defaultValue={r.exhibitor_count ?? ""} className={numInp} /></div>
               <div className={cell}><input name="industry_vertical" defaultValue={r.industry_vertical ?? ""} className={inp} /></div>
               <div className={cell}><input name="show_management_company" defaultValue={r.show_management_company ?? ""} className={inp} /></div>
               <div className={cell}><span className={ro}>{r.advWhse}</span></div>
