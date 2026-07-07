@@ -10,6 +10,9 @@ export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Sales calendar · DTS Trade Show CRM" };
 
+/** "May 13 – Jun 5, 2026" -> "May 13 – Jun 5" (year is redundant in the grid). */
+const stripYear = (s: string) => s.replace(/,\s*\d{4}$/, "");
+
 export default async function SalesCalendarPage({
   searchParams,
 }: {
@@ -44,11 +47,12 @@ export default async function SalesCalendarPage({
       exhibitor_count: s.exhibitor_count,
       industry_vertical: s.industry_vertical,
       show_management_company: s.show_management_company,
+      // Drop the year on the freight windows so they fit on one line in the grid.
       advWhse: s.advance_warehouse_open || s.advance_warehouse_cutoff
-        ? formatDateRange(s.advance_warehouse_open, s.advance_warehouse_cutoff)
+        ? stripYear(formatDateRange(s.advance_warehouse_open, s.advance_warehouse_cutoff))
         : "—",
       direct: s.direct_to_show_start || s.direct_to_show_end
-        ? formatDateRange(s.direct_to_show_start, s.direct_to_show_end)
+        ? stripYear(formatDateRange(s.direct_to_show_start, s.direct_to_show_end))
         : "—",
       sales_people: s.sales_people,
       lead_gen_owner: s.lead_gen_owner,

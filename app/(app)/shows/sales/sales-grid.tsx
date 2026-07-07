@@ -27,18 +27,20 @@ export type SalesGridRow = {
 };
 
 const COLS =
-  "minmax(170px,1.4fr) 116px 52px 116px 116px 104px 104px 78px 92px 78px 124px 116px 128px 128px 48px 64px";
+  "minmax(180px,1.4fr) 148px 52px minmax(120px,1fr) minmax(118px,1fr) 118px 118px 82px 118px 82px minmax(120px,1fr) 110px 120px 120px 46px 58px";
 
-// Ghost inputs: look like plain text until you click in.
+// Ghost inputs: look like plain text until you focus them.
 const inp =
-  "w-full rounded bg-transparent px-1.5 py-1 text-xs text-slate-700 outline-none transition hover:bg-slate-100 focus:bg-white focus:ring-1 focus:ring-dts-maroon";
-const ro = "px-1.5 py-1 text-xs text-slate-500";
-const head = "px-1.5 pb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400";
-const cell = "border-t border-slate-100 py-1";
+  "w-full rounded bg-transparent px-1.5 py-1 text-xs text-slate-700 outline-none transition hover:bg-white focus:bg-white focus:ring-1 focus:ring-dts-maroon";
+const ro = "min-w-0 truncate text-xs text-slate-500";
+const head =
+  "flex items-center px-2 pb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400";
+// Every row cell shares one height so rows line up cleanly.
+const cellBase = "flex min-h-[44px] items-center border-t border-slate-100 px-1";
 
 function SavingDot() {
   const { pending } = useFormStatus();
-  return <span className="text-[10px] text-slate-400">{pending ? "Saving…" : ""}</span>;
+  return pending ? <span className="text-[10px] text-slate-400">Saving…</span> : null;
 }
 
 export function SalesGrid({ rows }: { rows: SalesGridRow[] }) {
@@ -50,7 +52,7 @@ export function SalesGrid({ rows }: { rows: SalesGridRow[] }) {
 
   return (
     <div className="overflow-x-auto">
-      <div className="grid min-w-[1380px] items-center gap-x-1" style={{ gridTemplateColumns: COLS }}>
+      <div className="grid min-w-[1440px]" style={{ gridTemplateColumns: COLS }}>
         <div className={head}>Show</div>
         <div className={head}>Show dates</div>
         <div className={head}># Exh</div>
@@ -65,43 +67,53 @@ export function SalesGrid({ rows }: { rows: SalesGridRow[] }) {
         <div className={head}>Lead gen</div>
         <div className={head}>LG start</div>
         <div className={head}>LG done</div>
-        <div className={head}>Inst</div>
+        <div className={`${head} justify-center`}>Inst</div>
         <div className={head} />
 
-        {rows.map((r) => (
-          <form key={r.id} action={updateShowSales} onBlur={autosave} className={`contents ${r.past ? "opacity-60" : ""}`}>
-            <input type="hidden" name="id" value={r.id} />
+        {rows.map((r, i) => {
+          // Zebra banding + dimming for past shows (real cells, since a
+          // display:contents form can't carry a background or opacity).
+          const band = i % 2 === 1 ? "bg-slate-50/70" : "bg-white";
+          const cell = `${cellBase} ${band} ${r.past ? "opacity-55" : ""}`;
+          return (
+            <form key={r.id} action={updateShowSales} onBlur={autosave} className="contents">
+              <input type="hidden" name="id" value={r.id} />
 
-            <div className={`${cell} pl-1.5`}>
-              <Link href={`/shows/${r.id}`} className="text-sm font-medium text-slate-900 hover:text-dts-maroon">
-                {r.showName}{r.editionYear ? <span className="ml-1 text-slate-400">{r.editionYear}</span> : null}
-              </Link>
-            </div>
-            <div className={`${cell} ${ro}`}>{r.showDates}</div>
-            <div className={cell}><input name="exhibitor_count" type="number" defaultValue={r.exhibitor_count ?? ""} className={inp} /></div>
-            <div className={cell}><input name="industry_vertical" defaultValue={r.industry_vertical ?? ""} className={inp} /></div>
-            <div className={cell}><input name="show_management_company" defaultValue={r.show_management_company ?? ""} className={inp} /></div>
-            <div className={`${cell} ${ro}`}>{r.advWhse}</div>
-            <div className={`${cell} ${ro}`}>{r.direct}</div>
-            <div className={`${cell} ${ro}`}>{r.startCall}</div>
-            <div className={cell}>
-              <div className={ro}>{r.emailTeam}</div>
-              <label className="flex items-center gap-1 px-1.5 text-[10px] text-slate-400">
-                <input type="checkbox" name="emailed_two_weeks" defaultChecked={r.emailed_two_weeks} onChange={saveNow} className="h-3 w-3 rounded border-slate-300 text-dts-maroon focus:ring-dts-maroon" />
-                sent
-              </label>
-            </div>
-            <div className={`${cell} ${ro}`}>{r.weekBefore}</div>
-            <div className={cell}><input name="sales_people" defaultValue={r.sales_people ?? ""} className={inp} /></div>
-            <div className={cell}><input name="lead_gen_owner" defaultValue={r.lead_gen_owner ?? ""} className={inp} /></div>
-            <div className={cell}><input name="lead_gen_start_date" type="date" defaultValue={r.lead_gen_start_date ?? ""} className={inp} /></div>
-            <div className={cell}><input name="lead_gen_completion_date" type="date" defaultValue={r.lead_gen_completion_date ?? ""} className={inp} /></div>
-            <div className={`${cell} pl-2`}>
-              <input type="checkbox" name="instantly_created" defaultChecked={r.instantly_created} onChange={saveNow} className="h-4 w-4 rounded border-slate-300 text-dts-maroon focus:ring-dts-maroon" />
-            </div>
-            <div className={`${cell} ${ro}`}><SavingDot /></div>
-          </form>
-        ))}
+              <div className={`${cell} pl-3`}>
+                <Link
+                  href={`/shows/${r.id}`}
+                  className="min-w-0 truncate text-sm font-medium text-slate-900 hover:text-dts-maroon"
+                >
+                  {r.showName}
+                  {r.editionYear ? <span className="ml-1 text-slate-400">{r.editionYear}</span> : null}
+                </Link>
+              </div>
+              <div className={cell}><span className={ro}>{r.showDates}</span></div>
+              <div className={cell}><input name="exhibitor_count" type="number" defaultValue={r.exhibitor_count ?? ""} className={inp} /></div>
+              <div className={cell}><input name="industry_vertical" defaultValue={r.industry_vertical ?? ""} className={inp} /></div>
+              <div className={cell}><input name="show_management_company" defaultValue={r.show_management_company ?? ""} className={inp} /></div>
+              <div className={cell}><span className={ro}>{r.advWhse}</span></div>
+              <div className={cell}><span className={ro}>{r.direct}</span></div>
+              <div className={cell}><span className={ro}>{r.startCall}</span></div>
+              <div className={`${cell} justify-between gap-1`}>
+                <span className={`${ro} tabular-nums`}>{r.emailTeam}</span>
+                <label className="flex shrink-0 items-center gap-1 text-[10px] text-slate-400">
+                  <input type="checkbox" name="emailed_two_weeks" defaultChecked={r.emailed_two_weeks} onChange={saveNow} className="h-3.5 w-3.5 rounded border-slate-300 text-dts-maroon focus:ring-dts-maroon" />
+                  sent
+                </label>
+              </div>
+              <div className={cell}><span className={ro}>{r.weekBefore}</span></div>
+              <div className={cell}><input name="sales_people" defaultValue={r.sales_people ?? ""} className={inp} /></div>
+              <div className={cell}><input name="lead_gen_owner" defaultValue={r.lead_gen_owner ?? ""} className={inp} /></div>
+              <div className={cell}><input name="lead_gen_start_date" type="date" defaultValue={r.lead_gen_start_date ?? ""} className={inp} /></div>
+              <div className={cell}><input name="lead_gen_completion_date" type="date" defaultValue={r.lead_gen_completion_date ?? ""} className={inp} /></div>
+              <div className={`${cell} justify-center`}>
+                <input type="checkbox" name="instantly_created" defaultChecked={r.instantly_created} onChange={saveNow} className="h-4 w-4 rounded border-slate-300 text-dts-maroon focus:ring-dts-maroon" />
+              </div>
+              <div className={`${cell} justify-center`}><SavingDot /></div>
+            </form>
+          );
+        })}
       </div>
     </div>
   );

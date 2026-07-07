@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Card, Badge } from "@/components/ui";
 import { SubmitButton } from "@/components/form";
+import { Icon } from "@/components/icons";
 import { formatCurrency } from "@/lib/format";
+import { hyperionShipmentUrl } from "@/lib/tms";
 import { importCandidate, importCandidates, dismissCandidate } from "./actions";
 
 export type Candidate = {
@@ -16,6 +18,7 @@ export type Candidate = {
   tms_status: string | null;
   matched_venue: string | null;
   customer_name: string | null;
+  tms_customer_id: string | null;
   pickup_location: string | null;
   delivery_location: string | null;
   carrier_name: string | null;
@@ -112,7 +115,23 @@ export function LoadList({ candidates }: { candidates: Candidate[] }) {
                 />
                 <div className="min-w-0 flex-1">
                   <div className="mb-1 flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-slate-900">Load {c.load_number}</span>
+                    {(() => {
+                      const tmsUrl = hyperionShipmentUrl(c.tms_customer_id, c.load_number);
+                      return tmsUrl ? (
+                        <a
+                          href={tmsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-medium text-dts-maroon hover:underline"
+                          title="Open in Hyperion TMS"
+                        >
+                          Load {c.load_number}
+                          <Icon name="external" className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <span className="font-medium text-slate-900">Load {c.load_number}</span>
+                      );
+                    })()}
                     <Badge className={CONF_BADGE[conf]}>{conf} confidence</Badge>
                     {c.mode ? <span className="text-xs text-slate-400">{c.mode}</span> : null}
                     {c.tms_status ? <span className="text-xs text-slate-400">· {c.tms_status}</span> : null}
