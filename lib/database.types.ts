@@ -332,6 +332,103 @@ export type Database = {
         }
         Relationships: []
       }
+      mha_review_results: {
+        Row: {
+          checks: Json
+          created_at: string
+          extracted: Json
+          gc_detected: string | null
+          id: string
+          model: string
+          overall: string
+          submission_id: string
+        }
+        Insert: {
+          checks: Json
+          created_at?: string
+          extracted: Json
+          gc_detected?: string | null
+          id?: string
+          model: string
+          overall: string
+          submission_id: string
+        }
+        Update: {
+          checks?: Json
+          created_at?: string
+          extracted?: Json
+          gc_detected?: string | null
+          id?: string
+          model?: string
+          overall?: string
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mha_review_results_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "mha_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mha_submissions: {
+        Row: {
+          company_name: string
+          created_at: string
+          file_bytes: number
+          file_mime: string
+          id: string
+          load_id: string | null
+          load_number_input: string | null
+          match_method: string | null
+          status: string
+          storage_path: string
+          submitter_email: string
+          submitter_name: string
+          submitter_phone: string
+        }
+        Insert: {
+          company_name: string
+          created_at?: string
+          file_bytes: number
+          file_mime: string
+          id?: string
+          load_id?: string | null
+          load_number_input?: string | null
+          match_method?: string | null
+          status?: string
+          storage_path: string
+          submitter_email: string
+          submitter_name: string
+          submitter_phone: string
+        }
+        Update: {
+          company_name?: string
+          created_at?: string
+          file_bytes?: number
+          file_mime?: string
+          id?: string
+          load_id?: string | null
+          load_number_input?: string | null
+          match_method?: string | null
+          status?: string
+          storage_path?: string
+          submitter_email?: string
+          submitter_name?: string
+          submitter_phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mha_submissions_load_id_fkey"
+            columns: ["load_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -1262,6 +1359,7 @@ export type Database = {
         | "floor_map"
         | "advance_warehouse_form"
         | "other"
+        | "MHA"
       shipment_destination: "advance_warehouse" | "direct_to_show"
       shipment_direction: "move_in" | "move_out"
       shipment_mode: "LTL" | "FTL" | "partial" | "expedited" | "specialized"
@@ -1416,6 +1514,7 @@ export const Constants = {
         "floor_map",
         "advance_warehouse_form",
         "other",
+        "MHA",
       ],
       shipment_destination: ["advance_warehouse", "direct_to_show"],
       shipment_direction: ["move_in", "move_out"],

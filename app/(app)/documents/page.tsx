@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { Constants } from "@/lib/database.types";
-import { DOCUMENT_TYPE_META, type DocumentType } from "@/lib/documents";
+import { DOCUMENT_TYPE_META, DOCUMENTS_BUCKET, type DocumentType } from "@/lib/documents";
+import { MHA_UPLOADS_BUCKET } from "@/lib/mha/media";
 import { formatDate } from "@/lib/format";
 import { documentDownload } from "./actions";
 import { DeleteDocButton } from "./delete-doc-button";
@@ -92,11 +93,13 @@ export default async function DocumentsPage({
               <tbody className="divide-y divide-slate-50">
                 {rows.map((doc) => {
                   const meta = doc.document_type ? DOCUMENT_TYPE_META[doc.document_type] : null;
+                  const bucket = doc.document_type === "MHA" ? MHA_UPLOADS_BUCKET : DOCUMENTS_BUCKET;
                   return (
                     <tr key={doc.id} className="hover:bg-slate-50/60">
                       <td className="px-5 py-3">
                         <form action={documentDownload}>
                           <input type="hidden" name="path" value={doc.file_url ?? ""} />
+                          <input type="hidden" name="bucket" value={bucket} />
                           <button
                             type="submit"
                             disabled={!doc.file_url}
@@ -126,7 +129,7 @@ export default async function DocumentsPage({
                         )}
                       </td>
                       <td className="px-5 py-3 text-right">
-                        <DeleteDocButton id={doc.id} path={doc.file_url} showId={doc.show_id} name={doc.document_name} />
+                        <DeleteDocButton id={doc.id} path={doc.file_url} showId={doc.show_id} name={doc.document_name} bucket={bucket} />
                       </td>
                     </tr>
                   );

@@ -1,0 +1,53 @@
+{
+  "gc_detected": "shepard",
+  "form_code": null,
+  "show_name": "Fabtech",
+  "booth_number": "A456",
+  "origin": {
+    "company": "LA Manufacturing",
+    "street": "123 Main Street",
+    "city": "Pasadena",
+    "state": "CA",
+    "zip": "91001"
+  },
+  "destination": {
+    "facility": "McCormick Place",
+    "street": "2301 Lake Shore Drive",
+    "city": "Chicago",
+    "state": "IL",
+    "zip": "60616"
+  },
+  "carrier": { "name": "T-Force Freight", "phone": null, "gc_logistics_selected": null },
+  "bill_to": {
+    "company": "LA Manufacturing",
+    "street": "123 Main Street",
+    "city": "Pasadena",
+    "state": "CA",
+    "zip": "91001"
+  },
+  "freight_terms": "prepaid",
+  "commodities": [{ "description": "Skids", "pieces": 3, "weight_lbs": 1000 }],
+  "total_pieces": 3,
+  "total_weight_lbs": 1000,
+  "accessorials": {
+    "liftgate": true,
+    "inside_delivery": false,
+    "residential": false,
+    "pallet_jack": false,
+    "call_before_delivery": false,
+    "other_text": null
+  },
+  "service_level": null,
+  "separate_destinations_in_booth": null,
+  "carrier_no_show_option": "return_to_warehouse",
+  "declared_value": null,
+  "exhibitor_signature_present": true,
+  "confidence": {
+    "carrier.name": "high",
+    "bill_to.company": "high",
+    "show_name": "high",
+    "booth_number": "high",
+    "total_pieces": "high",
+    "total_weight_lbs": "high"
+  }
+}
