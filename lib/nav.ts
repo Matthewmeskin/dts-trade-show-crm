@@ -17,6 +17,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Venues", href: "/venues", icon: "venues" },
   { label: "Exhibitors", href: "/exhibitors", icon: "exhibitors" },
   { label: "Shipments", href: "/shipments", icon: "shipments" },
+  { label: "MHA Check", href: "/mha-check", icon: "truck" },
   { label: "Quotes", href: "/quotes", icon: "documents" },
   { label: "Load Finder", href: "/load-finder", icon: "sparkles" },
   { label: "Suggestions", href: "/suggestions", icon: "sparkles" },

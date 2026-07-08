@@ -50,9 +50,11 @@ export async function createDocument(fd: FormData): Promise<DocumentState> {
 export async function documentDownload(fd: FormData) {
   const path = String(fd.get("path") ?? "");
   if (!path) return;
+  // MHA files live in their own private bucket; everything else in `documents`.
+  const bucket = String(fd.get("bucket") ?? "") || DOCUMENTS_BUCKET;
   const supabase = await createClient();
   const { data } = await supabase.storage
-    .from(DOCUMENTS_BUCKET)
+    .from(bucket)
     .createSignedUrl(path, 60, { download: true });
   if (data?.signedUrl) redirect(data.signedUrl);
 }
@@ -61,10 +63,11 @@ export async function deleteDocument(fd: FormData) {
   const id = String(fd.get("id") ?? "");
   const path = String(fd.get("path") ?? "");
   const show_id = String(fd.get("show_id") ?? "");
+  const bucket = String(fd.get("bucket") ?? "") || DOCUMENTS_BUCKET;
   if (!id) return;
 
   const supabase = await createClient();
-  if (path) await supabase.storage.from(DOCUMENTS_BUCKET).remove([path]);
+  if (path) await supabase.storage.from(bucket).remove([path]);
   await supabase.from("documents").delete().eq("id", id);
 
   revalidatePath("/documents");

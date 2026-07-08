@@ -26,6 +26,10 @@ export const DOCUMENT_TYPE_META: Record<
     label: "Other",
     badge: "bg-dts-midgrey/10 text-dts-midgrey ring-1 ring-inset ring-dts-midgrey/30",
   },
+  MHA: {
+    label: "MHA",
+    badge: "bg-dts-blue/10 text-dts-blue ring-1 ring-inset ring-dts-blue/25",
+  },
 };
 
 export const DOCUMENTS_BUCKET = "documents";
