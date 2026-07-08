@@ -177,6 +177,32 @@ function findStop(stops: Stop[], types: string[]): Stop | undefined {
 const SHOW_VENUE_RE =
   /\bbooth\b|\bconv\b|\bconvention\b|\bexpo\b|exhibit|fairground|pavilion|civic center|trade ?show|mccormick place|javits|mandalay bay|moscone|sands expo|caesars forum|conv(?:ention)? ctr|conv(?:ention)? center/i;
 
+// Retail "roadshows" (e.g. Costco in-store roadshows) are general freight, not
+// trade-show freight — exclude them even if a stop otherwise looks show-like.
+const ROADSHOW_RE = /road\s?show/i;
+
+/** True if any stop/address on the load mentions a roadshow (never a trade show). */
+export function isRoadshow(item: Record<string, unknown>): boolean {
+  const texts: (string | undefined)[] = [];
+  const stops = Array.isArray(item.stops) ? (item.stops as Stop[]) : [];
+  for (const s of stops) {
+    texts.push(
+      str(s.fullAddress ?? s.addressLine),
+      str(s.address1),
+      str(s.address2),
+      str(s.companyName ?? s.company),
+    );
+  }
+  texts.push(
+    str(item.destination_address),
+    str(item.delivery_location ?? item.deliveryLocation),
+    str(item.pickup_location ?? item.pickupLocation),
+    str(item.referenceNo),
+    str(item.notes),
+  );
+  return texts.some((t) => t != null && ROADSHOW_RE.test(t));
+}
+
 /** Pull a booth number out of free-text address ("… - Booth #3727, …"). */
 function boothFrom(...texts: (string | undefined)[]): string | undefined {
   for (const t of texts) {
