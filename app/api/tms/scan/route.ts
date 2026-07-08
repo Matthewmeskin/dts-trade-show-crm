@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { TablesInsert } from "@/lib/database.types";
-import { extractCustomerId } from "@/lib/tms";
+import { extractCustomerId, isRoadshow } from "@/lib/tms";
 import {
   classifyTradeShowLoads,
   type LoadInput,
@@ -149,8 +149,12 @@ export async function POST(req: NextRequest) {
     ...(venueRows ?? []).map((v) => v.city?.toLowerCase()).filter(Boolean) as string[],
   ];
 
-  // Normalize + pre-filter to plausible loads (keyword or venue hit).
-  const normalized = items.map(normalize).filter((n): n is Normalized => !!n);
+  // Normalize + pre-filter to plausible loads (keyword or venue hit). Retail
+  // roadshows are dropped up front — they are never trade-show freight.
+  const normalized = items
+    .filter((it) => !isRoadshow(it))
+    .map(normalize)
+    .filter((n): n is Normalized => !!n);
   const plausible = normalized.filter((n) => {
     const hay = `${n.pickup_location ?? ""} ${n.delivery_location ?? ""} ${n.mode ?? ""}`.toLowerCase();
     if (!hay.trim()) return false;

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { parseLoad, type ParsedLoad } from "@/lib/tms";
+import { parseLoad, isRoadshow, type ParsedLoad } from "@/lib/tms";
 import { resolveVenueId, resolveShowId, type ShowLite } from "@/lib/tms-link";
 import type { TablesInsert } from "@/lib/database.types";
 
@@ -67,6 +67,8 @@ export async function POST(req: NextRequest) {
   const isTradeShow = (p: ParsedLoad) =>
     p.fields.tms_venue_raw != null || p.fields.booth_number != null;
   const parsed = items
+    // Retail roadshows are never trade-show freight — drop them at every status.
+    .filter((it) => !isRoadshow(it))
     .map(parseLoad)
     .filter((p) => !p || p.fields.status !== "quoted" || isTradeShow(p));
 
