@@ -105,16 +105,14 @@ test("R4: does not fire for non-GES", () => {
   assert.ok(!codes(x).includes("R4_GC_LOGISTICS_SELECTED"));
 });
 
-test("R5: forced reroute selected -> warn", () => {
-  const x = pass();
-  x.carrier_no_show_option = "gc_reroute";
-  assert.ok(codes(x).includes("R5_FORCED_REROUTE_SELECTED"));
-});
-
-test("R6: no reroute option -> warn", () => {
-  const x = pass();
-  x.carrier_no_show_option = null;
-  assert.ok(codes(x).includes("R6_NO_REROUTE_OPTION"));
+test("reroute state is never flagged (blank RE-ROUTE VIA is normal)", () => {
+  for (const opt of ["gc_reroute", "return_to_warehouse", null] as const) {
+    const x = pass();
+    x.carrier_no_show_option = opt;
+    const c = codes(x);
+    assert.ok(!c.includes("R5_FORCED_REROUTE_SELECTED"));
+    assert.ok(!c.includes("R6_NO_REROUTE_OPTION"));
+  }
 });
 
 test("R7: totals mismatch -> warn", () => {
@@ -129,10 +127,12 @@ test("R8: no signature -> warn", () => {
   assert.ok(codes(x).includes("R8_NO_SIGNATURE"));
 });
 
-test("R9: freight terms collect -> warn", () => {
-  const x = pass();
-  x.freight_terms = "collect";
-  assert.ok(codes(x).includes("R9_FREIGHT_TERMS_COLLECT"));
+test("Collect/Prepaid/neither is never flagged when Bill To is DTS", () => {
+  for (const terms of ["collect", "prepaid", null] as const) {
+    const x = pass();
+    x.freight_terms = terms;
+    assert.ok(!codes(x).includes("R9_FREIGHT_TERMS_COLLECT"));
+  }
 });
 
 test("R10: low confidence on a rule field -> warn", () => {
@@ -249,4 +249,17 @@ test("fixture inverted: R1 fails, R2 passes", () => {
   const c = codes(loadFixture("inverted"));
   assert.ok(c.includes("R1_CARRIER_IS_DTS"), "R1 should fail (carrier is DTS)");
   assert.ok(!c.includes("R2_BILL_TO_NOT_DTS"), "R2 should pass (bill-to is DTS)");
+});
+
+test("fixture freeman-correct (real perfect form): zero findings -> passed", () => {
+  // Real Freeman MHA: TFORCE carrier, Bill To = DTS, neither Collect/Prepaid
+  // checked, RE-ROUTE VIA blank. This must produce NO findings.
+  const x = loadFixture("freeman-correct");
+  const results = evaluateRules(x, null);
+  assert.deepEqual(
+    results.map((c) => c.code),
+    [],
+    `expected no findings, got: ${results.map((c) => `${c.code}(${c.severity})`).join(", ")}`,
+  );
+  assert.equal(overallStatus(results), "passed");
 });

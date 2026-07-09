@@ -156,33 +156,9 @@ export function evaluateRules(x: MhaExtraction, load: MhaLoad | null): CheckResu
     });
   }
 
-  // ---- R5: forced reroute chosen ------------------------------------------
-  if (x.carrier_no_show_option === "gc_reroute") {
-    out.push({
-      code: "R5_FORCED_REROUTE_SELECTED",
-      severity: "warn",
-      title: "The 'no-show' option lets the contractor reroute your freight.",
-      detail:
-        "If the carrier is late, this choice hands routing to the general contractor's carrier. " +
-        "We recommend the 'return to warehouse' option instead, so DTS keeps control of the load.",
-      found: "General contractor reroute",
-      expected: "Return to warehouse",
-    });
-  }
-
-  // ---- R6: no reroute option selected -------------------------------------
-  if (x.carrier_no_show_option == null) {
-    out.push({
-      code: "R6_NO_REROUTE_OPTION",
-      severity: "warn",
-      title: "No 'carrier fails to show' option is selected.",
-      detail:
-        "When nothing is chosen, most contractor terms default to the contractor's discretion. " +
-        "Mark the 'return to warehouse' option so control stays with DTS.",
-      found: null,
-      expected: "Return to warehouse",
-    });
-  }
+  // NOTE: the "RE-ROUTE VIA" line is pre-printed contract boilerplate that
+  // exhibitors correctly leave blank (confirmed against a real, perfect Freeman
+  // MHA), so we do NOT flag reroute state. It is transcribed for reference only.
 
   // ---- R7: piece / weight totals don't add up ------------------------------
   if (x.commodities.length > 0) {
@@ -215,17 +191,9 @@ export function evaluateRules(x: MhaExtraction, load: MhaLoad | null): CheckResu
     });
   }
 
-  // ---- R9: freight terms marked collect -----------------------------------
-  if (x.freight_terms === "collect") {
-    out.push({
-      code: "R9_FREIGHT_TERMS_COLLECT",
-      severity: "warn",
-      title: "Freight charges are marked Collect.",
-      detail: "Confirm this matches how the load was booked. Collect terms can shift who gets billed.",
-      found: "Collect",
-      expected: "Confirm against the booking",
-    });
-  }
+  // NOTE: Collect vs. Prepaid is NOT a defect. As long as Bill To is DTS, a form
+  // with Collect (or with neither box checked, which Freeman treats as Collect)
+  // is correct — so freight terms are transcribed for reference only, not checked.
 
   // ---- R10: a field the rules depend on is low confidence -------------------
   if (usedFieldIsLowConfidence(x)) {
