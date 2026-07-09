@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="DTS">
+  <rect width="64" height="64" rx="14" fill="#AB0534"/>
+  <g transform="skewX(-12)" fill="#ffffff">
+    <rect x="41" y="10" width="15" height="2.2" rx="1.1" opacity="0.95"/>
+    <rect x="43" y="14" width="13" height="2.2" rx="1.1" opacity="0.6"/>
+    <rect x="45" y="18" width="11" height="2.2" rx="1.1" opacity="0.35"/>
+  </g>
+  <text x="31" y="46" text-anchor="middle" font-family="Montserrat, 'Segoe UI', system-ui, -apple-system, sans-serif" font-size="31" font-weight="800" font-style="italic" letter-spacing="-2" fill="#ffffff">DTS</text>
+</svg>

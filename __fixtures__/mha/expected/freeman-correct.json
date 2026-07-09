@@ -1,0 +1,54 @@
+{
+  "gc_detected": "freeman",
+  "form_code": "FDC0097T",
+  "show_name": "Premiere Orlando 2026",
+  "booth_number": "5568",
+  "origin": {
+    "company": "K HEADSPA",
+    "facility": "Orange County Convention Center",
+    "street": "9800 International Dr",
+    "city": "Orlando",
+    "state": "FL",
+    "zip": "328198111"
+  },
+  "destination": {
+    "company": "K HEADSPA",
+    "attention": "JIN KIM",
+    "street": "9905 Painter Ave Ste K",
+    "city": "Whittier",
+    "state": "CA",
+    "zip": "906052788"
+  },
+  "carrier": { "name": "TFORCE FREIGHT", "phone": null, "gc_logistics_selected": null },
+  "bill_to": {
+    "company": "DIVERSIFIED TRANSPORTATION SERVICES",
+    "attention": "JIN KIM",
+    "street": "19829 Hamilton Ave",
+    "city": "Torrance",
+    "state": "CA",
+    "zip": "90502"
+  },
+  "freight_terms": null,
+  "commodities": [{ "description": "Skids / Pallets", "pieces": 3, "weight_lbs": 450 }],
+  "total_pieces": 3,
+  "total_weight_lbs": 450,
+  "accessorials": {
+    "liftgate": false,
+    "inside_delivery": false,
+    "residential": false,
+    "pallet_jack": false,
+    "call_before_delivery": false,
+    "other_text": null
+  },
+  "service_level": null,
+  "separate_destinations_in_booth": null,
+  "carrier_no_show_option": null,
+  "declared_value": null,
+  "exhibitor_signature_present": true,
+  "confidence": {
+    "carrier.name": "high",
+    "bill_to.company": "high",
+    "total_pieces": "high",
+    "total_weight_lbs": "high"
+  }
+}
