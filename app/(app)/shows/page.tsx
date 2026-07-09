@@ -6,8 +6,11 @@ import { Icon } from "@/components/icons";
 import { SHOW_STATUS_META, type ShowStatus } from "@/lib/shows";
 import { formatDate } from "@/lib/format";
 import { DateRangeFields } from "@/components/date-range-fields";
+import { Pagination } from "@/components/pagination";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 50;
 
 const STATUS_TABS: { label: string; value: string }[] = [
   { label: "All", value: "" },
@@ -20,9 +23,9 @@ const STATUS_TABS: { label: string; value: string }[] = [
 export default async function ShowsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; from?: string; to?: string; page?: string }>;
 }) {
-  const { status = "", q = "", from = "", to = "" } = await searchParams;
+  const { status = "", q = "", from = "", to = "", page: pageParam } = await searchParams;
   const supabase = await createClient();
 
   let query = supabase
@@ -56,6 +59,20 @@ export default async function ShowsPage({
     if (to && lo > to) return false;
     return true;
   });
+
+  const total = rows.length;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(Math.max(1, Number(pageParam) || 1), pageCount);
+  const pagedRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageHref = (p: number) => {
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (q) params.set("q", q);
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (p > 1) params.set("page", String(p));
+    return `/shows${params.toString() ? `?${params}` : ""}`;
+  };
 
   return (
     <div>
@@ -152,7 +169,7 @@ export default async function ShowsPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {rows.map((s) => {
+                {pagedRows.map((s) => {
                   const meta = SHOW_STATUS_META[s.status ?? "upcoming"];
                   const venue = s.venue_id ? venueById.get(s.venue_id) : null;
                   return (
@@ -208,6 +225,7 @@ export default async function ShowsPage({
                 })}
               </tbody>
             </table>
+            <Pagination page={page} pageCount={pageCount} total={total} pageSize={PAGE_SIZE} makeHref={pageHref} />
           </div>
         )}
       </Card>

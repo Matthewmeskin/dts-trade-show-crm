@@ -4,15 +4,18 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { DateRangeFields } from "@/components/date-range-fields";
+import { Pagination } from "@/components/pagination";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 50;
 
 export default async function CarriersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ q?: string; from?: string; to?: string; page?: string }>;
 }) {
-  const { q = "", from = "", to = "" } = await searchParams;
+  const { q = "", from = "", to = "", page: pageParam } = await searchParams;
   const supabase = await createClient();
 
   let query = supabase.from("carriers").select("*").order("carrier_name");
@@ -38,6 +41,19 @@ export default async function CarriersPage({
   }
   let rows = carriers ?? [];
   if (hasRange) rows = rows.filter((c) => (shipCount.get(c.id) ?? 0) > 0);
+
+  const total = rows.length;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(Math.max(1, Number(pageParam) || 1), pageCount);
+  const pagedRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageHref = (p: number) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (p > 1) params.set("page", String(p));
+    return `/carriers${params.toString() ? `?${params}` : ""}`;
+  };
 
   return (
     <div>
@@ -95,7 +111,7 @@ export default async function CarriersPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {rows.map((c) => (
+                {pagedRows.map((c) => (
                   <LinkRow key={c.id} href={`/carriers/${c.id}`} className="group hover:bg-slate-50/60">
                     <td className="px-5 py-3">
                       <Link
@@ -116,6 +132,7 @@ export default async function CarriersPage({
                 ))}
               </tbody>
             </table>
+            <Pagination page={page} pageCount={pageCount} total={total} pageSize={PAGE_SIZE} makeHref={pageHref} />
           </div>
         )}
       </Card>

@@ -19,8 +19,11 @@ import {
 } from "@/lib/shipments";
 import { formatDate, formatShortDate, formatCurrency } from "@/lib/format";
 import { DateRangeFields } from "@/components/date-range-fields";
+import { Pagination } from "@/components/pagination";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 50;
 
 export default async function ShipmentsPage({
   searchParams,
@@ -36,6 +39,7 @@ export default async function ShipmentsPage({
     q?: string;
     sort?: string;
     dir?: string;
+    page?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -127,6 +131,19 @@ export default async function ShipmentsPage({
         : String(av).localeCompare(String(bv));
     return sortDir === "asc" ? cmp : -cmp;
   });
+
+  const total = shipments.length;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(Math.max(1, Number(sp.page) || 1), pageCount);
+  const pagedShipments = shipments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageHref = (p: number) => {
+    const params = new URLSearchParams();
+    for (const k of ["status", "mode", "carrier", "show", "direction", "from", "to", "q", "sort", "dir"] as const) {
+      if (sp[k]) params.set(k, sp[k]!);
+    }
+    if (p > 1) params.set("page", String(p));
+    return `/shipments${params.toString() ? `?${params}` : ""}`;
+  };
 
   // Build status tabs preserving other filters.
   const statusTabs = [{ label: "All", value: "" }].concat(
@@ -279,7 +296,7 @@ export default async function ShipmentsPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {shipments.map(({ s, dir, target, health }) => {
+                {pagedShipments.map(({ s, dir, target, health }) => {
                   const sm = SHIPMENT_STATUS_META[s.status];
                   const tms = TMS_SYNC_META[s.tms_sync_status];
                   const hm = DELIVERY_HEALTH_META[health];
@@ -351,6 +368,7 @@ export default async function ShipmentsPage({
                 })}
               </tbody>
             </table>
+            <Pagination page={page} pageCount={pageCount} total={total} pageSize={PAGE_SIZE} makeHref={pageHref} />
           </div>
         )}
       </Card>

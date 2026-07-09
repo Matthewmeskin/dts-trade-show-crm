@@ -5,8 +5,11 @@ import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { Constants } from "@/lib/database.types";
 import { CONTACT_TYPE_META, type ContactType } from "@/lib/contacts";
+import { Pagination } from "@/components/pagination";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 50;
 
 type ContactRowEmbeds = {
   show: { id: string; show_name: string } | null;
@@ -26,7 +29,7 @@ function attachedTo(c: ContactRowEmbeds): { label: string; href: string } | null
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; q?: string }>;
+  searchParams: Promise<{ type?: string; q?: string; page?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -48,6 +51,18 @@ export default async function ContactsPage({
 
   const { data: contacts } = await query;
   const rows = contacts ?? [];
+
+  const total = rows.length;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(Math.max(1, Number(sp.page) || 1), pageCount);
+  const pagedRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageHref = (p: number) => {
+    const params = new URLSearchParams();
+    if (sp.type) params.set("type", sp.type);
+    if (sp.q) params.set("q", sp.q);
+    if (p > 1) params.set("page", String(p));
+    return `/contacts${params.toString() ? `?${params}` : ""}`;
+  };
 
   return (
     <div>
@@ -97,7 +112,7 @@ export default async function ContactsPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {rows.map((c) => {
+                {pagedRows.map((c) => {
                   const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed";
                   const meta = c.contact_type ? CONTACT_TYPE_META[c.contact_type] : null;
                   const att = attachedTo(c);
@@ -132,6 +147,7 @@ export default async function ContactsPage({
                 })}
               </tbody>
             </table>
+            <Pagination page={page} pageCount={pageCount} total={total} pageSize={PAGE_SIZE} makeHref={pageHref} />
           </div>
         )}
       </Card>

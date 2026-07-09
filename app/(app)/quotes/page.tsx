@@ -4,12 +4,20 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { DIRECTION_META, effectiveDirection } from "@/lib/shipments";
 import { formatDate, formatCurrency } from "@/lib/format";
+import { Pagination } from "@/components/pagination";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Quotes · DTS Trade Show CRM" };
 
-export default async function QuotesPage() {
+const PAGE_SIZE = 50;
+
+export default async function QuotesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const { page: pageParam } = await searchParams;
   const supabase = await createClient();
   const { data: rows } = await supabase
     .from("shipments")
@@ -20,6 +28,12 @@ export default async function QuotesPage() {
     .order("created_at", { ascending: false });
 
   const quotes = rows ?? [];
+
+  const total = quotes.length;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(Math.max(1, Number(pageParam) || 1), pageCount);
+  const pagedQuotes = quotes.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageHref = (p: number) => (p > 1 ? `/quotes?page=${p}` : "/quotes");
 
   return (
     <div>
@@ -52,7 +66,7 @@ export default async function QuotesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {quotes.map((s) => {
+                {pagedQuotes.map((s) => {
                   const dir = effectiveDirection(s);
                   return (
                     <ShipmentRow key={s.id} id={s.id} className="group hover:bg-slate-50/60">
@@ -111,6 +125,7 @@ export default async function QuotesPage() {
                 })}
               </tbody>
             </table>
+            <Pagination page={page} pageCount={pageCount} total={total} pageSize={PAGE_SIZE} makeHref={pageHref} />
           </div>
         )}
       </Card>
