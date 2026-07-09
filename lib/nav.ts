@@ -24,6 +24,5 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Carriers", href: "/carriers", icon: "carriers" },
   { label: "Tasks", href: "/tasks", icon: "tasks" },
   { label: "Reports", href: "/reports", icon: "reports" },
-  { label: "Activity", href: "/activity", icon: "clock" },
   { label: "Users", href: "/users", icon: "users", adminOnly: true },
 ];

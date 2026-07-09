@@ -21,6 +21,7 @@ import { formatDate, formatCurrency, formatCountdown, daysUntil } from "@/lib/fo
 import { deleteShipment } from "../actions";
 import { QuickEditShipment } from "./quick-edit";
 import { ForcedControl } from "./forced-control";
+import { ShipmentActivity } from "./shipment-activity";
 
 export const dynamic = "force-dynamic";
 
@@ -259,6 +260,8 @@ export default async function ShipmentRecordPage({
               </div>
             </Card>
           )}
+
+          <ShipmentActivity shipmentId={s.id} />
         </div>
 
         <div className="space-y-5">

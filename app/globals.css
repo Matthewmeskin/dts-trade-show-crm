@@ -21,10 +21,46 @@
     system-ui, sans-serif;
 }
 
+/* Enable class-based dark mode: `dark:` utilities apply under a `.dark` root. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 body {
   background: var(--color-dts-bg);
   color: #1c1c1c;
   font-family: var(--font-sans);
+}
+
+/* ---------------------------------------------------------------------------
+   Dark mode. The UI is built on the slate scale + white surfaces, so instead of
+   annotating every component we remap the design tokens under `.dark`: the slate
+   scale is re-tuned for a dark background (so text-slate-900 reads light, etc.),
+   `bg-white` surfaces become dark panels, and the app background darkens. Brand
+   colors and `text-white` are left intact.
+--------------------------------------------------------------------------- */
+.dark {
+  --color-dts-bg: #0b1120;
+  --color-slate-50: #0b1120;
+  --color-slate-100: #1a2438;
+  --color-slate-200: #26324a;
+  --color-slate-300: #3a475c;
+  --color-slate-400: #8592a6;
+  --color-slate-500: #94a3b8;
+  --color-slate-600: #b6c2d4;
+  --color-slate-700: #cbd5e1;
+  --color-slate-800: #e2e8f0;
+  --color-slate-900: #f1f5f9;
+  --color-slate-950: #f8fafc;
+}
+
+.dark body {
+  background: var(--color-dts-bg);
+  color: #e2e8f0;
+}
+
+/* White surfaces (cards, inputs, header) become dark panels, a touch lighter
+   than the page so they still read as raised. */
+.dark .bg-white {
+  background-color: #131c31;
 }
 
 /* Headings use Montserrat by default. */
