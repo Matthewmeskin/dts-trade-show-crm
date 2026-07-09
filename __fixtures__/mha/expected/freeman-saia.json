@@ -1,0 +1,54 @@
+{
+  "gc_detected": "freeman",
+  "form_code": "FDC0097T",
+  "show_name": "BIO INTL CONV 2026",
+  "booth_number": "5712",
+  "origin": {
+    "company": "TIGER-VAC INC USA",
+    "facility": "San Diego Convention Center",
+    "street": "111 W Harbor Dr",
+    "city": "San Diego",
+    "state": "CA",
+    "zip": "921017899"
+  },
+  "destination": {
+    "company": "TIGER-VAC INC USA",
+    "attention": "FABIO PAPARONI",
+    "street": "11 SW 12th Ave Ste 112",
+    "city": "Dania",
+    "state": "FL",
+    "zip": "330043527",
+    "phone": "9549279964"
+  },
+  "carrier": { "name": "SAIA MOTOR FREIGHT LINE", "phone": null, "gc_logistics_selected": null },
+  "bill_to": {
+    "company": "DTS",
+    "street": "19829 Hamilton Ave",
+    "city": "Torrance",
+    "state": "CA",
+    "zip": "90502"
+  },
+  "freight_terms": "prepaid",
+  "commodities": [{ "description": "Crates (wooden)", "pieces": 1, "weight_lbs": 1201 }],
+  "total_pieces": 1,
+  "total_weight_lbs": 1201,
+  "accessorials": {
+    "liftgate": false,
+    "inside_delivery": false,
+    "residential": false,
+    "pallet_jack": false,
+    "call_before_delivery": false,
+    "other_text": "Diversified Transportation services contracted SAIA transport"
+  },
+  "service_level": "ground",
+  "separate_destinations_in_booth": null,
+  "carrier_no_show_option": null,
+  "declared_value": null,
+  "exhibitor_signature_present": true,
+  "confidence": {
+    "carrier.name": "high",
+    "bill_to.company": "high",
+    "total_pieces": "high",
+    "total_weight_lbs": "high"
+  }
+}
