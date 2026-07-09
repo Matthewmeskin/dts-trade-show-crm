@@ -145,7 +145,9 @@ export async function getShipmentDrawerData(id: string) {
     // Full linked rows (*) so each record's edit form can populate fully.
     supabase
       .from("shipments")
-      .select("*, exhibitor:exhibitors(*), show:shows(*), carrier:carriers(*), venue:venues(*)")
+      .select(
+        "*, exhibitor:exhibitors(*), show:shows(*), carrier:carriers(*), venue:venues(*), forced_by_profile:profiles!shipments_forced_by_fkey(full_name, email)",
+      )
       .eq("id", id)
       .single(),
     supabase.from("shows").select("id, show_name, edition_year").order("show_name"),

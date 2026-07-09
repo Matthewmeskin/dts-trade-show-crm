@@ -20,6 +20,7 @@ import { prepareMedia, isAcceptedMime, MAX_UPLOAD_BYTES, MHA_UPLOADS_BUCKET } fr
 import { matchLoad } from "@/lib/mha/match-load";
 import { extractMha } from "@/lib/mha/extract";
 import { evaluateRules, overallStatus } from "@/lib/mha/rules";
+import { resolveShowId, getMhaContacts } from "@/lib/mha-contact";
 import type { MhaResult, SubmissionStatus } from "@/lib/mha/result";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -144,7 +145,10 @@ export async function POST(req: NextRequest) {
     .from(MHA_UPLOADS_BUCKET)
     .createSignedUrl(storagePath, 900);
 
-  const base: Omit<MhaResult, "status" | "overall" | "gcDetected" | "checks" | "extracted"> = {
+  const base: Omit<
+    MhaResult,
+    "status" | "overall" | "gcDetected" | "checks" | "extracted" | "contacts" | "contactIsDefault"
+  > = {
     submissionId,
     matchMethod: match.matchMethod,
     loadId: match.loadId,
@@ -162,6 +166,9 @@ export async function POST(req: NextRequest) {
   const ex = await extractionP;
   if (!ex.ok) {
     await supabase.from("mha_submissions").update({ status: "error" }).eq("id", submissionId);
+    // Still resolve a contact from the matched load, if any.
+    const errShowId = await resolveShowId(supabase, match.loadId, null);
+    const errContacts = await getMhaContacts(supabase, errShowId);
     const result: MhaResult = {
       ...base,
       status: "error",
@@ -169,6 +176,8 @@ export async function POST(req: NextRequest) {
       gcDetected: null,
       checks: [],
       extracted: null,
+      contacts: errContacts.contacts,
+      contactIsDefault: errContacts.isDefault,
       error: ex.error,
     };
     return NextResponse.json(result);
@@ -191,7 +200,11 @@ export async function POST(req: NextRequest) {
     checks: outcome.checks as unknown as Json,
     overall: outcome.overall,
   });
-  await supabase.from("mha_submissions").update({ status }).eq("id", submissionId);
+  // Resolve the show (matched load first, then the transcribed name), remember
+  // it on the submission, and pull the contact(s) to show the uploader.
+  const showId = await resolveShowId(supabase, match.loadId, ex.extraction.show_name);
+  await supabase.from("mha_submissions").update({ status, show_id: showId }).eq("id", submissionId);
+  const resolvedContacts = await getMhaContacts(supabase, showId);
 
   // Attach the MHA to its load profile (only when the load resolved).
   if (match.loadId) {
@@ -211,6 +224,8 @@ export async function POST(req: NextRequest) {
     gcDetected: outcome.extraction.gc_detected,
     checks: outcome.checks,
     extracted: outcome.extraction,
+    contacts: resolvedContacts.contacts,
+    contactIsDefault: resolvedContacts.isDefault,
   };
   return NextResponse.json(result);
 }

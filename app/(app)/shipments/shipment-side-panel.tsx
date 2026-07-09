@@ -21,6 +21,7 @@ import {
 import { hyperionShipmentUrl } from "@/lib/tms";
 import { getShipmentDrawerData } from "./actions";
 import { QuickEditShipment } from "./[id]/quick-edit";
+import { ForcedControl } from "./[id]/forced-control";
 import { CheckInCell } from "./check-in-cell";
 import { ShipmentDocuments } from "./shipment-documents";
 import { QuickEditShow } from "@/app/(app)/shows/[id]/quick-edit";
@@ -236,6 +237,21 @@ function PanelBody({
             triggerClassName="inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3.5 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark"
           />
         </div>
+
+        {dir === "move_out" ? (
+          <div className="mb-4">
+            <ForcedControl
+              id={s.id}
+              forced={s.forced}
+              reason={s.forced_reason}
+              reasonOther={s.forced_reason_other}
+              forcedAt={s.forced_at}
+              forcedByName={
+                s.forced_by_profile?.full_name?.trim() || s.forced_by_profile?.email || null
+              }
+            />
+          </div>
+        ) : null}
 
         {/* At-a-glance facts the edit form doesn't cover (TMS-synced). */}
         <dl className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-white p-4 text-sm">

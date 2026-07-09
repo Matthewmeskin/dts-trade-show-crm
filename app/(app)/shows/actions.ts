@@ -15,6 +15,26 @@ export type ShowFormState = {
   fieldErrors?: Record<string, string>;
 };
 
+/**
+ * Replace a show's assigned team. The checkbox form posts every selected user;
+ * we clear the show's assignments and re-insert the current set. These users'
+ * contact info is surfaced to exhibitors who upload an MHA for this show.
+ */
+export async function setShowAssignees(fd: FormData) {
+  const showId = String(fd.get("show_id") ?? "");
+  if (!showId) return;
+  const userIds = [...new Set(fd.getAll("user_ids").map(String).filter(Boolean))];
+
+  const supabase = await createClient();
+  await supabase.from("show_assignees").delete().eq("show_id", showId);
+  if (userIds.length) {
+    await supabase
+      .from("show_assignees")
+      .insert(userIds.map((user_id) => ({ show_id: showId, user_id })));
+  }
+  revalidatePath(`/shows/${showId}`);
+}
+
 const str = (fd: FormData, k: string) => {
   const v = String(fd.get(k) ?? "").trim();
   return v === "" ? null : v;

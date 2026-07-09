@@ -92,6 +92,27 @@ export async function createUser(
   redirect("/users?flash=user-created");
 }
 
+/** Save a user's contact details + default-MHA-contact flag. Admin only. */
+export async function setUserContact(fd: FormData) {
+  const gate = await requireAdmin();
+  if ("error" in gate) return;
+
+  const id = str(fd, "id");
+  if (!id) return;
+  const phone = str(fd, "phone") || null;
+  const title = str(fd, "title") || null;
+  const is_mha_default_contact = fd.get("is_mha_default_contact") != null;
+
+  // Admin update runs through the caller's session so the profiles RLS
+  // "admin update any" policy applies (the role-change trigger is untouched).
+  const supabase = await createClient();
+  await supabase
+    .from("profiles")
+    .update({ phone, title, is_mha_default_contact })
+    .eq("id", id);
+  revalidatePath("/users");
+}
+
 /** Change a user's role (admin ⇄ standard). Admin only. */
 export async function setUserRole(fd: FormData) {
   const gate = await requireAdmin();

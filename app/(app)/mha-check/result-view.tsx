@@ -11,6 +11,7 @@ import {
   type ChecklistItem,
   type ChecklistStatus,
 } from "@/lib/mha/checklist";
+import { MhaCelebrate } from "./mha-celebrate";
 
 const BANNER: Record<
   string,
@@ -196,11 +197,15 @@ export function MhaResultView({ result }: { result: MhaResult }) {
 
   return (
     <div className="space-y-5">
-      <div className={`rounded-2xl px-5 py-4 ring-1 ring-inset ${banner.wrap}`}>
-        <p className="text-lg font-bold tracking-wide">{banner.label}</p>
-        <p className="mt-0.5 text-sm opacity-90">{result.error || banner.sub}</p>
-        <p className="mt-2 text-sm opacity-80">{loadLine(result)}</p>
-      </div>
+      {result.status === "passed" ? (
+        <MhaCelebrate />
+      ) : (
+        <div className={`rounded-2xl px-5 py-4 ring-1 ring-inset ${banner.wrap}`}>
+          <p className="text-lg font-bold tracking-wide">{banner.label}</p>
+          <p className="mt-0.5 text-sm opacity-90">{result.error || banner.sub}</p>
+          <p className="mt-2 text-sm opacity-80">{loadLine(result)}</p>
+        </div>
+      )}
 
       {result.lowResolution && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 text-sm text-amber-800">
@@ -218,6 +223,44 @@ export function MhaResultView({ result }: { result: MhaResult }) {
             If it isn&apos;t fixed, the general contractor can hand your freight to their own carrier and
             re-route it — at a significant, avoidable cost billed back to you.
           </p>
+        </div>
+      )}
+
+      {result.contacts.length > 0 && (
+        <div className="rounded-2xl border border-dts-blue/25 bg-dts-blue/5 p-5">
+          <p className="text-sm font-semibold text-dts-blue">
+            {result.contactIsDefault ? "Questions? Contact DTS" : "Your DTS contact for this show"}
+          </p>
+          <div className="mt-3 space-y-3">
+            {result.contacts.map((c, i) => {
+              const tel = c.phone ? c.phone.replace(/[^0-9+]/g, "") : null;
+              return (
+                <div key={i} className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">
+                      {c.name}
+                      {c.title ? <span className="font-normal text-slate-500"> · {c.title}</span> : null}
+                    </p>
+                    {!c.phone && !c.email ? (
+                      <p className="text-xs text-slate-500">Reach your DTS representative.</p>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    {tel ? (
+                      <a href={`tel:${tel}`} className="font-medium text-dts-blue hover:underline">
+                        {c.phone}
+                      </a>
+                    ) : null}
+                    {c.email ? (
+                      <a href={`mailto:${c.email}`} className="font-medium text-dts-blue hover:underline">
+                        {c.email}
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

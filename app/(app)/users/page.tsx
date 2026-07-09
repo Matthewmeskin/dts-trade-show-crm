@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { NewUserForm } from "./user-form";
 import { UserRowControls } from "./user-row-controls";
+import { UserContactControls } from "./user-contact-controls";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function UsersPage() {
 
   const { data: users } = await supabase
     .from("profiles")
-    .select("id, full_name, email, role, created_at")
+    .select("id, full_name, email, role, phone, title, is_mha_default_contact, created_at")
     .order("created_at");
 
   const rows = users ?? [];
@@ -59,6 +60,7 @@ export default async function UsersPage() {
                 <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
                   <th className="px-5 py-3">Name</th>
                   <th className="px-5 py-3">Email</th>
+                  <th className="px-5 py-3">Contact</th>
                   <th className="px-5 py-3">Role</th>
                   <th className="px-5 py-3 text-right">Manage</th>
                 </tr>
@@ -70,6 +72,14 @@ export default async function UsersPage() {
                     <tr key={u.id} className="hover:bg-slate-50/60">
                       <td className="px-5 py-3 font-medium text-slate-900">{name}</td>
                       <td className="px-5 py-3 text-slate-600">{u.email ?? "—"}</td>
+                      <td className="px-5 py-3">
+                        <UserContactControls
+                          id={u.id}
+                          phone={u.phone}
+                          title={u.title}
+                          isDefault={u.is_mha_default_contact}
+                        />
+                      </td>
                       <td className="px-5 py-3">
                         {u.role === "admin" ? (
                           <Badge className="bg-dts-maroon/10 text-dts-maroon">Admin</Badge>
