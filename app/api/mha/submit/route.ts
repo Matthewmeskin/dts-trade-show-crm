@@ -18,7 +18,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/database.types";
 import { prepareMedia, isAcceptedMime, MAX_UPLOAD_BYTES, MHA_UPLOADS_BUCKET } from "@/lib/mha/media";
 import { matchLoad } from "@/lib/mha/match-load";
-import { verifyMha } from "@/lib/mha/verify";
+import { extractMha } from "@/lib/mha/extract";
+import { evaluateRules, overallStatus } from "@/lib/mha/rules";
 import type { MhaResult, SubmissionStatus } from "@/lib/mha/result";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -93,6 +94,16 @@ export async function POST(req: NextRequest) {
     return bad(e instanceof Error ? e.message : "Could not read that file.");
   }
 
+  // Kick off the vision transcription immediately — it's the long pole, so we
+  // overlap it with load matching, the upload, and the DB writes below. Wrapped
+  // so it can never reject out-of-band while we await other work first.
+  const extractionP = extractMha([prepared.media])
+    .then((v) => ({ ok: true as const, extraction: v.extraction, model: v.model }))
+    .catch((e) => ({
+      ok: false as const,
+      error: e instanceof Error ? e.message : "The form could not be read.",
+    }));
+
   // Resolve the load before we pick the storage path (path is keyed by load).
   const match = await matchLoad(supabase, loadNumberInput);
 
@@ -146,12 +157,10 @@ export async function POST(req: NextRequest) {
     fileUrl: signed?.signedUrl ?? null,
   };
 
-  // Run the pipeline. On model failure, mark the submission 'error' and return
-  // a graceful result the UI can render.
-  let outcome;
-  try {
-    outcome = await verifyMha([prepared.media], match.load);
-  } catch (e) {
+  // Collect the (already in-flight) transcription. On model failure, mark the
+  // submission 'error' and return a graceful result the UI can render.
+  const ex = await extractionP;
+  if (!ex.ok) {
     await supabase.from("mha_submissions").update({ status: "error" }).eq("id", submissionId);
     const result: MhaResult = {
       ...base,
@@ -160,11 +169,18 @@ export async function POST(req: NextRequest) {
       gcDetected: null,
       checks: [],
       extracted: null,
-      error: e instanceof Error ? e.message : "The form could not be read.",
+      error: ex.error,
     };
     return NextResponse.json(result);
   }
 
+  const checks = evaluateRules(ex.extraction, match.load);
+  const outcome = {
+    extraction: ex.extraction,
+    model: ex.model,
+    checks,
+    overall: overallStatus(checks),
+  };
   const status: SubmissionStatus = outcome.overall;
 
   await supabase.from("mha_review_results").insert({

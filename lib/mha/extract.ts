@@ -61,7 +61,8 @@ export async function extractMha(media: PreparedMedia[]): Promise<ExtractionResu
   for (let attempt = 0; attempt < 2; attempt++) {
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 4000,
+      // The forced-tool transcription is compact; a tighter cap returns faster.
+      max_tokens: 2048,
       temperature: 0,
       system: SYSTEM_PROMPT,
       tools: [

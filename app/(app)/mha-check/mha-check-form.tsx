@@ -5,8 +5,41 @@ import { Card } from "@/components/ui";
 import { Field, FormSection, inputClass } from "@/components/form";
 import type { MhaResult } from "@/lib/mha/result";
 import { MhaResultView } from "./result-view";
+import { MhaLoader } from "./mha-loader";
 
 const ACCEPT = "image/jpeg,image/png,image/heic,image/heif,image/webp,application/pdf,.heic,.heif";
+
+// Photos off a phone are often 8–12 MP. Downscaling to ~1600px on the long edge
+// before upload cuts the upload size and speeds the vision read, with no
+// meaningful loss of legibility. HEIC/PDF can't be canvas-decoded, so they pass
+// through untouched (the server handles HEIC conversion).
+const MAX_EDGE = 1600;
+
+async function downscaleImage(file: File): Promise<Blob> {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const longest = Math.max(bitmap.width, bitmap.height);
+    if (longest <= MAX_EDGE) {
+      bitmap.close();
+      return file;
+    }
+    const scale = MAX_EDGE / longest;
+    const w = Math.round(bitmap.width * scale);
+    const h = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", 0.85));
+    return blob ?? file;
+  } catch {
+    return file;
+  }
+}
 
 export function MhaCheckForm() {
   const [busy, setBusy] = useState(false);
@@ -28,6 +61,10 @@ export function MhaCheckForm() {
     setBusy(true);
     setResult(null);
     try {
+      const shrunk = await downscaleImage(file);
+      if (shrunk !== file) {
+        fd.set("file", shrunk, file.name.replace(/\.[^.]+$/, "") + ".jpg");
+      }
       const res = await fetch("/api/mha/submit", { method: "POST", body: fd });
       const data = (await res.json()) as MhaResult & { error?: string };
       if (!res.ok) {
@@ -95,13 +132,15 @@ export function MhaCheckForm() {
               disabled={busy}
               className="inline-flex items-center gap-2 rounded-lg bg-dts-maroon px-4 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark disabled:opacity-60"
             >
-              {busy ? "Reading the form…" : "Check this MHA"}
+              {busy ? "Reading…" : "Check this MHA"}
             </button>
           </div>
         </Card>
       </form>
 
-      {result ? (
+      {busy ? <MhaLoader /> : null}
+
+      {!busy && result ? (
         <div id="mha-result">
           <MhaResultView result={result} />
         </div>
