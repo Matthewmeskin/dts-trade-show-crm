@@ -4,15 +4,18 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { DateRangeFields } from "@/components/date-range-fields";
+import { Pagination } from "@/components/pagination";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 50;
 
 export default async function ExhibitorsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; industry?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ q?: string; industry?: string; from?: string; to?: string; page?: string }>;
 }) {
-  const { q = "", industry = "", from = "", to = "" } = await searchParams;
+  const { q = "", industry = "", from = "", to = "", page: pageParam } = await searchParams;
   const supabase = await createClient();
 
   let query = supabase.from("exhibitors").select("*").order("company_name");
@@ -54,6 +57,20 @@ export default async function ExhibitorsPage({
 
   let rows = exhibitors ?? [];
   if (hasRange) rows = rows.filter((e) => (loadCount.get(e.id) ?? 0) > 0);
+
+  const total = rows.length;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(Math.max(1, Number(pageParam) || 1), pageCount);
+  const pagedRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const makeHref = (p: number) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (industry) params.set("industry", industry);
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (p > 1) params.set("page", String(p));
+    return `/exhibitors${params.toString() ? `?${params}` : ""}`;
+  };
 
   return (
     <div>
@@ -132,7 +149,7 @@ export default async function ExhibitorsPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {rows.map((e) => (
+                {pagedRows.map((e) => (
                   <LinkRow key={e.id} href={`/exhibitors/${e.id}`} className="group hover:bg-slate-50/60">
                     <td className="px-5 py-3">
                       <Link
@@ -167,6 +184,13 @@ export default async function ExhibitorsPage({
                 ))}
               </tbody>
             </table>
+            <Pagination
+              page={page}
+              pageCount={pageCount}
+              total={total}
+              pageSize={PAGE_SIZE}
+              makeHref={makeHref}
+            />
           </div>
         )}
       </Card>
