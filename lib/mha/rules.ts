@@ -94,38 +94,31 @@ export function evaluateRules(x: MhaExtraction, load: MhaLoad | null): CheckResu
   }
 
   // ---- R2: bill-to must be DTS --------------------------------------------
+  // The company name OR the DTS billing address confirms it. Bill To is very
+  // often hand-corrected — the printed exhibitor name struck through and "DTS"
+  // + the Hamilton Ave address written in — so a matching DTS address is itself
+  // a pass, even when the name box still shows (crossed-out) exhibitor text.
   if (!isDts(billToCompany)) {
-    const nameIllegible = !billToCompany || !billToCompany.trim();
     const addressMatches = looksLikeDtsAddress(
       x.bill_to?.street,
       x.bill_to?.city,
       x.bill_to?.state,
       x.bill_to?.zip,
     );
-    if (nameIllegible && addressMatches) {
-      out.push({
-        code: "R2_BILL_TO_NOT_DTS",
-        severity: "warn",
-        title: "The Bill To company name is blank or unreadable.",
-        detail:
-          "The billing address looks like the DTS address, but the company name box could not be read. " +
-          "Confirm the Bill To company reads Diversified Transportation Services so the freight invoice comes to us.",
-        found: billToCompany,
-        expected: "Diversified Transportation Services",
-      });
-    } else {
+    if (!addressMatches) {
       out.push({
         code: "R2_BILL_TO_NOT_DTS",
         severity: "fail",
         title: "The Bill To section does not list Diversified Transportation Services.",
         detail:
           `The Bill To box reads ${billToCompany ? `"${billToCompany}"` : "something other than DTS"}. ` +
-          "It needs to list Diversified Transportation Services so the freight invoice comes to us instead of you. " +
-          "Ask the service desk for a corrected MHA before you leave the booth.",
+          "It needs to list Diversified Transportation Services (or the DTS billing address) so the freight " +
+          "invoice comes to us instead of you. Ask the service desk for a corrected MHA before you leave the booth.",
         found: billToCompany,
         expected: "Diversified Transportation Services",
       });
     }
+    // else: billed to the DTS address (typically a handwritten correction) — correct, no finding.
   }
 
   // ---- R3: carrier missing -------------------------------------------------

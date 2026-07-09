@@ -15,6 +15,8 @@ Your ONLY job is to record what literally appears on the page by calling the rec
 
 Rules:
 - Transcribe verbatim, including obvious typos. Do NOT normalize or "fix" company names.
+- Forms are frequently hand-corrected: printed text is struck through and the correct value handwritten in. Always record the FINAL intended value — prefer a handwritten correction over crossed-out printed text. This matters most for Bill To: if a printed company/address is crossed out and "DTS" (or an account number with a different address such as 19829 Hamilton Ave, Torrance CA) is written in, record the handwritten DTS company and address, NOT the struck-through print.
+- Read the Carrier field only from the Carrier box(es). Do NOT infer the carrier from the Special Instructions text — a note like "Diversified Transportation Services contracted SAIA" means the carrier is SAIA, so carrier.name is "SAIA".
 - Every field is null when it is not present or not legible. NEVER guess and NEVER infer a value from context. If the Carrier line is blank, it is null — blank is itself a finding.
 - For every checkbox, report true, false, or null (unreadable). An X, a check mark, or a filled square all mean true.
 - Detect the general contractor from the form code or header first: Freeman forms carry a code like "FDC0097T"; GES forms say "GES" and often "Form #1087"; Shepard forms carry the Shepard logo. If you cannot tell, use "unknown".

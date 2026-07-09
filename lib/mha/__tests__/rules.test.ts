@@ -72,18 +72,50 @@ test("R1: carrier is DTS -> fail", () => {
   assert.ok(found && found.severity === "fail");
 });
 
-test("R2: bill-to is not DTS -> fail", () => {
+test("R2: bill-to is not DTS (name and address) -> fail", () => {
   const x = pass();
   x.bill_to.company = "LA Manufacturing";
+  x.bill_to.street = "123 Main Street";
+  x.bill_to.city = "Pasadena";
+  x.bill_to.state = "CA";
+  x.bill_to.zip = "91001";
   const found = evaluateRules(x, null).find((c) => c.code === "R2_BILL_TO_NOT_DTS");
   assert.ok(found && found.severity === "fail");
 });
 
-test("R2: illegible bill-to name but DTS address -> warn (not fail)", () => {
+test("R2: DTS billing address is a pass even when the name box isn't a clean DTS match", () => {
+  // Hand-corrected bill-to: printed exhibitor name still shows, but the DTS
+  // Hamilton Ave address is written in. Must NOT fail R2.
+  const crossout = pass();
+  crossout.bill_to.company = "Tiger-Vac Inc USA"; // struck-through printed name
+  crossout.bill_to.street = "19829 Hamilton Ave";
+  crossout.bill_to.city = "Torrance";
+  crossout.bill_to.state = "CA";
+  crossout.bill_to.zip = "90502";
+  assert.ok(!codes(crossout).includes("R2_BILL_TO_NOT_DTS"));
+
+  // Illegible/blank name + DTS address is also a pass.
+  const blank = pass();
+  blank.bill_to.company = null;
+  assert.ok(!codes(blank).includes("R2_BILL_TO_NOT_DTS"));
+});
+
+test("R2: fails only when neither the name nor the address is DTS", () => {
   const x = pass();
-  x.bill_to.company = null;
+  x.bill_to.company = "Tiger-Vac Inc USA";
+  x.bill_to.street = "11 SW 12th Ave";
+  x.bill_to.city = "Dania";
+  x.bill_to.state = "FL";
+  x.bill_to.zip = "33004";
   const found = evaluateRules(x, null).find((c) => c.code === "R2_BILL_TO_NOT_DTS");
-  assert.ok(found && found.severity === "warn");
+  assert.ok(found && found.severity === "fail");
+});
+
+test("R1: DTS in Special Instructions does not fail when carrier is a real carrier", () => {
+  const x = pass();
+  x.carrier.name = "SAIA Motor Freight Line";
+  x.accessorials.other_text = "Diversified Transportation Services contracted SAIA transport";
+  assert.ok(!codes(x).includes("R1_CARRIER_IS_DTS"));
 });
 
 test("R3: carrier missing -> fail", () => {
@@ -249,6 +281,19 @@ test("fixture inverted: R1 fails, R2 passes", () => {
   const c = codes(loadFixture("inverted"));
   assert.ok(c.includes("R1_CARRIER_IS_DTS"), "R1 should fail (carrier is DTS)");
   assert.ok(!c.includes("R2_BILL_TO_NOT_DTS"), "R2 should pass (bill-to is DTS)");
+});
+
+test("fixture freeman-saia (hand-corrected bill-to): zero findings -> passed", () => {
+  // Real Freeman MHA: carrier SAIA, Prepaid, Bill To hand-corrected to DTS
+  // (Hamilton Ave), "DTS contracted SAIA" in Special Instructions.
+  const x = loadFixture("freeman-saia");
+  const results = evaluateRules(x, null);
+  assert.deepEqual(
+    results.map((c) => c.code),
+    [],
+    `expected no findings, got: ${results.map((c) => `${c.code}(${c.severity})`).join(", ")}`,
+  );
+  assert.equal(overallStatus(results), "passed");
 });
 
 test("fixture freeman-correct (real perfect form): zero findings -> passed", () => {
