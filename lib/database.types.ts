@@ -482,6 +482,11 @@ export type Database = {
           direction: Database["public"]["Enums"]["shipment_direction"] | null
           estimated_delivery_date: string | null
           exhibitor_id: string | null
+          forced: boolean
+          forced_at: string | null
+          forced_by: string | null
+          forced_reason: Database["public"]["Enums"]["forced_reason"] | null
+          forced_reason_other: string | null
           id: string
           margin: number | null
           mode: Database["public"]["Enums"]["shipment_mode"] | null
@@ -541,6 +546,11 @@ export type Database = {
           direction?: Database["public"]["Enums"]["shipment_direction"] | null
           estimated_delivery_date?: string | null
           exhibitor_id?: string | null
+          forced?: boolean
+          forced_at?: string | null
+          forced_by?: string | null
+          forced_reason?: Database["public"]["Enums"]["forced_reason"] | null
+          forced_reason_other?: string | null
           id?: string
           margin?: number | null
           mode?: Database["public"]["Enums"]["shipment_mode"] | null
@@ -600,6 +610,11 @@ export type Database = {
           direction?: Database["public"]["Enums"]["shipment_direction"] | null
           estimated_delivery_date?: string | null
           exhibitor_id?: string | null
+          forced?: boolean
+          forced_at?: string | null
+          forced_by?: string | null
+          forced_reason?: Database["public"]["Enums"]["forced_reason"] | null
+          forced_reason_other?: string | null
           id?: string
           margin?: number | null
           mode?: Database["public"]["Enums"]["shipment_mode"] | null
@@ -647,6 +662,13 @@ export type Database = {
             columns: ["exhibitor_id"]
             isOneToOne: false
             referencedRelation: "exhibitors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_forced_by_fkey"
+            columns: ["forced_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1360,6 +1382,11 @@ export type Database = {
         | "advance_warehouse_form"
         | "other"
         | "MHA"
+      forced_reason:
+        | "carrier_no_show"
+        | "paperwork_error"
+        | "missed_check_in"
+        | "other"
       shipment_destination: "advance_warehouse" | "direct_to_show"
       shipment_direction: "move_in" | "move_out"
       shipment_mode: "LTL" | "FTL" | "partial" | "expedited" | "specialized"
@@ -1515,6 +1542,12 @@ export const Constants = {
         "advance_warehouse_form",
         "other",
         "MHA",
+      ],
+      forced_reason: [
+        "carrier_no_show",
+        "paperwork_error",
+        "missed_check_in",
+        "other",
       ],
       shipment_destination: ["advance_warehouse", "direct_to_show"],
       shipment_direction: ["move_in", "move_out"],

@@ -265,3 +265,70 @@ export async function deleteShipment(fd: FormData) {
   revalidatePath("/shipments");
   redirect("/shipments?flash=deleted");
 }
+
+export type ForcedState = { error: string | null };
+
+/**
+ * Flag a move-out as forced (our carrier didn't show / paperwork error, so the
+ * general contractor force-shipped it). Records who, when, and why. Marking a
+ * load forced also restarts the dashboard's successful-move-out counter.
+ */
+export async function setShipmentForced(_prev: ForcedState, fd: FormData): Promise<ForcedState> {
+  const id = String(fd.get("id") ?? "");
+  if (!id) return { error: "Missing shipment." };
+
+  const reason = enumOrNull(
+    String(fd.get("forced_reason") ?? ""),
+    Constants.public.Enums.forced_reason,
+  );
+  if (!reason) return { error: "Choose a reason." };
+
+  const other = String(fd.get("forced_reason_other") ?? "").trim();
+  if (reason === "other" && !other) return { error: "Tell us what happened." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { error } = await supabase
+    .from("shipments")
+    .update({
+      forced: true,
+      forced_reason: reason,
+      forced_reason_other: reason === "other" ? other : null,
+      forced_at: new Date().toISOString(),
+      forced_by: user?.id ?? null,
+    })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/shipments");
+  revalidatePath(`/shipments/${id}`);
+  return { error: null };
+}
+
+/** Clear forced status from a move-out (e.g. flagged in error). */
+export async function clearShipmentForced(_prev: ForcedState, fd: FormData): Promise<ForcedState> {
+  const id = String(fd.get("id") ?? "");
+  if (!id) return { error: "Missing shipment." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("shipments")
+    .update({
+      forced: false,
+      forced_reason: null,
+      forced_reason_other: null,
+      forced_at: null,
+      forced_by: null,
+    })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/shipments");
+  revalidatePath(`/shipments/${id}`);
+  return { error: null };
+}

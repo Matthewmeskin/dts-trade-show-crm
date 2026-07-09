@@ -147,10 +147,13 @@ test("reroute state is never flagged (blank RE-ROUTE VIA is normal)", () => {
   }
 });
 
-test("R7: totals mismatch -> warn", () => {
+test("R7: totals mismatch is informational only (stays passed)", () => {
   const x = pass();
   x.total_pieces = 5; // lines say 3
-  assert.ok(codes(x).includes("R7_TOTALS_MISMATCH"));
+  const results = evaluateRules(x, null);
+  const r7 = results.find((c) => c.code === "R7_TOTALS_MISMATCH");
+  assert.ok(r7 && r7.severity === "info", "R7 should be info, not a warning");
+  assert.equal(overallStatus(results), "passed", "a totals mismatch alone must not raise a warning");
 });
 
 test("R8: no signature -> warn", () => {

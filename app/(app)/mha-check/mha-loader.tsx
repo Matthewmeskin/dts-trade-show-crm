@@ -30,8 +30,10 @@ export function MhaLoader() {
           <span className="block h-[3px] w-8 rounded-full bg-dts-maroon/45" />
           <span className="block h-[3px] w-6 rounded-full bg-dts-maroon/25" />
         </div>
-        {/* truck */}
-        <div className="mha-truck absolute bottom-1 text-4xl leading-none">🚛</div>
+        {/* truck (flipped to face its direction of travel) */}
+        <div className="mha-truck absolute bottom-1 text-4xl leading-none">
+          <span className="mha-flip">🚛</span>
+        </div>
       </div>
 
       <div className="mx-auto mt-4 h-1.5 w-full max-w-sm overflow-hidden rounded-full bg-slate-100">
@@ -54,6 +56,7 @@ export function MhaLoader() {
         }
         @keyframes mha-flick { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
         .mha-truck  { animation: mha-drive 2.6s ease-in-out infinite; }
+        .mha-flip   { display: inline-block; transform: scaleX(-1); }
         .mha-streaks{ animation: mha-flick 0.5s ease-in-out infinite; }
         .mha-bar    { animation: mha-bar 1.5s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) {

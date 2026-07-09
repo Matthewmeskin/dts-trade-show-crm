@@ -22,9 +22,9 @@ const BANNER: Record<
     sub: "The two must-pass rules are satisfied.",
   },
   warning: {
-    label: "NEEDS ATTENTION",
+    label: "REVIEW BEFORE TURN-IN",
     wrap: "bg-amber-50 ring-amber-600/20 text-amber-800",
-    sub: "No hard failures, but review the items below before the freight moves.",
+    sub: "No must-fix errors. Give the items below a look before you turn the form in at the general service contractor's service desk — and be sure to submit it before you leave the show.",
   },
   failed: {
     label: "FAILED",
@@ -113,7 +113,6 @@ function extractedRows(x: MhaExtraction, result: MhaResult): Row[] {
       value: `${x.total_pieces ?? "—"} pcs / ${x.total_weight_lbs ?? "—"} lbs`,
       hint: piecesHint,
     },
-    { label: "Freight terms", value: x.freight_terms ?? "—" },
     {
       label: "Destination",
       value: [x.destination?.city, x.destination?.state, x.destination?.zip].filter(Boolean).join(", ") || "—",
@@ -225,7 +224,7 @@ export function MhaResultView({ result }: { result: MhaResult }) {
       {(fails.length > 0 || warns.length > 0) && (
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {fails.length > 0 ? "Needs fixing" : "Worth a look before it ships"}
+            {fails.length > 0 ? "Needs fixing" : "Worth a look before turn-in"}
           </p>
           {fails.map((c) => (
             <CheckCard key={c.code} check={c} />

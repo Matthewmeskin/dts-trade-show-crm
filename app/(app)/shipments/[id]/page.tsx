@@ -20,6 +20,7 @@ import { LocalDateTime } from "@/components/local-time";
 import { formatDate, formatCurrency, formatCountdown, daysUntil } from "@/lib/format";
 import { deleteShipment } from "../actions";
 import { QuickEditShipment } from "./quick-edit";
+import { ForcedControl } from "./forced-control";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export default async function ShipmentRecordPage({
   const { data: s } = await supabase
     .from("shipments")
     .select(
-      "*, exhibitor:exhibitors(id, company_name), show:shows(id, show_name, edition_year, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(id, carrier_name), venue:venues(id, venue_name)",
+      "*, exhibitor:exhibitors(id, company_name), show:shows(id, show_name, edition_year, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(id, carrier_name), venue:venues(id, venue_name), forced_by_profile:profiles!shipments_forced_by_fkey(full_name, email)",
     )
     .eq("id", id)
     .single();
@@ -122,6 +123,18 @@ export default async function ShipmentRecordPage({
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
+          {dir === "move_out" ? (
+            <ForcedControl
+              id={s.id}
+              forced={s.forced}
+              reason={s.forced_reason}
+              reasonOther={s.forced_reason_other}
+              forcedAt={s.forced_at}
+              forcedByName={
+                s.forced_by_profile?.full_name?.trim() || s.forced_by_profile?.email || null
+              }
+            />
+          ) : null}
           {/* Delivery target — the thing to watch, especially for move-ins. */}
           <Card className="p-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
