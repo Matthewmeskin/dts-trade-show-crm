@@ -60,8 +60,8 @@ export function MhaCelebrate() {
           Perfect MHA! 🎉
         </p>
         <p className="mx-auto mt-1.5 max-w-md text-sm text-emerald-800/90">
-          Carrier is correct and the freight is billed to DTS — exactly right. You just kept this load
-          from getting force-shipped. Turn it in at the service desk and you&apos;re done.
+          Carrier is correct and the freight is billed to DTS — exactly right. Turn it in at the
+          service desk and you&apos;re all done.
         </p>
       </div>
 
