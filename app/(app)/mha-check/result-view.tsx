@@ -176,7 +176,7 @@ function CopyLine({ text }: { text: string }) {
 }
 
 export function MhaResultView({ result }: { result: MhaResult }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const banner = BANNER[result.status] ?? BANNER.error;
 
   const fails = result.checks.filter((c) => c.severity === "fail");
@@ -210,8 +210,23 @@ export function MhaResultView({ result }: { result: MhaResult }) {
         </div>
       )}
 
+      {fails.length > 0 && (
+        <div className="rounded-2xl border-2 border-red-300 bg-red-50 px-5 py-4">
+          <p className="text-sm font-semibold text-red-800">
+            Please get this corrected at the service desk before you leave the booth.
+          </p>
+          <p className="mt-1 text-sm text-red-700">
+            If it isn&apos;t fixed, the general contractor can hand your freight to their own carrier and
+            re-route it — at a significant, avoidable cost billed back to you.
+          </p>
+        </div>
+      )}
+
       {(fails.length > 0 || warns.length > 0) && (
         <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {fails.length > 0 ? "Needs fixing" : "Worth a look before it ships"}
+          </p>
           {fails.map((c) => (
             <CheckCard key={c.code} check={c} />
           ))}
