@@ -458,77 +458,108 @@ function AlertsCard({
       {alerts.total === 0 ? (
         <EmptyState icon="alert" title="All clear" description="Nothing needs attention right now." />
       ) : (
-        <ul className="divide-y divide-slate-100">
-          {alerts.deliveryRisks.map((d) => {
-            const hm = DELIVERY_HEALTH_META[d.health];
-            return (
-              <li key={`delrisk-${d.id}`} className="flex items-start gap-3 px-5 py-3">
-                <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${d.health === "due_soon" ? "bg-amber-100 text-amber-600" : "bg-red-100 text-red-600"}`}>
-                  <Icon name="truck" className="h-3.5 w-3.5" />
-                </span>
-                <div className="text-sm">
-                  <Link href={`/shipments/${d.id}`} className="font-medium text-slate-900 hover:text-dts-maroon">
-                    {d.exhibitor ?? "Shipment"}
-                  </Link>
-                  <span className="text-slate-500">
-                    {" "}
-                    move-in delivery {hm.label.toLowerCase()}
-                    {d.show ? ` · ${d.show}` : ""}
-                    {d.days != null ? ` · due ${formatCountdown(d.days)}` : ""}
-                  </span>
-                </div>
-              </li>
-            );
-          })}
-          {alerts.cutoffs.map((c) => (
-            <li key={`cutoff-${c.showId}`} className="flex items-start gap-3 px-5 py-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-                <Icon name="clock" className="h-3.5 w-3.5" />
-              </span>
-              <div className="text-sm">
-                <span className="font-medium text-slate-900">{c.showName}</span>
-                <span className="text-slate-500">
-                  {" "}
-                  advance warehouse cutoff {formatCountdown(c.days)}
-                </span>
-              </div>
-            </li>
-          ))}
-          {alerts.issues.map((s) => (
-            <li key={`issue-${s.id}`} className="flex items-start gap-3 px-5 py-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
-                <Icon name="alert" className="h-3.5 w-3.5" />
-              </span>
-              <div className="text-sm">
-                <span className="font-medium text-slate-900">
-                  {s.exhibitor ?? "Shipment"}
-                </span>
-                <span className="text-slate-500">
-                  {" "}
-                  flagged as an issue{s.show ? ` · ${s.show}` : ""}
-                </span>
-              </div>
-            </li>
-          ))}
-          {alerts.quotedNearPickup.map((s) => (
-            <li key={`quoted-${s.id}`} className="flex items-start gap-3 px-5 py-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-600">
-                <Icon name="truck" className="h-3.5 w-3.5" />
-              </span>
-              <div className="text-sm">
-                <span className="font-medium text-slate-900">
-                  {s.exhibitor ?? "Shipment"}
-                </span>
-                <span className="text-slate-500">
-                  {" "}
-                  still quoted, pickup {formatCountdown(s.days)}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
+        (() => {
+          // Most urgent first, then cap — a dashboard card shouldn't dump
+          // hundreds of rows. Flagged issues and overdue deliveries lead;
+          // "still quoted" (the noisiest bucket) comes last.
+          const rows = [
+            ...alerts.issues.map((s) => (
+              <AlertRow
+                key={`issue-${s.id}`}
+                href={`/shipments/${s.id}`}
+                tone="red"
+                icon="alert"
+                title={s.exhibitor ?? "Shipment"}
+                detail={`flagged as an issue${s.show ? ` · ${s.show}` : ""}`}
+              />
+            )),
+            ...alerts.deliveryRisks.map((d) => (
+              <AlertRow
+                key={`delrisk-${d.id}`}
+                href={`/shipments/${d.id}`}
+                tone={d.health === "due_soon" ? "amber" : "red"}
+                icon="truck"
+                title={d.exhibitor ?? "Shipment"}
+                detail={`move-in delivery ${DELIVERY_HEALTH_META[d.health].label.toLowerCase()}${d.show ? ` · ${d.show}` : ""}${d.days != null ? ` · due ${formatCountdown(d.days)}` : ""}`}
+              />
+            )),
+            ...alerts.cutoffs.map((c) => (
+              <AlertRow
+                key={`cutoff-${c.showId}`}
+                tone="amber"
+                icon="clock"
+                title={c.showName}
+                detail={`advance warehouse cutoff ${formatCountdown(c.days)}`}
+              />
+            )),
+            ...alerts.quotedNearPickup.map((s) => (
+              <AlertRow
+                key={`quoted-${s.id}`}
+                href={`/shipments/${s.id}`}
+                tone="slate"
+                icon="truck"
+                title={s.exhibitor ?? "Shipment"}
+                detail={`still quoted, pickup ${formatCountdown(s.days)}`}
+              />
+            )),
+          ];
+          const MAX = 6;
+          const shown = rows.slice(0, MAX);
+          const remaining = rows.length - shown.length;
+          return (
+            <>
+              <ul className="divide-y divide-slate-100">{shown}</ul>
+              {remaining > 0 ? (
+                <Link
+                  href="/shipments"
+                  className="block border-t border-slate-100 px-5 py-3 text-sm font-medium text-dts-maroon hover:bg-slate-50"
+                >
+                  + {remaining} more open {remaining === 1 ? "item" : "items"}
+                </Link>
+              ) : null}
+            </>
+          );
+        })()
       )}
     </Card>
+  );
+}
+
+const ALERT_TONE: Record<string, string> = {
+  red: "bg-red-100 text-red-600",
+  amber: "bg-amber-100 text-amber-600",
+  slate: "bg-slate-200 text-slate-600",
+};
+
+function AlertRow({
+  href,
+  tone,
+  icon,
+  title,
+  detail,
+}: {
+  href?: string;
+  tone: "red" | "amber" | "slate";
+  icon: "alert" | "truck" | "clock";
+  title: string;
+  detail: string;
+}) {
+  return (
+    <li className="flex items-start gap-3 px-5 py-3">
+      <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${ALERT_TONE[tone]}`}>
+        <Icon name={icon} className="h-3.5 w-3.5" />
+      </span>
+      <div className="min-w-0 text-sm">
+        {href ? (
+          <Link href={href} className="font-medium text-slate-900 hover:text-dts-maroon">
+            {title}
+          </Link>
+        ) : (
+          <span className="font-medium text-slate-900">{title}</span>
+        )}
+        <span className="text-slate-500"> {detail}</span>
+      </div>
+    </li>
   );
 }
 
