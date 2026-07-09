@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Constants, type TablesInsert, type TablesUpdate } from "@/lib/database.types";
 import { DOCUMENTS_BUCKET } from "@/lib/documents";
 import { syncLoadNumber } from "@/lib/tms-sync";
+import { logActivity, shipmentLabel, SHIPMENT_FIELD_LABELS } from "@/lib/activity";
+import { FORCED_REASON_META } from "@/lib/forced";
 
 export type ShipmentFormState = {
   error: string | null;
@@ -91,6 +93,14 @@ export async function createShipment(
     return { error: error.message };
   }
 
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "shipment",
+    entityId: row.id,
+    entityLabel: await shipmentLabel(supabase, row.id),
+    summary: payload.tms_reference_id ? `Logged load ${payload.tms_reference_id}` : "Logged a shipment",
+  });
+
   // Pull live tracking right away so freight details appear immediately.
   if (payload.tms_reference_id) await syncLoadNumber(payload.tms_reference_id);
 
@@ -110,10 +120,36 @@ export async function updateShipment(
   const supabase = await createClient();
   // Only the operator-owned fields — never the TMS-synced freight data.
   const payload: TablesUpdate<"shipments"> = operatorFields(fd);
+
+  // Snapshot the before-state so we can log exactly which fields changed.
+  const trackedKeys = Object.keys(SHIPMENT_FIELD_LABELS);
+  const { data: before } = await supabase
+    .from("shipments")
+    .select(trackedKeys.join(", "))
+    .eq("id", id)
+    .maybeSingle();
+
   const { error } = await supabase.from("shipments").update(payload).eq("id", id);
   if (error) {
     if (error.code === "23505") return DUP_LOAD;
     return { error: error.message };
+  }
+
+  const beforeRow = (before ?? {}) as Record<string, unknown>;
+  const changed = trackedKeys.filter(
+    (k) =>
+      k in payload &&
+      String(beforeRow[k] ?? "") !== String((payload as Record<string, unknown>)[k] ?? ""),
+  );
+  if (changed.length) {
+    await logActivity(supabase, {
+      action: "updated",
+      entityType: "shipment",
+      entityId: id,
+      entityLabel: await shipmentLabel(supabase, id),
+      summary: `Changed ${changed.map((k) => SHIPMENT_FIELD_LABELS[k]).join(", ")}`,
+      details: { fields: changed },
+    });
   }
 
   // Refresh live tracking when a load number is present.
@@ -122,6 +158,7 @@ export async function updateShipment(
   revalidatePath("/shipments");
   revalidatePath(`/shipments/${id}`);
   revalidatePath("/calendar");
+  revalidatePath("/activity");
   // Return where the editor came from (e.g. the calendar side panel) when given.
   const back = String(fd.get("redirect_to") ?? "");
   redirect(back.startsWith("/") ? back : `/shipments/${id}?flash=updated`);
@@ -184,8 +221,16 @@ export async function updateShipmentStatus(fd: FormData) {
 
   const supabase = await createClient();
   await supabase.from("shipments").update({ status }).eq("id", id);
+  await logActivity(supabase, {
+    action: "status_changed",
+    entityType: "shipment",
+    entityId: id,
+    entityLabel: await shipmentLabel(supabase, id),
+    summary: `Set status to ${status.replace(/_/g, " ")}`,
+  });
   revalidatePath("/shipments");
   revalidatePath(`/shipments/${id}`);
+  revalidatePath("/activity");
 }
 
 /** Save the move-out check-in number from the inline cell editor. */
@@ -198,9 +243,18 @@ export async function setCheckInNumber(fd: FormData) {
     .from("shipments")
     .update({ check_in_number: value || null })
     .eq("id", id);
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "shipment",
+    entityId: id,
+    entityLabel: await shipmentLabel(supabase, id),
+    summary: value ? `Set check-in number to ${value}` : "Cleared the check-in number",
+    details: { fields: ["check_in_number"] },
+  });
   const showId = String(fd.get("show_id") ?? "");
   if (showId) revalidatePath(`/shows/${showId}`);
   revalidatePath(`/shipments/${id}`);
+  revalidatePath("/activity");
 }
 
 /** Documents attached directly to a shipment (newest first). */
@@ -263,8 +317,17 @@ export async function deleteShipment(fd: FormData) {
   const id = String(fd.get("id") ?? "");
   if (!id) return;
   const supabase = await createClient();
+  const label = await shipmentLabel(supabase, id);
   await supabase.from("shipments").delete().eq("id", id);
+  await logActivity(supabase, {
+    action: "deleted",
+    entityType: "shipment",
+    entityId: id,
+    entityLabel: label,
+    summary: "Deleted the shipment",
+  });
   revalidatePath("/shipments");
+  revalidatePath("/activity");
   redirect("/shipments?flash=deleted");
 }
 
@@ -305,9 +368,20 @@ export async function setShipmentForced(_prev: ForcedState, fd: FormData): Promi
     .eq("id", id);
   if (error) return { error: error.message };
 
+  const reasonText = reason === "other" ? other : FORCED_REASON_META[reason].label;
+  await logActivity(supabase, {
+    action: "forced",
+    entityType: "shipment",
+    entityId: id,
+    entityLabel: await shipmentLabel(supabase, id),
+    summary: `Marked forced — ${reasonText}`,
+    details: { reason, reason_other: reason === "other" ? other : null },
+  });
+
   revalidatePath("/");
   revalidatePath("/shipments");
   revalidatePath(`/shipments/${id}`);
+  revalidatePath("/activity");
   return { error: null };
 }
 
@@ -329,8 +403,17 @@ export async function clearShipmentForced(_prev: ForcedState, fd: FormData): Pro
     .eq("id", id);
   if (error) return { error: error.message };
 
+  await logActivity(supabase, {
+    action: "unforced",
+    entityType: "shipment",
+    entityId: id,
+    entityLabel: await shipmentLabel(supabase, id),
+    summary: "Removed forced status",
+  });
+
   revalidatePath("/");
   revalidatePath("/shipments");
   revalidatePath(`/shipments/${id}`);
+  revalidatePath("/activity");
   return { error: null };
 }
