@@ -138,6 +138,8 @@ export async function POST(req: NextRequest) {
     matchMethod: match.matchMethod,
     loadId: match.loadId,
     loadReference: match.load?.reference ?? null,
+    loadPieces: match.load?.pieces ?? null,
+    loadWeight: match.load?.weight ?? null,
     companyName,
     loadNumberInput,
     lowResolution: prepared.lowResolution,

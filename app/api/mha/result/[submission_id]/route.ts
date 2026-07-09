@@ -50,15 +50,19 @@ export async function GET(
     .from(MHA_UPLOADS_BUCKET)
     .createSignedUrl(submission.storage_path, 900);
 
-  // Recover the matched load's reference (best-effort, display only).
+  // Recover the matched load's reference + booked figures (display only).
   let loadReference: string | null = null;
+  let loadPieces: number | null = null;
+  let loadWeight: number | null = null;
   if (submission.load_id) {
     const { data: ship } = await supabase
       .from("shipments")
-      .select("tms_reference_id, pro_number")
+      .select("tms_reference_id, pro_number, pieces, weight")
       .eq("id", submission.load_id)
       .maybeSingle();
     loadReference = ship?.tms_reference_id ?? ship?.pro_number ?? null;
+    loadPieces = ship?.pieces ?? null;
+    loadWeight = ship?.weight ?? null;
   }
 
   const result: MhaResult = {
@@ -71,6 +75,8 @@ export async function GET(
     matchMethod: submission.match_method as MhaResult["matchMethod"],
     loadId: submission.load_id,
     loadReference,
+    loadPieces,
+    loadWeight,
     companyName: submission.company_name,
     loadNumberInput: submission.load_number_input,
     lowResolution: false,
