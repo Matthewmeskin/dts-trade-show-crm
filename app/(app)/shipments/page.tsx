@@ -34,10 +34,19 @@ export default async function ShipmentsPage({
     from?: string;
     to?: string;
     q?: string;
+    sort?: string;
+    dir?: string;
   }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
+
+  // Sortable columns; default is most-recent pickup first.
+  const SORT_KEYS = ["pickup", "delivery", "margin", "status", "exhibitor", "show"] as const;
+  const sortKey = (SORT_KEYS as readonly string[]).includes(sp.sort ?? "")
+    ? (sp.sort as (typeof SORT_KEYS)[number])
+    : "pickup";
+  const sortDir: "asc" | "desc" = sp.dir === "asc" ? "asc" : "desc";
 
   let query = supabase
     .from("shipments")
@@ -82,23 +91,42 @@ export default async function ShipmentsPage({
     supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
   ]);
 
-  // Enrich with delivery health, then sort chronologically (earliest first) by
-  // pickup date so the team works the schedule in order; undated loads last.
-  const shipments = (rows ?? [])
-    .map((s) => {
-      const dir = effectiveDirection(s);
-      const target = effectiveTargetDate(s, s.show);
-      const health = deliveryHealth({
-        status: s.status,
-        estimatedDelivery: s.estimated_delivery_date,
-        actualDelivery: s.actual_delivery_date,
-        target,
-      });
-      return { s, dir, target, health, rank: DELIVERY_HEALTH_META[health].rank };
-    })
-    .sort((a, b) =>
-      (a.s.pickup_date ?? "9999-12-31").localeCompare(b.s.pickup_date ?? "9999-12-31"),
-    );
+  // Enrich with delivery health, then sort by the chosen column (default: most
+  // recent pickup first). Undated / empty values always sort last.
+  type Enriched = ReturnType<typeof enrich>;
+  function enrich(s: NonNullable<typeof rows>[number]) {
+    const dir = effectiveDirection(s);
+    const target = effectiveTargetDate(s, s.show);
+    const health = deliveryHealth({
+      status: s.status,
+      estimatedDelivery: s.estimated_delivery_date,
+      actualDelivery: s.actual_delivery_date,
+      target,
+    });
+    return { s, dir, target, health, rank: DELIVERY_HEALTH_META[health].rank };
+  }
+  const sortValue = (r: Enriched): string | number | null => {
+    switch (sortKey) {
+      case "delivery": return r.target;
+      case "margin": return r.s.margin;
+      case "status": return r.s.status;
+      case "exhibitor": return r.s.exhibitor?.company_name ?? null;
+      case "show": return r.s.show?.show_name ?? null;
+      default: return r.s.pickup_date;
+    }
+  };
+  const shipments = (rows ?? []).map(enrich).sort((a, b) => {
+    const av = sortValue(a);
+    const bv = sortValue(b);
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1; // nulls always last
+    if (bv == null) return -1;
+    const cmp =
+      typeof av === "number" && typeof bv === "number"
+        ? av - bv
+        : String(av).localeCompare(String(bv));
+    return sortDir === "asc" ? cmp : -cmp;
+  });
 
   // Build status tabs preserving other filters.
   const statusTabs = [{ label: "All", value: "" }].concat(
@@ -112,16 +140,42 @@ export default async function ShipmentsPage({
   const tabHref = (value: string) => {
     const p = new URLSearchParams();
     if (value) p.set("status", value);
-    for (const k of ["mode", "carrier", "show", "direction", "from", "to", "q"] as const) {
+    for (const k of ["mode", "carrier", "show", "direction", "from", "to", "q", "sort", "dir"] as const) {
       if (sp[k]) p.set(k, sp[k]!);
     }
     return `/shipments${p.toString() ? `?${p}` : ""}`;
   };
+
+  // A column header link: sorts by `col`, toggling asc/desc when already active
+  // (new columns start descending). Preserves the current filters.
+  const sortHref = (col: string) => {
+    const p = new URLSearchParams();
+    if (sp.status) p.set("status", sp.status);
+    for (const k of ["mode", "carrier", "show", "direction", "from", "to", "q"] as const) {
+      if (sp[k]) p.set(k, sp[k]!);
+    }
+    p.set("sort", col);
+    p.set("dir", sortKey === col && sortDir === "desc" ? "asc" : "desc");
+    return `/shipments?${p}`;
+  };
+  const sortableHead = (col: string, label: string, right = false) => (
+    <th className={`px-5 py-3 ${right ? "text-right" : ""}`}>
+      <Link
+        href={sortHref(col)}
+        className={`inline-flex items-center gap-1 hover:text-slate-700 ${sortKey === col ? "text-slate-700" : ""}`}
+      >
+        {label}
+        <span className="text-[10px] leading-none">
+          {sortKey === col ? (sortDir === "asc" ? "▲" : "▼") : ""}
+        </span>
+      </Link>
+    </th>
+  );
   // Same as the current view but with the date range dropped.
   const clearDatesHref = (() => {
     const p = new URLSearchParams();
     if (sp.status) p.set("status", sp.status);
-    for (const k of ["mode", "carrier", "show", "direction", "q"] as const) {
+    for (const k of ["mode", "carrier", "show", "direction", "q", "sort", "dir"] as const) {
       if (sp[k]) p.set(k, sp[k]!);
     }
     return `/shipments${p.toString() ? `?${p}` : ""}`;
@@ -131,7 +185,7 @@ export default async function ShipmentsPage({
     <div>
       <PageHeader
         title="Shipments"
-        description="Every shipment across your shows, in schedule order (earliest pickup first)."
+        description="Every shipment across your shows. Click a column to sort — defaults to most recent pickup first."
         actions={
           <Link
             href="/shipments/new"
@@ -161,6 +215,8 @@ export default async function ShipmentsPage({
 
       <form className="mb-4 flex flex-wrap items-center gap-2">
         {sp.status ? <input type="hidden" name="status" value={sp.status} /> : null}
+        {sp.sort ? <input type="hidden" name="sort" value={sp.sort} /> : null}
+        {sp.dir ? <input type="hidden" name="dir" value={sp.dir} /> : null}
         <select name="direction" defaultValue={sp.direction ?? ""} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon">
           <option value="">Move-in & out</option>
           {Constants.public.Enums.shipment_direction.map((dir) => (
@@ -211,14 +267,14 @@ export default async function ShipmentsPage({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
-                  <th className="px-5 py-3">Exhibitor</th>
-                  <th className="px-5 py-3">Show</th>
-                  <th className="px-5 py-3">Delivery</th>
-                  <th className="px-5 py-3">Status</th>
+                  {sortableHead("exhibitor", "Exhibitor")}
+                  {sortableHead("show", "Show")}
+                  {sortableHead("delivery", "Delivery")}
+                  {sortableHead("status", "Status")}
                   <th className="px-5 py-3">Carrier</th>
                   <th className="px-5 py-3">Venue</th>
-                  <th className="px-5 py-3">Pickup</th>
-                  <th className="px-5 py-3 text-right">Margin</th>
+                  {sortableHead("pickup", "Pickup")}
+                  {sortableHead("margin", "Margin", true)}
                   <th className="px-5 py-3">TMS</th>
                 </tr>
               </thead>
