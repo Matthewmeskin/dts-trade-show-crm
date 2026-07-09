@@ -161,11 +161,13 @@ export function evaluateRules(x: MhaExtraction, load: MhaLoad | null): CheckResu
     const weightOff = x.total_weight_lbs != null && weightSum > 0 && weightSum !== x.total_weight_lbs;
     if (piecesOff || weightOff) {
       out.push({
+        // Informational only: the service desk verifies piece/weight at turn-in,
+        // so a discrepancy here isn't something the exhibitor must pre-fix.
         code: "R7_TOTALS_MISMATCH",
-        severity: "warn",
-        title: "The line items don't add up to the totals on the form.",
+        severity: "info",
+        title: "The line items don't quite add up to the totals.",
         detail:
-          "Double-check the piece count and weight. A mismatch here often means a line was missed or a total was mistyped.",
+          "The service desk will confirm the actual piece count and weight when you turn the form in — just double-check them.",
         found: `lines: ${piecesSum} pcs / ${weightSum} lbs`,
         expected: `totals: ${x.total_pieces ?? "?"} pcs / ${x.total_weight_lbs ?? "?"} lbs`,
       });

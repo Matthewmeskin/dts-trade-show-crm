@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { loadDashboard, type WeekDay, type WeekBasis } from "@/lib/dashboard";
+import { loadDashboard, type WeekDay, type WeekBasis, type MoveOutStreak } from "@/lib/dashboard";
 import {
   PageHeader,
   Card,
@@ -52,6 +52,11 @@ export default async function DashboardPage({
         <QuickAction href="/shipments/new" icon="shipments" label="Log shipment" />
         <QuickAction href="/documents/new" icon="documents" label="Upload document" />
         <QuickAction href="/tasks/new" icon="tasks" label="Add task" />
+      </div>
+
+      {/* Successful move-out streak */}
+      <div className="mb-5">
+        <MoveOutStreakCard streak={data.moveOutStreak} />
       </div>
 
       {/* This week */}
@@ -324,6 +329,51 @@ function ShipmentTiles({
         </Card>
       ))}
     </div>
+  );
+}
+
+function MoveOutStreakCard({ streak }: { streak: MoveOutStreak }) {
+  const start = formatDate(streak.startsOn);
+  return (
+    <Card className="p-5">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-3xl">
+            🚛
+          </div>
+          <div>
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              Successful move-outs
+            </div>
+            {streak.active ? (
+              <>
+                <div className="text-3xl font-semibold text-emerald-600">{streak.successful}</div>
+                <div className="text-xs text-slate-500">
+                  since {formatDate(streak.since)} · resets when a load is forced
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mt-0.5 text-lg font-semibold text-slate-700">Starts {start}</div>
+                <div className="text-xs text-slate-500">
+                  Counting successful move-outs begins {start}.
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+        {streak.lastForcedAt ? (
+          <div className="text-right">
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              Last forced
+            </div>
+            <div className="text-sm text-slate-600">
+              {formatDate(streak.lastForcedAt.slice(0, 10))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </Card>
   );
 }
 

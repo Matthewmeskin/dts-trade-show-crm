@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { today, daysUntil } from "@/lib/format";
+import { MOVE_OUT_COUNTER_EPOCH } from "@/lib/forced";
 import {
   pickFeaturedShow,
   sortUpcoming,
@@ -123,6 +124,19 @@ export type DashboardData = {
   };
   openTasks: OpenTask[];
   upcomingShows: UpcomingShow[];
+  moveOutStreak: MoveOutStreak;
+};
+
+export type MoveOutStreak = {
+  /** Successful (non-forced, delivered) move-outs since the reset point. */
+  successful: number;
+  /** The date counting resumes from: the last forced event, or the epoch. */
+  since: string;
+  /** The day the counter began tallying (feature launch). */
+  startsOn: string;
+  /** False until the epoch is reached ("starts tomorrow"). */
+  active: boolean;
+  lastForcedAt: string | null;
 };
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -389,6 +403,44 @@ export async function loadDashboard(weekBasis: WeekBasis = "pickup"): Promise<Da
       cutoffDays: daysUntil(s.advance_warehouse_cutoff),
     }));
 
+  // ---- Successful move-out streak (restarts whenever a load is forced) ----
+  const { data: lastForcedRow } = await supabase
+    .from("shipments")
+    .select("forced_at")
+    .eq("forced", true)
+    .not("forced_at", "is", null)
+    .order("forced_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const lastForcedAt = lastForcedRow?.forced_at ?? null;
+  const resetDate =
+    lastForcedAt && lastForcedAt.slice(0, 10) > MOVE_OUT_COUNTER_EPOCH
+      ? lastForcedAt.slice(0, 10)
+      : MOVE_OUT_COUNTER_EPOCH;
+
+  const { data: deliveredMoveOuts } = await supabase
+    .from("shipments")
+    .select("actual_delivery_date, target_delivery_date, show_date, created_at")
+    .eq("direction", "move_out")
+    .eq("forced", false)
+    .eq("status", "delivered");
+  const successful = (deliveredMoveOuts ?? []).filter((r) => {
+    const d =
+      r.actual_delivery_date ??
+      r.target_delivery_date ??
+      r.show_date ??
+      (r.created_at ? r.created_at.slice(0, 10) : null);
+    return d != null && d >= resetDate;
+  }).length;
+
+  const moveOutStreak: MoveOutStreak = {
+    successful,
+    since: resetDate,
+    startsOn: MOVE_OUT_COUNTER_EPOCH,
+    active: iso >= MOVE_OUT_COUNTER_EPOCH,
+    lastForcedAt,
+  };
+
   return {
     featured,
     exhibitorStatuses,
@@ -403,5 +455,6 @@ export async function loadDashboard(weekBasis: WeekBasis = "pickup"): Promise<Da
     },
     openTasks,
     upcomingShows,
+    moveOutStreak,
   };
 }
