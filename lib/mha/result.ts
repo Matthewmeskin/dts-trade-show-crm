@@ -17,6 +17,8 @@ export type MhaResult = {
   matchMethod: "exact" | "fuzzy" | "none";
   loadId: string | null;
   loadReference: string | null;
+  loadPieces: number | null;
+  loadWeight: number | null;
   companyName: string;
   loadNumberInput: string | null;
   lowResolution: boolean;

@@ -5,6 +5,12 @@ import { Card } from "@/components/ui";
 import type { MhaResult } from "@/lib/mha/result";
 import type { CheckResult } from "@/lib/mha/rules";
 import type { MhaExtraction } from "@/lib/mha/extraction";
+import {
+  buildChecklist,
+  buildRecommendations,
+  type ChecklistItem,
+  type ChecklistStatus,
+} from "@/lib/mha/checklist";
 
 const BANNER: Record<
   string,
@@ -80,12 +86,22 @@ function loadLine(result: MhaResult): string {
   return "No load number was provided, so we checked the form itself.";
 }
 
+type Row = { label: string; value: string; conf?: string; hint?: string };
+
 /** Fields worth showing in the transcription panel, with confidence keys. */
-function extractedRows(x: MhaExtraction): { label: string; value: string; conf?: string }[] {
+function extractedRows(x: MhaExtraction, result: MhaResult): Row[] {
   const acc = Object.entries(x.accessorials ?? {})
     .filter(([k, v]) => k !== "other_text" && v === true)
     .map(([k]) => k.replace(/_/g, " "));
   if (x.accessorials?.other_text) acc.push(x.accessorials.other_text);
+
+  const missingFigures = x.total_pieces == null || x.total_weight_lbs == null;
+  const haveBooked = result.loadPieces != null || result.loadWeight != null;
+  const piecesHint =
+    missingFigures && haveBooked
+      ? `Our records: ${result.loadPieces ?? "—"} pcs / ${result.loadWeight ?? "—"} lbs`
+      : undefined;
+
   return [
     { label: "General contractor", value: x.gc_detected ?? "unknown" },
     { label: "Carrier", value: x.carrier?.name ?? "—", conf: x.confidence?.["carrier.name"] },
@@ -95,6 +111,7 @@ function extractedRows(x: MhaExtraction): { label: string; value: string; conf?:
     {
       label: "Pieces / weight",
       value: `${x.total_pieces ?? "—"} pcs / ${x.total_weight_lbs ?? "—"} lbs`,
+      hint: piecesHint,
     },
     { label: "Freight terms", value: x.freight_terms ?? "—" },
     {
@@ -109,6 +126,55 @@ function extractedRows(x: MhaExtraction): { label: string; value: string; conf?:
   ];
 }
 
+const CHECK_ICON: Record<ChecklistStatus, { glyph: string; cls: string }> = {
+  pass: { glyph: "✓", cls: "bg-emerald-100 text-emerald-700" },
+  fail: { glyph: "✕", cls: "bg-red-100 text-red-700" },
+  warn: { glyph: "!", cls: "bg-amber-100 text-amber-700" },
+  na: { glyph: "–", cls: "bg-slate-100 text-slate-400" },
+};
+
+function ChecklistRow({ item }: { item: ChecklistItem }) {
+  const icon = CHECK_ICON[item.status];
+  return (
+    <div className="flex items-center gap-3 px-5 py-2.5">
+      <span
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${icon.cls}`}
+        aria-hidden="true"
+      >
+        {icon.glyph}
+      </span>
+      <span className="flex-1 text-sm text-slate-700">{item.label}</span>
+      {item.note ? (
+        <span className="max-w-[45%] truncate text-right text-xs text-slate-400">{item.note}</span>
+      ) : null}
+    </div>
+  );
+}
+
+function CopyLine({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="mt-2 flex items-start gap-2 rounded-lg border border-dts-blue/25 bg-white px-3 py-2">
+      <code className="flex-1 text-xs leading-relaxed text-slate-700">{text}</code>
+      <button
+        type="button"
+        onClick={() => {
+          navigator.clipboard?.writeText(text).then(
+            () => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            },
+            () => {},
+          );
+        }}
+        className="shrink-0 rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+      >
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
+  );
+}
+
 export function MhaResultView({ result }: { result: MhaResult }) {
   const [open, setOpen] = useState(false);
   const banner = BANNER[result.status] ?? BANNER.error;
@@ -117,6 +183,17 @@ export function MhaResultView({ result }: { result: MhaResult }) {
   const warns = result.checks.filter((c) => c.severity === "warn");
   const infos = result.checks.filter((c) => c.severity === "info");
   const isImage = !!result.fileUrl && !/\.pdf(\?|$)/i.test(result.fileUrl);
+
+  const hasLoad = result.matchMethod !== "none" && !!result.loadId;
+  const checklist = result.extracted
+    ? buildChecklist(result.extracted, result.checks, hasLoad)
+    : [];
+  const recommendations = result.extracted
+    ? buildRecommendations(
+        result.extracted,
+        hasLoad ? { pieces: result.loadPieces, weight: result.loadWeight } : null,
+      )
+    : [];
 
   return (
     <div className="space-y-5">
@@ -144,10 +221,32 @@ export function MhaResultView({ result }: { result: MhaResult }) {
         </div>
       )}
 
-      {result.status === "passed" && fails.length === 0 && warns.length === 0 && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 text-sm text-emerald-800">
-          Carrier is not DTS and the freight is billed to DTS. Nothing needs fixing.
+      {recommendations.length > 0 && (
+        <div className="rounded-2xl border border-dts-blue/25 bg-dts-blue/5 p-5">
+          <p className="text-sm font-semibold text-dts-blue">Recommendations</p>
+          <div className="mt-3 space-y-4">
+            {recommendations.map((r) => (
+              <div key={r.title}>
+                <p className="text-sm font-medium text-slate-900">{r.title}</p>
+                <p className="mt-0.5 text-sm text-slate-600">{r.detail}</p>
+                {r.copy ? <CopyLine text={r.copy} /> : null}
+              </div>
+            ))}
+          </div>
         </div>
+      )}
+
+      {checklist.length > 0 && (
+        <Card>
+          <p className="px-5 pt-4 pb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+            What we checked
+          </p>
+          <div className="divide-y divide-slate-50 pb-2">
+            {checklist.map((item) => (
+              <ChecklistRow key={item.label} item={item} />
+            ))}
+          </div>
+        </Card>
       )}
 
       {infos.length > 0 && (
@@ -196,7 +295,7 @@ export function MhaResultView({ result }: { result: MhaResult }) {
                   Open the uploaded PDF
                 </a>
               )}
-              {extractedRows(result.extracted).map((row) => (
+              {extractedRows(result.extracted, result).map((row) => (
                 <div key={row.label} className="flex items-start justify-between gap-3">
                   <dt className="text-sm text-slate-400">{row.label}</dt>
                   <dd className="text-right text-sm font-medium text-slate-800">
@@ -205,6 +304,9 @@ export function MhaResultView({ result }: { result: MhaResult }) {
                       <span className="ml-1.5 rounded bg-amber-100 px-1 text-[10px] font-semibold uppercase text-amber-700">
                         low conf.
                       </span>
+                    )}
+                    {row.hint && (
+                      <span className="mt-0.5 block text-xs font-normal text-dts-blue">{row.hint}</span>
                     )}
                   </dd>
                 </div>
