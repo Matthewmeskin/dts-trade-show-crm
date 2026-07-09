@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/sidebar";
 import { CommandPalette } from "@/components/command-palette";
 import { FlashToast } from "@/components/toast";
 import { Icon } from "@/components/icons";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const COLLAPSE_KEY = "dts:sidebarCollapsed";
 
@@ -109,6 +110,7 @@ export function AppShell({
               </kbd>
             </button>
           </div>
+          <ThemeToggle />
         </header>
 
         <main className="flex-1 overflow-y-auto">
