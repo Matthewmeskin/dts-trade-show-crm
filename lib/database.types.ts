@@ -383,6 +383,7 @@ export type Database = {
           load_id: string | null
           load_number_input: string | null
           match_method: string | null
+          show_id: string | null
           status: string
           storage_path: string
           submitter_email: string
@@ -398,6 +399,7 @@ export type Database = {
           load_id?: string | null
           load_number_input?: string | null
           match_method?: string | null
+          show_id?: string | null
           status?: string
           storage_path: string
           submitter_email: string
@@ -413,6 +415,7 @@ export type Database = {
           load_id?: string | null
           load_number_input?: string | null
           match_method?: string | null
+          show_id?: string | null
           status?: string
           storage_path?: string
           submitter_email?: string
@@ -427,6 +430,20 @@ export type Database = {
             referencedRelation: "shipments"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "mha_submissions_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mha_submissions_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows_with_status"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -435,7 +452,10 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          is_mha_default_contact: boolean
+          phone: string | null
           role: Database["public"]["Enums"]["user_role"]
+          title: string | null
           updated_at: string
         }
         Insert: {
@@ -443,7 +463,10 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          is_mha_default_contact?: boolean
+          phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          title?: string | null
           updated_at?: string
         }
         Update: {
@@ -451,7 +474,10 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          is_mha_default_contact?: boolean
+          phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          title?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -690,6 +716,49 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      show_assignees: {
+        Row: {
+          created_at: string
+          id: string
+          show_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          show_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          show_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_assignees_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_assignees_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows_with_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_assignees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

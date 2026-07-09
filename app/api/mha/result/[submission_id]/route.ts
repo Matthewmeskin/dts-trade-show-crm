@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { MHA_UPLOADS_BUCKET } from "@/lib/mha/media";
+import { getMhaContacts } from "@/lib/mha-contact";
 import type { MhaExtraction } from "@/lib/mha/extraction";
 import type { CheckResult } from "@/lib/mha/rules";
 import type { MhaResult, SubmissionStatus } from "@/lib/mha/result";
@@ -29,7 +30,7 @@ export async function GET(
   const { data: submission, error } = await supabase
     .from("mha_submissions")
     .select(
-      "id, status, match_method, load_id, company_name, load_number_input, storage_path",
+      "id, status, match_method, load_id, show_id, company_name, load_number_input, storage_path",
     )
     .eq("id", submission_id)
     .maybeSingle();
@@ -65,6 +66,8 @@ export async function GET(
     loadWeight = ship?.weight ?? null;
   }
 
+  const { contacts, isDefault } = await getMhaContacts(supabase, submission.show_id);
+
   const result: MhaResult = {
     submissionId: submission.id,
     status: submission.status as SubmissionStatus,
@@ -81,6 +84,8 @@ export async function GET(
     loadNumberInput: submission.load_number_input,
     lowResolution: false,
     fileUrl: signed?.signedUrl ?? null,
+    contacts,
+    contactIsDefault: isDefault,
   };
 
   return NextResponse.json(result);

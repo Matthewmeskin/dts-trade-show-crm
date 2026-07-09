@@ -24,6 +24,7 @@ import {
   addCarrierToShow,
   removeCarrierFromShow,
   togglePreferredCarrier,
+  setShowAssignees,
 } from "../actions";
 import { documentDownload } from "@/app/(app)/documents/actions";
 import { DeleteDocButton } from "@/app/(app)/documents/delete-doc-button";
@@ -210,9 +211,61 @@ type ShowLinks = ({
   exhibitor_list_url: string | null;
 } & FreightAddressColumns) | null;
 
+function AssignedTeamCard({
+  showId,
+  users,
+  assignedIds,
+}: {
+  showId: string;
+  users: { id: string; name: string; title: string | null; hasPhone: boolean }[];
+  assignedIds: Set<string>;
+}) {
+  return (
+    <Card>
+      <CardHeader title="Assigned team" icon="users" />
+      <form action={setShowAssignees} className="p-5">
+        <input type="hidden" name="show_id" value={showId} />
+        <p className="mb-3 text-xs text-slate-500">
+          Their contact info is shown to exhibitors who upload an MHA for this show.
+        </p>
+        {users.length === 0 ? (
+          <p className="text-sm text-slate-400">
+            No users yet — add team members on the Users page.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {users.map((u) => (
+              <label key={u.id} className="flex items-center gap-2.5 text-sm">
+                <input
+                  type="checkbox"
+                  name="user_ids"
+                  value={u.id}
+                  defaultChecked={assignedIds.has(u.id)}
+                  className="h-4 w-4 accent-dts-maroon"
+                />
+                <span className="text-slate-800">{u.name}</span>
+                {u.title ? <span className="text-slate-400">· {u.title}</span> : null}
+                {!u.hasPhone ? (
+                  <span className="text-xs text-amber-600">(no phone set)</span>
+                ) : null}
+              </label>
+            ))}
+          </div>
+        )}
+        <button
+          type="submit"
+          className="mt-4 rounded-lg bg-dts-maroon px-3.5 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark"
+        >
+          Save team
+        </button>
+      </form>
+    </Card>
+  );
+}
+
 async function OverviewTab({ show, links, sales }: { show: ShowWithStatus; links: ShowLinks; sales: Tables<"shows"> | null }) {
   const supabase = await createClient();
-  const [venueRes, contactRes, prefRes] = await Promise.all([
+  const [venueRes, contactRes, prefRes, usersRes, assigneesRes] = await Promise.all([
     show.venue_id
       ? supabase
           .from("venues")
@@ -235,10 +288,14 @@ async function OverviewTab({ show, links, sales }: { show: ShowWithStatus; links
           .eq("preferred", true)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    supabase.from("profiles").select("id, full_name, email, title, phone").order("full_name"),
+    supabase.from("show_assignees").select("user_id").eq("show_id", show.id ?? ""),
   ]);
   const venue = venueRes.data;
   const contact = contactRes.data;
   const preferredCarrier = prefRes.data?.carrier ?? null;
+  const allUsers = usersRes.data ?? [];
+  const assignedIds = new Set((assigneesRes.data ?? []).map((a) => a.user_id));
   const deadline = nextCriticalDeadline(show);
 
   const variance =
@@ -345,6 +402,17 @@ async function OverviewTab({ show, links, sales }: { show: ShowWithStatus; links
       </div>
 
       <div className="space-y-5">
+        <AssignedTeamCard
+          showId={show.id ?? ""}
+          users={allUsers.map((u) => ({
+            id: u.id,
+            name: u.full_name?.trim() || u.email || "Unnamed user",
+            title: u.title,
+            hasPhone: !!u.phone,
+          }))}
+          assignedIds={assignedIds}
+        />
+
         {deadline ? (
           <Card className="p-5">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-400">

@@ -4,6 +4,7 @@
  */
 import type { CheckResult, Overall } from "./rules";
 import type { MhaExtraction } from "./extraction";
+import type { MhaContact } from "@/lib/mha-contact";
 
 export type SubmissionStatus = "pending" | "passed" | "warning" | "failed" | "error";
 
@@ -23,5 +24,7 @@ export type MhaResult = {
   loadNumberInput: string | null;
   lowResolution: boolean;
   fileUrl: string | null; // short-lived signed URL
+  contacts: MhaContact[];
+  contactIsDefault: boolean;
   error?: string;
 };
