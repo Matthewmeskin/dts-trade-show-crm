@@ -44,25 +44,29 @@ export async function syncLoadNumber(loadNumber: string): Promise<boolean> {
   // records that can't be linked to anything.
   const { data: current } = await supabase
     .from("shipments")
-    .select("exhibitor_id, venue_id, show_id")
+    .select("exhibitor_id, venue_id, show_id, venue_auto_linked, show_auto_linked")
     .eq("tms_reference_id", parsed.ref)
     .maybeSingle();
   if (!current) return false;
 
-  // Auto-link venue + show to existing records when confident (link only).
+  // Auto-link venue + show only while they're still sync-managed. Once an
+  // operator saves the shipment (setting the flag false) we never re-link —
+  // otherwise clearing a show would be undone on the very next sync.
+  const canLinkVenue = current.venue_id == null && current.venue_auto_linked;
+  const canLinkShow = current.show_id == null && current.show_auto_linked;
   let venue_id: string | undefined;
   let show_id: string | undefined;
-  if (current.venue_id == null || current.show_id == null) {
+  if (canLinkVenue || canLinkShow) {
     const [{ data: venueRows }, { data: showRows }] = await Promise.all([
       supabase.from("venues").select("id, venue_name, city, state"),
       supabase
         .from("shows")
         .select("id, venue_id, archived, move_in_start, move_out_end, show_start_date, show_end_date"),
     ]);
-    if (current.venue_id == null) {
+    if (canLinkVenue) {
       venue_id = resolveVenueId(parsed.fields.tms_venue_raw, venueRows ?? []);
     }
-    if (current.show_id == null) {
+    if (canLinkShow) {
       show_id = resolveShowId(
         current.venue_id ?? venue_id,
         parsed.fields.show_date ?? parsed.fields.pickup_date,

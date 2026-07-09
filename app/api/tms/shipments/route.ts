@@ -80,10 +80,16 @@ export async function POST(req: NextRequest) {
   const existingVenue = new Map<string, string | null>();
   const existingShow = new Map<string, string | null>();
   const existingDirection = new Map<string, string | null>();
+  // Whether venue/show are still sync-managed. false = an operator took ownership
+  // (or cleared the link), so the sync must not re-link.
+  const existingVenueAuto = new Map<string, boolean>();
+  const existingShowAuto = new Map<string, boolean>();
   if (refs.length) {
     const { data } = await supabase
       .from("shipments")
-      .select("tms_reference_id, exhibitor_id, venue_id, show_id, direction")
+      .select(
+        "tms_reference_id, exhibitor_id, venue_id, show_id, direction, venue_auto_linked, show_auto_linked",
+      )
       .in("tms_reference_id", refs);
     for (const r of data ?? [])
       if (r.tms_reference_id) {
@@ -92,6 +98,8 @@ export async function POST(req: NextRequest) {
         existingVenue.set(r.tms_reference_id, r.venue_id);
         existingShow.set(r.tms_reference_id, r.show_id);
         existingDirection.set(r.tms_reference_id, r.direction);
+        existingVenueAuto.set(r.tms_reference_id, r.venue_auto_linked);
+        existingShowAuto.set(r.tms_reference_id, r.show_auto_linked);
       }
   }
 
@@ -161,13 +169,15 @@ export async function POST(req: NextRequest) {
 
     // Auto-link venue + show to EXISTING records when confident and not already
     // linked. Never creates records (that's the reviewed Suggestions flow).
+    // Link only while still sync-managed. `!== false` links new rows (no entry)
+    // and auto-managed rows, but skips rows an operator cleared (flag = false).
     const venue_id =
-      existingVenue.get(p.ref) == null
+      existingVenue.get(p.ref) == null && existingVenueAuto.get(p.ref) !== false
         ? resolveVenueId(p.fields.tms_venue_raw, venues)
         : undefined;
     const linkedVenue = existingVenue.get(p.ref) ?? venue_id;
     const show_id =
-      existingShow.get(p.ref) == null
+      existingShow.get(p.ref) == null && existingShowAuto.get(p.ref) !== false
         ? resolveShowId(
             linkedVenue ?? undefined,
             p.fields.show_date ?? p.fields.pickup_date,
