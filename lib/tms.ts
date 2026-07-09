@@ -80,7 +80,12 @@ const boolVal = (v: unknown) => {
 };
 
 function mapStatus(item: Record<string, unknown>): (typeof Constants.public.Enums.shipment_status)[number] | undefined {
-  const raw = item.status;
+  // Prefer Hyperion's authoritative per-load status (`shipmentStatus`, e.g.
+  // "Quoted"/"Booked"/"Dispatched"/"InTransit"/"Delivered"). The n8n ingest
+  // stamps a coarse `status` from the query bucket it pulled the load in, which
+  // mislabels quoted loads that also appear in the dispatched/in-transit query —
+  // shipmentStatus is the ground truth and survives in the posted payload.
+  const raw = item.shipmentStatus ?? item.status;
   if (inEnum(raw, Constants.public.Enums.shipment_status)) return raw;
   if (typeof raw === "string") {
     const mapped = STATUS_MAP[raw.trim().toLowerCase()];
