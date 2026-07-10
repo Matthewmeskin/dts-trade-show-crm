@@ -259,6 +259,56 @@ export type ParsedLoad = {
   fields: Partial<TablesInsert<"shipments">>;
 };
 
+/** Sum a numeric field across rows (first matching key per row); undefined if none present. */
+function sumRows(rows: Record<string, unknown>[], keys: string[]): number | undefined {
+  let total = 0;
+  let seen = false;
+  for (const r of rows) {
+    for (const k of keys) {
+      if (r[k] != null && r[k] !== "") {
+        const n = numVal(r[k]);
+        if (n != null) {
+          total += n;
+          seen = true;
+        }
+        break;
+      }
+    }
+  }
+  return seen ? total : undefined;
+}
+
+/**
+ * Billed & cost for a Hyperion load. A load's money lives per-row across TWO
+ * separate arrays, and the two arrays use DIFFERENT key names:
+ *   - `items[]`        base freight lines — keys `billed` / `cost`
+ *   - `accessorials[]` surcharges (LGDE, TSPK, FUEL, lift gate…) — keys `bill` / `cost`
+ * A load's real total is the linehaul PLUS every accessorial, so both arrays
+ * must be summed. We prefer that per-line sum over any top-level scalar —
+ * Hyperion's top-level fields (e.g. a single `billed`) reflect only the first
+ * line, which is exactly how totals came out short before. The top-level
+ * fallback is used only for flat/hand-built payloads that carry no line detail.
+ */
+export function loadMoney(item: Record<string, unknown>): { billed?: number; cost?: number } {
+  const items = Array.isArray(item.items) ? (item.items as Record<string, unknown>[]) : [];
+  const accessorials = Array.isArray(item.accessorials) ? (item.accessorials as Record<string, unknown>[]) : [];
+  const add = (...parts: (number | undefined)[]) => {
+    const present = parts.filter((n): n is number => n != null);
+    return present.length ? present.reduce((a, b) => a + b, 0) : undefined;
+  };
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+
+  const billedSum = add(sumRows(items, ["billed", "bill"]), sumRows(accessorials, ["bill", "billed"]));
+  const costSum = add(sumRows(items, ["cost"]), sumRows(accessorials, ["cost"]));
+  const billed =
+    billedSum ?? numVal(item.billed_amount ?? item.billed ?? item.customer_total ?? item.totalBilled ?? item.value);
+  const cost = costSum ?? numVal(item.cost_amount ?? item.cost ?? item.carrier_total ?? item.totalCost);
+  return {
+    billed: billed != null ? round2(billed) : undefined,
+    cost: cost != null ? round2(cost) : undefined,
+  };
+}
+
 /** Parse one payload item (Hyperion or generic). Null if no load number. */
 export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   const ref = extractLoadNumber(item);
@@ -287,54 +337,23 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   const lineItems: Record<string, unknown>[] = Array.isArray(item.items)
     ? (item.items as Record<string, unknown>[])
     : [];
-  const accessorials: Record<string, unknown>[] = Array.isArray(item.accessorials)
-    ? (item.accessorials as Record<string, unknown>[])
-    : [];
   const carriers: Record<string, unknown>[] = Array.isArray(item.carriers)
     ? (item.carriers as Record<string, unknown>[])
     : [];
   const primaryCarrier = carriers.find((c) => boolVal(c.isPrimary)) ?? carriers[0];
 
-  /** Sum a numeric field across rows (first matching key per row); undefined if none present. */
-  const sumField = (rows: Record<string, unknown>[], keys: string[]): number | undefined => {
-    let total = 0;
-    let seen = false;
-    for (const r of rows) {
-      for (const k of keys) {
-        if (r[k] != null && r[k] !== "") {
-          const n = numVal(r[k]);
-          if (n != null) {
-            total += n;
-            seen = true;
-          }
-          break;
-        }
-      }
-    }
-    return seen ? total : undefined;
-  };
-  const addParts = (...parts: (number | undefined)[]) => {
-    const present = parts.filter((n): n is number => n != null);
-    return present.length ? present.reduce((a, b) => a + b, 0) : undefined;
-  };
-  const round2 = (n: number) => Math.round(n * 100) / 100;
-
   set("pieces", intVal(item.pieces ?? item.totalPieces ?? item.piece_count) ?? (
     lineItems.length ? lineItems.reduce((a, r) => a + (intVal(r.pieces ?? r.handlingUnits) ?? 0), 0) || undefined : undefined
   ));
-  set("weight", numVal(item.weight ?? item.totalWeight ?? item.weight_lbs) ?? sumField(lineItems, ["weight"]));
+  set("weight", numVal(item.weight ?? item.totalWeight ?? item.weight_lbs) ?? sumRows(lineItems, ["weight"]));
   set("package_type", str(item.package_type ?? item.packaging ?? item.packageType ?? primaryCarrier?.packaging ?? lineItems[0]?.packaging));
 
-  const billed =
-    numVal(item.billed_amount ?? item.billed ?? item.customer_total ?? item.totalBilled) ??
-    addParts(sumField(lineItems, ["billed"]), sumField(accessorials, ["bill", "billed"]));
-  const cost =
-    numVal(item.cost_amount ?? item.cost ?? item.carrier_total ?? item.totalCost) ??
-    addParts(sumField(lineItems, ["cost"]), sumField(accessorials, ["cost"]));
+  // Billed/cost = sum of every freight line + every accessorial (see loadMoney).
   // margin is a generated column (billed − cost) — set the two inputs and let
   // the DB compute it.
-  set("billed_amount", billed != null ? round2(billed) : undefined);
-  set("cost_amount", cost != null ? round2(cost) : undefined);
+  const money = loadMoney(item);
+  set("billed_amount", money.billed);
+  set("cost_amount", money.cost);
 
   // Reference numbers: customer PO and shipper number, plus a carrier PRO
   // fallback (Hyperion puts the PRO on the primary carrier).

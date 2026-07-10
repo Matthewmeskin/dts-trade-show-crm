@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { TablesInsert } from "@/lib/database.types";
-import { extractCustomerId, isRoadshow } from "@/lib/tms";
+import { extractCustomerId, isRoadshow, loadMoney } from "@/lib/tms";
 import {
   classifyTradeShowLoads,
   type LoadInput,
@@ -67,6 +67,10 @@ function normalize(load: RawLoad): Normalized | null {
   const primary = carriers.find((c) => c.isPrimary) ?? carriers[0];
   const items = Array.isArray(load.items) ? (load.items as Record<string, unknown>[]) : [];
   const sum = (k: string) => items.reduce((t, it) => t + (Number(it[k]) || 0), 0);
+  // Money spans items[] (base freight) AND accessorials[] (surcharges), which
+  // use different key names — sum both via the shared helper so a load's total
+  // isn't just its first freight line.
+  const money = loadMoney(load as Record<string, unknown>);
 
   return {
     load_number,
@@ -79,8 +83,8 @@ function normalize(load: RawLoad): Normalized | null {
     tms_customer_id: extractCustomerId(load) ?? null,
     po_ref: str(load.poReference ?? load.po_ref ?? load.poReferenceNo),
     shipper_number: str(load.shipperNum ?? load.shipperNumber ?? load.shipper_number),
-    billed_amount: items.length ? sum("billed") || null : num(load.billed ?? load.totalBilled),
-    cost_amount: items.length ? sum("cost") || null : num(load.cost ?? load.totalCost),
+    billed_amount: money.billed ?? null,
+    cost_amount: money.cost ?? null,
     pieces: items.length ? sum("pieces") || null : num(load.totalPieces ?? load.pieces),
     weight: items.length ? sum("weight") || null : num(load.totalWeight ?? load.weight),
   };
