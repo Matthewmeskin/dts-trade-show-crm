@@ -5,6 +5,7 @@ import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { DateRangeFields } from "@/components/date-range-fields";
 import { Pagination } from "@/components/pagination";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +22,13 @@ export default async function CarriersPage({
   let query = supabase.from("carriers").select("*").order("carrier_name");
   if (q.trim()) query = query.ilike("carrier_name", `%${q.trim()}%`);
 
-  const [{ data: carriers }, { data: cv }, { data: ships }] = await Promise.all([
+  const [{ data: carriers }, { data: cv }, ships] = await Promise.all([
     query,
     supabase.from("carrier_venues").select("carrier_id"),
-    supabase.from("shipments").select("carrier_id, pickup_date"),
+    // Count loads across the full shipments table — page past the 1,000-row cap.
+    fetchAll<{ carrier_id: string | null; pickup_date: string | null }>(
+      () => supabase.from("shipments").select("carrier_id, pickup_date"),
+    ),
   ]);
 
   const venueCount = new Map<string, number>();

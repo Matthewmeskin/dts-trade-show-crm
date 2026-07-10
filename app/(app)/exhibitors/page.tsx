@@ -5,6 +5,7 @@ import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { DateRangeFields } from "@/components/date-range-fields";
 import { Pagination } from "@/components/pagination";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +23,14 @@ export default async function ExhibitorsPage({
   if (q.trim()) query = query.ilike("company_name", `%${q.trim()}%`);
   if (industry.trim()) query = query.eq("industry", industry);
 
-  const [{ data: exhibitors }, { data: links }, { data: ships }, { data: allForFilter }] =
+  const [{ data: exhibitors }, { data: links }, ships, { data: allForFilter }] =
     await Promise.all([
       query,
       supabase.from("show_exhibitors").select("exhibitor_id, show_id"),
-      supabase.from("shipments").select("exhibitor_id, show_id, pickup_date"),
+      // Count loads across the full shipments table — page past the 1,000-row cap.
+      fetchAll<{ exhibitor_id: string | null; show_id: string | null; pickup_date: string | null }>(
+        () => supabase.from("shipments").select("exhibitor_id, show_id, pickup_date"),
+      ),
       supabase.from("exhibitors").select("industry"),
     ]);
 

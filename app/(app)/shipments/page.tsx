@@ -20,6 +20,7 @@ import {
 import { formatDate, formatShortDate, formatCurrency } from "@/lib/format";
 import { DateRangeFields } from "@/components/date-range-fields";
 import { Pagination } from "@/components/pagination";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export const dynamic = "force-dynamic";
 
@@ -52,45 +53,54 @@ export default async function ShipmentsPage({
     : "pickup";
   const sortDir: "asc" | "desc" = sp.dir === "asc" ? "asc" : "desc";
 
-  let query = supabase
-    .from("shipments")
-    .select(
-      "id, status, mode, destination_type, direction, target_delivery_date, show_date, estimated_delivery_date, actual_delivery_date, pickup_date, pro_number, tms_reference_id, margin, weight, pieces, origin_city, origin_state, destination_address, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(carrier_name), venue:venues(venue_name)",
-    )
-    // Quotes live on their own Quotes tab — keep them out of active shipments.
-    .neq("status", "quoted")
-    .order("pickup_date", { ascending: true, nullsFirst: false });
-
-  if (sp.status && (Constants.public.Enums.shipment_status as readonly string[]).includes(sp.status))
-    query = query.eq("status", sp.status as ShipmentStatus);
-  if (sp.mode && (Constants.public.Enums.shipment_mode as readonly string[]).includes(sp.mode))
-    query = query.eq("mode", sp.mode as ShipmentMode);
-  if (sp.direction && (Constants.public.Enums.shipment_direction as readonly string[]).includes(sp.direction))
-    query = query.eq("direction", sp.direction as ShipmentDirection);
-  if (sp.carrier) query = query.eq("carrier_id", sp.carrier);
-  if (sp.show) query = query.eq("show_id", sp.show);
-  // Date range filters on the load's pickup date.
-  if (sp.from) query = query.gte("pickup_date", sp.from);
-  if (sp.to) query = query.lte("pickup_date", sp.to);
-
   // Search matches PRO #, load # (TMS reference), or customer (exhibitor name).
+  // Resolve matching exhibitors up front so the query factory stays synchronous.
   const term = sp.q?.trim();
+  let exhIds: string[] = [];
   if (term) {
-    // Resolve matching exhibitors first so we can search by company name.
     const { data: matchedExh } = await supabase
       .from("exhibitors")
       .select("id")
       .ilike("company_name", `%${term}%`);
-    const exhIds = (matchedExh ?? []).map((e) => e.id);
-    // Sanitize for PostgREST .or() syntax (commas/parens are delimiters).
-    const safe = term.replace(/[(),]/g, " ");
-    const ors = [`pro_number.ilike.%${safe}%`, `tms_reference_id.ilike.%${safe}%`];
-    if (exhIds.length) ors.push(`exhibitor_id.in.(${exhIds.join(",")})`);
-    query = query.or(ors.join(","));
+    exhIds = (matchedExh ?? []).map((e) => e.id);
   }
 
-  const [{ data: rows }, { data: carriers }, { data: shows }] = await Promise.all([
-    query,
+  // Rebuildable query — fetchAll pages past the 1,000-row cap by calling this
+  // fresh for each range window, so sort/pagination see the whole table.
+  const buildQuery = () => {
+    let query = supabase
+      .from("shipments")
+      .select(
+        "id, status, mode, destination_type, direction, target_delivery_date, show_date, estimated_delivery_date, actual_delivery_date, pickup_date, pro_number, tms_reference_id, margin, weight, pieces, origin_city, origin_state, destination_address, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(carrier_name), venue:venues(venue_name)",
+      )
+      // Quotes live on their own Quotes tab — keep them out of active shipments.
+      .neq("status", "quoted")
+      .order("pickup_date", { ascending: true, nullsFirst: false });
+
+    if (sp.status && (Constants.public.Enums.shipment_status as readonly string[]).includes(sp.status))
+      query = query.eq("status", sp.status as ShipmentStatus);
+    if (sp.mode && (Constants.public.Enums.shipment_mode as readonly string[]).includes(sp.mode))
+      query = query.eq("mode", sp.mode as ShipmentMode);
+    if (sp.direction && (Constants.public.Enums.shipment_direction as readonly string[]).includes(sp.direction))
+      query = query.eq("direction", sp.direction as ShipmentDirection);
+    if (sp.carrier) query = query.eq("carrier_id", sp.carrier);
+    if (sp.show) query = query.eq("show_id", sp.show);
+    // Date range filters on the load's pickup date.
+    if (sp.from) query = query.gte("pickup_date", sp.from);
+    if (sp.to) query = query.lte("pickup_date", sp.to);
+
+    if (term) {
+      // Sanitize for PostgREST .or() syntax (commas/parens are delimiters).
+      const safe = term.replace(/[(),]/g, " ");
+      const ors = [`pro_number.ilike.%${safe}%`, `tms_reference_id.ilike.%${safe}%`];
+      if (exhIds.length) ors.push(`exhibitor_id.in.(${exhIds.join(",")})`);
+      query = query.or(ors.join(","));
+    }
+    return query;
+  };
+
+  const [rows, { data: carriers }, { data: shows }] = await Promise.all([
+    fetchAll(buildQuery),
     supabase.from("carriers").select("id, carrier_name").order("carrier_name"),
     supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
   ]);
@@ -98,7 +108,7 @@ export default async function ShipmentsPage({
   // Enrich with delivery health, then sort by the chosen column (default: most
   // recent pickup first). Undated / empty values always sort last.
   type Enriched = ReturnType<typeof enrich>;
-  function enrich(s: NonNullable<typeof rows>[number]) {
+  function enrich(s: (typeof rows)[number]) {
     const dir = effectiveDirection(s);
     const target = effectiveTargetDate(s, s.show);
     const health = deliveryHealth({
@@ -119,7 +129,7 @@ export default async function ShipmentsPage({
       default: return r.s.pickup_date;
     }
   };
-  const shipments = (rows ?? []).map(enrich).sort((a, b) => {
+  const shipments = rows.map(enrich).sort((a, b) => {
     const av = sortValue(a);
     const bv = sortValue(b);
     if (av == null && bv == null) return 0;
