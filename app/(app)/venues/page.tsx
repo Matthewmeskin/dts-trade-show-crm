@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { Pagination } from "@/components/pagination";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +21,11 @@ export default async function VenuesPage({
   let query = supabase.from("venues").select("*").order("venue_name");
   if (q.trim()) query = query.ilike("venue_name", `%${q.trim()}%`);
 
-  const [{ data: venues }, { data: shows }, { data: ships }] = await Promise.all([
+  const [{ data: venues }, { data: shows }, ships] = await Promise.all([
     query,
     supabase.from("shows").select("venue_id"),
-    supabase.from("shipments").select("venue_id"),
+    // Count loads across the full shipments table — page past the 1,000-row cap.
+    fetchAll<{ venue_id: string | null }>(() => supabase.from("shipments").select("venue_id")),
   ]);
 
   const showCount = new Map<string, number>();

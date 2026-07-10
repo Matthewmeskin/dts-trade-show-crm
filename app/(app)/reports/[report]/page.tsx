@@ -14,6 +14,7 @@ import {
 } from "@/lib/shipments";
 import { formatCurrency, formatDateRange } from "@/lib/format";
 import { ShowSelect } from "../show-select";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export const dynamic = "force-dynamic";
 
@@ -99,14 +100,23 @@ const STATUS_ORDER = Constants.public.Enums.shipment_status;
 
 async function Financials() {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("shipments")
-    .select(
-      "show_id, carrier_id, billed_amount, cost_amount, show:shows(show_name, edition_year), carrier:carriers(carrier_name)",
-    )
-    // Quotes aren't real revenue yet — count only booked and above.
-    .neq("status", "quoted");
-  const ships = data ?? [];
+  // Page past the 1,000-row cap so revenue totals span every shipment.
+  const ships = await fetchAll<{
+    show_id: string | null;
+    carrier_id: string | null;
+    billed_amount: number | null;
+    cost_amount: number | null;
+    show: { show_name: string; edition_year: number | null } | null;
+    carrier: { carrier_name: string } | null;
+  }>(() =>
+    supabase
+      .from("shipments")
+      .select(
+        "show_id, carrier_id, billed_amount, cost_amount, show:shows(show_name, edition_year), carrier:carriers(carrier_name)",
+      )
+      // Quotes aren't real revenue yet — count only booked and above.
+      .neq("status", "quoted"),
+  );
 
   type Car = { id: string | null; name: string; count: number; billed: number; cost: number };
   type Sh = {
@@ -247,10 +257,13 @@ async function Financials() {
 
 async function ExhibitorHistory() {
   const supabase = await createClient();
-  const [exhRes, linkRes, shipRes] = await Promise.all([
+  const [exhRes, linkRes, ships] = await Promise.all([
     supabase.from("exhibitors").select("id, company_name, industry").order("company_name"),
     supabase.from("show_exhibitors").select("exhibitor_id"),
-    supabase.from("shipments").select("exhibitor_id, status"),
+    // Page past the 1,000-row cap so per-exhibitor counts span every shipment.
+    fetchAll<{ exhibitor_id: string | null; status: ShipmentStatus }>(
+      () => supabase.from("shipments").select("exhibitor_id, status"),
+    ),
   ]);
   const exhibitors = exhRes.data ?? [];
   if (exhibitors.length === 0) return <EmptyCard icon="exhibitors" />;
@@ -258,7 +271,7 @@ async function ExhibitorHistory() {
   const showCount = new Map<string, number>();
   for (const l of linkRes.data ?? []) showCount.set(l.exhibitor_id, (showCount.get(l.exhibitor_id) ?? 0) + 1);
   const shipByExh = new Map<string, { total: number; delivered: number; in_transit: number; issue: number }>();
-  for (const s of shipRes.data ?? []) {
+  for (const s of ships) {
     if (!s.exhibitor_id) continue;
     const e = shipByExh.get(s.exhibitor_id) ?? { total: 0, delivered: 0, in_transit: 0, issue: 0 };
     e.total += 1;
@@ -305,9 +318,12 @@ async function ExhibitorHistory() {
 
 async function CarrierUsage() {
   const supabase = await createClient();
-  const [carRes, shipRes, cvRes] = await Promise.all([
+  const [carRes, ships, cvRes] = await Promise.all([
     supabase.from("carriers").select("id, carrier_name").order("carrier_name"),
-    supabase.from("shipments").select("carrier_id, show_id"),
+    // Page past the 1,000-row cap so per-carrier counts span every shipment.
+    fetchAll<{ carrier_id: string | null; show_id: string | null }>(
+      () => supabase.from("shipments").select("carrier_id, show_id"),
+    ),
     supabase.from("carrier_venues").select("carrier_id, venue_id"),
   ]);
   const carriers = carRes.data ?? [];
@@ -319,7 +335,7 @@ async function CarrierUsage() {
     if (!s) { s = { shipments: 0, shows: new Set(), venues: new Set() }; stats.set(id, s); }
     return s;
   };
-  for (const s of shipRes.data ?? []) {
+  for (const s of ships) {
     if (!s.carrier_id) continue;
     const g = get(s.carrier_id);
     g.shipments += 1;

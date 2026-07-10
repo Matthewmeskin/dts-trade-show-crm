@@ -5,6 +5,7 @@ import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { DIRECTION_META, effectiveDirection } from "@/lib/shipments";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { Pagination } from "@/components/pagination";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export const dynamic = "force-dynamic";
 
@@ -19,15 +20,16 @@ export default async function QuotesPage({
 }) {
   const { page: pageParam } = await searchParams;
   const supabase = await createClient();
-  const { data: rows } = await supabase
-    .from("shipments")
-    .select(
-      "id, status, mode, direction, destination_type, pickup_date, target_delivery_date, show_date, billed_amount, cost_amount, margin, created_at, tms_created_at, tms_reference_id, origin_city, origin_state, destination_address, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name), venue:venues(venue_name)",
-    )
-    .eq("status", "quoted")
-    .order("created_at", { ascending: false });
-
-  const quotes = rows ?? [];
+  // Page past the 1,000-row cap so every open quote is listed and counted.
+  const quotes = await fetchAll(() =>
+    supabase
+      .from("shipments")
+      .select(
+        "id, status, mode, direction, destination_type, pickup_date, target_delivery_date, show_date, billed_amount, cost_amount, margin, created_at, tms_created_at, tms_reference_id, origin_city, origin_state, destination_address, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name), venue:venues(venue_name)",
+      )
+      .eq("status", "quoted")
+      .order("created_at", { ascending: false }),
+  );
 
   const total = quotes.length;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
