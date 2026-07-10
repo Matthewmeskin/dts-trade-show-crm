@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { today, daysUntil } from "@/lib/format";
 import { MOVE_OUT_COUNTER_EPOCH } from "@/lib/forced";
+import { loadSuccessfulMoveOuts } from "@/lib/move-outs";
 import {
   pickFeaturedShow,
   sortUpcoming,
@@ -404,37 +405,13 @@ export async function loadDashboard(weekBasis: WeekBasis = "pickup"): Promise<Da
     }));
 
   // ---- Successful move-out streak (restarts whenever a load is forced) ----
-  const { data: lastForcedRow } = await supabase
-    .from("shipments")
-    .select("forced_at")
-    .eq("forced", true)
-    .not("forced_at", "is", null)
-    .order("forced_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const lastForcedAt = lastForcedRow?.forced_at ?? null;
-  const resetDate =
-    lastForcedAt && lastForcedAt.slice(0, 10) > MOVE_OUT_COUNTER_EPOCH
-      ? lastForcedAt.slice(0, 10)
-      : MOVE_OUT_COUNTER_EPOCH;
-
-  const { data: deliveredMoveOuts } = await supabase
-    .from("shipments")
-    .select("actual_delivery_date, target_delivery_date, show_date, created_at")
-    .eq("direction", "move_out")
-    .eq("forced", false)
-    .eq("status", "delivered");
-  const successful = (deliveredMoveOuts ?? []).filter((r) => {
-    const d =
-      r.actual_delivery_date ??
-      r.target_delivery_date ??
-      r.show_date ??
-      (r.created_at ? r.created_at.slice(0, 10) : null);
-    return d != null && d >= resetDate;
-  }).length;
+  // Shares the exact query behind the /move-outs list, so the counter and the
+  // drill-down list can never disagree.
+  const { rows: successfulMoveOuts, resetDate, lastForcedAt } =
+    await loadSuccessfulMoveOuts(supabase);
 
   const moveOutStreak: MoveOutStreak = {
-    successful,
+    successful: successfulMoveOuts.length,
     since: resetDate,
     startsOn: MOVE_OUT_COUNTER_EPOCH,
     active: iso >= MOVE_OUT_COUNTER_EPOCH,

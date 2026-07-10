@@ -335,45 +335,52 @@ function ShipmentTiles({
 function MoveOutStreakCard({ streak }: { streak: MoveOutStreak }) {
   const start = formatDate(streak.startsOn);
   return (
-    <Card className="p-5">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-3xl">
-            🚛
-          </div>
-          <div>
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-400">
-              Successful move-outs
+    <Link href="/move-outs" className="group block">
+      <Card className="p-5 transition group-hover:border-emerald-200 group-hover:shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-3xl">
+              🚛
             </div>
-            {streak.active ? (
-              <>
-                <div className="text-3xl font-semibold text-emerald-600">{streak.successful}</div>
-                <div className="text-xs text-slate-500">
-                  since {formatDate(streak.since)} · resets when a load is forced
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Successful move-outs
+              </div>
+              {streak.active ? (
+                <>
+                  <div className="text-3xl font-semibold text-emerald-600">{streak.successful}</div>
+                  <div className="text-xs text-slate-500">
+                    since {formatDate(streak.since)} · resets when a load is forced
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="mt-0.5 text-lg font-semibold text-slate-700">Starts {start}</div>
+                  <div className="text-xs text-slate-500">
+                    Counting successful move-outs begins {start}.
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-6">
+            {streak.lastForcedAt ? (
+              <div className="text-right">
+                <div className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Last forced
                 </div>
-              </>
-            ) : (
-              <>
-                <div className="mt-0.5 text-lg font-semibold text-slate-700">Starts {start}</div>
-                <div className="text-xs text-slate-500">
-                  Counting successful move-outs begins {start}.
+                <div className="text-sm text-slate-600">
+                  {formatDate(streak.lastForcedAt.slice(0, 10))}
                 </div>
-              </>
-            )}
+              </div>
+            ) : null}
+            <span className="text-sm font-medium text-emerald-600 opacity-0 transition group-hover:opacity-100">
+              View all →
+            </span>
           </div>
         </div>
-        {streak.lastForcedAt ? (
-          <div className="text-right">
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-400">
-              Last forced
-            </div>
-            <div className="text-sm text-slate-600">
-              {formatDate(streak.lastForcedAt.slice(0, 10))}
-            </div>
-          </div>
-        ) : null}
-      </div>
-    </Card>
+      </Card>
+    </Link>
   );
 }
 
