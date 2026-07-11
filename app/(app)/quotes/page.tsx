@@ -6,7 +6,6 @@ import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { DIRECTION_META, effectiveDirection } from "@/lib/shipments";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { Pagination } from "@/components/pagination";
-import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export const dynamic = "force-dynamic";
 
@@ -21,21 +20,26 @@ export default async function QuotesPage({
 }) {
   const { page: pageParam } = await searchParams;
   const supabase = await createClient();
-  // Page past the 1,000-row cap so every open quote is listed and counted.
-  const quotes = await fetchAll(() =>
+
+  const SELECT =
+    "id, status, mode, direction, destination_type, pickup_date, target_delivery_date, show_date, billed_amount, cost_amount, margin, created_at, tms_created_at, tms_reference_id, origin_city, origin_state, destination_address, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name), venue:venues(venue_name)";
+  // Fetch only the requested page + an exact count — never the whole table.
+  const quotesPage = (from: number) =>
     supabase
       .from("shipments")
-      .select(
-        "id, status, mode, direction, destination_type, pickup_date, target_delivery_date, show_date, billed_amount, cost_amount, margin, created_at, tms_created_at, tms_reference_id, origin_city, origin_state, destination_address, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name), venue:venues(venue_name)",
-      )
+      .select(SELECT, { count: "exact" })
       .eq("status", "quoted")
-      .order("created_at", { ascending: false }),
-  );
+      .order("created_at", { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
 
-  const total = quotes.length;
+  const requested = Math.max(1, Number(pageParam) || 1);
+  const first = await quotesPage((requested - 1) * PAGE_SIZE);
+  const total = first.count ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const page = Math.min(Math.max(1, Number(pageParam) || 1), pageCount);
-  const pagedQuotes = quotes.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const page = Math.min(requested, pageCount);
+  // If the URL asked for a page past the end, fetch the clamped last page.
+  const pagedQuotes =
+    page === requested ? first.data ?? [] : (await quotesPage((page - 1) * PAGE_SIZE)).data ?? [];
   const pageHref = (p: number) => (p > 1 ? `/quotes?page=${p}` : "/quotes");
 
   return (
@@ -48,7 +52,7 @@ export default async function QuotesPage({
       <ShipmentsTabs active="quotes" />
 
       <Card>
-        {quotes.length === 0 ? (
+        {total === 0 ? (
           <EmptyState
             icon="documents"
             title="No open quotes"
