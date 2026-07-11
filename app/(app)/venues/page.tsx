@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { Pagination } from "@/components/pagination";
-import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +20,11 @@ export default async function VenuesPage({
   let query = supabase.from("venues").select("*").order("venue_name");
   if (q.trim()) query = query.ilike("venue_name", `%${q.trim()}%`);
 
-  const [{ data: venues }, { data: shows }, ships] = await Promise.all([
+  const [{ data: venues }, { data: shows }, { data: stats }] = await Promise.all([
     query,
     supabase.from("shows").select("venue_id"),
-    // Count loads across the full shipments table — page past the 1,000-row cap.
-    fetchAll<{ venue_id: string | null }>(() => supabase.from("shipments").select("venue_id")),
+    // Loads per venue, counted in the database.
+    supabase.rpc("venue_shipment_stats"),
   ]);
 
   const showCount = new Map<string, number>();
@@ -33,8 +32,8 @@ export default async function VenuesPage({
     if (s.venue_id) showCount.set(s.venue_id, (showCount.get(s.venue_id) ?? 0) + 1);
   }
   const loadCount = new Map<string, number>();
-  for (const s of ships ?? []) {
-    if (s.venue_id) loadCount.set(s.venue_id, (loadCount.get(s.venue_id) ?? 0) + 1);
+  for (const r of stats ?? []) {
+    if (r.venue_id) loadCount.set(r.venue_id, Number(r.load_count));
   }
   const rows = venues ?? [];
 

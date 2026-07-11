@@ -5,7 +5,6 @@ import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { DateRangeFields } from "@/components/date-range-fields";
 import { Pagination } from "@/components/pagination";
-import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export const dynamic = "force-dynamic";
 
@@ -23,37 +22,34 @@ export default async function ExhibitorsPage({
   if (q.trim()) query = query.ilike("company_name", `%${q.trim()}%`);
   if (industry.trim()) query = query.eq("industry", industry);
 
-  const [{ data: exhibitors }, { data: links }, ships, { data: allForFilter }] =
-    await Promise.all([
-      query,
-      supabase.from("show_exhibitors").select("exhibitor_id, show_id"),
-      // Count loads across the full shipments table — page past the 1,000-row cap.
-      fetchAll<{ exhibitor_id: string | null; show_id: string | null; pickup_date: string | null }>(
-        () => supabase.from("shipments").select("exhibitor_id, show_id, pickup_date"),
-      ),
-      supabase.from("exhibitors").select("industry"),
-    ]);
-
   // When a date range is set, count only loads that pick up in the window, and
   // narrow the directory to exhibitors that have such loads.
   const hasRange = !!(from || to);
-  const inRange = (p: string | null) => (!from || (!!p && p >= from)) && (!to || (!!p && p <= to));
+
+  const [{ data: exhibitors }, { data: links }, { data: stats }, { data: allForFilter }] =
+    await Promise.all([
+      query,
+      supabase.from("show_exhibitors").select("exhibitor_id, show_id"),
+      // Loads + distinct shows per exhibitor, counted in the database.
+      supabase.rpc("exhibitor_shipment_stats", { p_from: from || undefined, p_to: to || undefined }),
+      supabase.from("exhibitors").select("industry"),
+    ]);
 
   const showSets = new Map<string, Set<string>>();
   const loadCount = new Map<string, number>();
-  const addShow = (eid: string | null, sid: string | null) => {
-    if (!eid || !sid) return;
-    const set = showSets.get(eid) ?? new Set<string>();
-    set.add(sid);
-    showSets.set(eid, set);
-  };
-  for (const s of ships ?? []) {
-    if (hasRange && !inRange(s.pickup_date)) continue;
-    addShow(s.exhibitor_id, s.show_id);
-    if (s.exhibitor_id) loadCount.set(s.exhibitor_id, (loadCount.get(s.exhibitor_id) ?? 0) + 1);
+  for (const r of stats ?? []) {
+    if (!r.exhibitor_id) continue;
+    loadCount.set(r.exhibitor_id, Number(r.load_count));
+    showSets.set(r.exhibitor_id, new Set((r.show_ids ?? []) as string[]));
   }
   // Manual show links carry no date, so only fold them in when not date-filtering.
-  if (!hasRange) for (const l of links ?? []) addShow(l.exhibitor_id, l.show_id);
+  if (!hasRange)
+    for (const l of links ?? []) {
+      if (!l.exhibitor_id || !l.show_id) continue;
+      const set = showSets.get(l.exhibitor_id) ?? new Set<string>();
+      set.add(l.show_id);
+      showSets.set(l.exhibitor_id, set);
+    }
 
   const industries = [
     ...new Set((allForFilter ?? []).map((e) => e.industry).filter(Boolean)),

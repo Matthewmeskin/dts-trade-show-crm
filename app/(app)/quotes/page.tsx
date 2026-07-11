@@ -1,4 +1,5 @@
 import { ShipmentRow } from "../shipments/shipment-side-panel";
+import { ShipmentsTabs } from "../shipments/shipments-tabs";
 import { HoverPreview } from "@/components/hover-preview";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
@@ -43,6 +44,8 @@ export default async function QuotesPage({
         title="Quotes"
         description="Shipments still in the quoting stage — separate from active shipments. Mark one Booked to move it onto Shipments."
       />
+
+      <ShipmentsTabs active="quotes" />
 
       <Card>
         {quotes.length === 0 ? (

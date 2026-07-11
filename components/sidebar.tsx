@@ -3,18 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_ITEMS } from "@/lib/nav";
+import { NAV_SECTIONS, type NavItem } from "@/lib/nav";
 import { Icon } from "@/components/icons";
 import { signOut } from "@/app/login/actions";
 
-function isActive(pathname: string, href: string): boolean {
-  if (href === "/") return pathname === "/";
-  if (pathname === href) return true;
-  if (!pathname.startsWith(`${href}/`)) return false;
-  // Don't light up a parent (e.g. /shows) when a more specific nav item
-  // (e.g. /shows/sales) is the actual match.
-  return !NAV_ITEMS.some(
-    (i) => i.href !== href && i.href.startsWith(`${href}/`) && (pathname === i.href || pathname.startsWith(`${i.href}/`)),
+function isActive(pathname: string, item: NavItem): boolean {
+  const hrefs = [item.href, ...(item.match ?? [])];
+  return hrefs.some((href) =>
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`),
   );
 }
 
@@ -72,26 +68,41 @@ export function Sidebar({
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
-        {NAV_ITEMS.filter((item) => !item.adminOnly || role === "admin").map((item) => {
-          const active = isActive(pathname, item.href);
+      <nav className="flex-1 overflow-y-auto px-3 py-2">
+        {NAV_SECTIONS.map((section, si) => {
+          const items = section.items.filter((item) => !item.adminOnly || role === "admin");
+          if (items.length === 0) return null;
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onNavigate}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                active
-                  ? "bg-dts-maroon text-white"
-                  : "text-white/75 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              <Icon
-                name={item.icon}
-                className={`h-[18px] w-[18px] ${active ? "text-white" : "text-white/60"}`}
-              />
-              {item.label}
-            </Link>
+            <div key={section.title ?? `section-${si}`} className={si > 0 ? "mt-4" : ""}>
+              {section.title ? (
+                <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                  {section.title}
+                </div>
+              ) : null}
+              <div className="space-y-0.5">
+                {items.map((item) => {
+                  const active = isActive(pathname, item);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onNavigate}
+                      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                        active
+                          ? "bg-dts-maroon text-white"
+                          : "text-white/75 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      <Icon
+                        name={item.icon}
+                        className={`h-[18px] w-[18px] ${active ? "text-white" : "text-white/60"}`}
+                      />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </nav>
