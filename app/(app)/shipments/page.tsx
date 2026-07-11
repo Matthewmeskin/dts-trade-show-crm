@@ -66,18 +66,17 @@ export default async function ShipmentsPage({
     exhIds = (matchedExh ?? []).map((e) => e.id);
   }
 
-  // Rebuildable query — fetchAll pages past the 1,000-row cap by calling this
-  // fresh for each range window, so sort/pagination see the whole table.
-  const buildQuery = () => {
-    let query = supabase
-      .from("shipments")
-      .select(
-        "id, status, mode, destination_type, direction, target_delivery_date, show_date, estimated_delivery_date, actual_delivery_date, pickup_date, pro_number, tms_reference_id, margin, weight, pieces, origin_city, origin_state, destination_address, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(carrier_name), venue:venues(venue_name)",
-      )
-      // Quotes live on their own Quotes tab — keep them out of active shipments.
-      .neq("status", "quoted")
-      .order("pickup_date", { ascending: true, nullsFirst: false });
+  const SELECT =
+    "id, status, mode, destination_type, direction, target_delivery_date, show_date, estimated_delivery_date, actual_delivery_date, pickup_date, pro_number, tms_reference_id, margin, weight, pieces, origin_city, origin_state, destination_address, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(carrier_name), venue:venues(venue_name)";
 
+  // Filtered query with no ordering — the caller adds order + range. Rebuilt
+  // fresh each call since PostgREST builders are single-use.
+  const base = (withCount = false) => {
+    let query = withCount
+      ? supabase.from("shipments").select(SELECT, { count: "exact" })
+      : supabase.from("shipments").select(SELECT);
+    // Quotes live on their own Quotes tab — keep them out of active shipments.
+    query = query.neq("status", "quoted");
     if (sp.status && (Constants.public.Enums.shipment_status as readonly string[]).includes(sp.status))
       query = query.eq("status", sp.status as ShipmentStatus);
     if (sp.mode && (Constants.public.Enums.shipment_mode as readonly string[]).includes(sp.mode))
@@ -89,7 +88,6 @@ export default async function ShipmentsPage({
     // Date range filters on the load's pickup date.
     if (sp.from) query = query.gte("pickup_date", sp.from);
     if (sp.to) query = query.lte("pickup_date", sp.to);
-
     if (term) {
       // Sanitize for PostgREST .or() syntax (commas/parens are delimiters).
       const safe = term.replace(/[(),]/g, " ");
@@ -100,16 +98,10 @@ export default async function ShipmentsPage({
     return query;
   };
 
-  const [rows, { data: carriers }, { data: shows }] = await Promise.all([
-    fetchAll(buildQuery),
-    supabase.from("carriers").select("id, carrier_name").order("carrier_name"),
-    supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
-  ]);
+  type ShipmentRowData = NonNullable<Awaited<ReturnType<typeof base>>["data"]>[number];
 
-  // Enrich with delivery health, then sort by the chosen column (default: most
-  // recent pickup first). Undated / empty values always sort last.
-  type Enriched = ReturnType<typeof enrich>;
-  function enrich(s: (typeof rows)[number]) {
+  // Enrich a row with delivery health for display.
+  function enrich(s: ShipmentRowData) {
     const dir = effectiveDirection(s);
     const target = effectiveTargetDate(s, s.show);
     const health = deliveryHealth({
@@ -120,33 +112,63 @@ export default async function ShipmentsPage({
     });
     return { s, dir, target, health, rank: DELIVERY_HEALTH_META[health].rank };
   }
-  const sortValue = (r: Enriched): string | number | null => {
-    switch (sortKey) {
-      case "delivery": return r.target;
-      case "margin": return r.s.margin;
-      case "status": return r.s.status;
-      case "exhibitor": return r.s.exhibitor?.company_name ?? null;
-      case "show": return r.s.show?.show_name ?? null;
-      default: return r.s.pickup_date;
-    }
-  };
-  const shipments = rows.map(enrich).sort((a, b) => {
-    const av = sortValue(a);
-    const bv = sortValue(b);
-    if (av == null && bv == null) return 0;
-    if (av == null) return 1; // nulls always last
-    if (bv == null) return -1;
-    const cmp =
-      typeof av === "number" && typeof bv === "number"
-        ? av - bv
-        : String(av).localeCompare(String(bv));
-    return sortDir === "asc" ? cmp : -cmp;
-  });
+  type Enriched = ReturnType<typeof enrich>;
 
-  const total = shipments.length;
+  // Columns Postgres can sort directly (fast, paginated server-side). The
+  // "delivery" sort maps to the stored target date; exhibitor / show sort by a
+  // related name, which we do in JS over the (bounded) filtered set.
+  const DB_SORT: Partial<Record<(typeof SORT_KEYS)[number], string>> = {
+    pickup: "pickup_date",
+    delivery: "target_delivery_date",
+    margin: "margin",
+    status: "status",
+  };
+  const dbCol = DB_SORT[sortKey];
+  const ascending = sortDir === "asc";
+  const requested = Math.max(1, Number(sp.page) || 1);
+
+  // Filter dropdowns — fetched alongside the shipment page.
+  const carriersP = supabase.from("carriers").select("id, carrier_name").order("carrier_name");
+  const showsP = supabase.from("shows").select("id, show_name, edition_year").order("show_name");
+
+  let pagedShipments: Enriched[];
+  let total: number;
+  let page: number;
+
+  if (dbCol) {
+    // Server-side: fetch only the requested page + an exact total count.
+    const runPage = (from: number) =>
+      base(true).order(dbCol, { ascending, nullsFirst: false }).range(from, from + PAGE_SIZE - 1);
+    const first = await runPage((requested - 1) * PAGE_SIZE);
+    total = first.count ?? 0;
+    page = Math.min(requested, Math.max(1, Math.ceil(total / PAGE_SIZE)));
+    const rowsData =
+      page === requested ? first.data ?? [] : (await runPage((page - 1) * PAGE_SIZE)).data ?? [];
+    pagedShipments = rowsData.map(enrich);
+  } else {
+    // Name sort (exhibitor / show): pull the filtered set, sort by name in JS,
+    // then slice. Bounded by the active-shipments count.
+    const all = await fetchAll<ShipmentRowData>(() =>
+      base().order("pickup_date", { ascending: false, nullsFirst: false }),
+    );
+    const nameOf = (r: Enriched) =>
+      sortKey === "exhibitor" ? r.s.exhibitor?.company_name ?? null : r.s.show?.show_name ?? null;
+    const sorted = all.map(enrich).sort((a, b) => {
+      const av = nameOf(a);
+      const bv = nameOf(b);
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1; // nulls always last
+      if (bv == null) return -1;
+      const cmp = av.localeCompare(bv);
+      return ascending ? cmp : -cmp;
+    });
+    total = sorted.length;
+    page = Math.min(requested, Math.max(1, Math.ceil(total / PAGE_SIZE)));
+    pagedShipments = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  }
+
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const page = Math.min(Math.max(1, Number(sp.page) || 1), pageCount);
-  const pagedShipments = shipments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const [{ data: carriers }, { data: shows }] = await Promise.all([carriersP, showsP]);
   const pageHref = (p: number) => {
     const params = new URLSearchParams();
     for (const k of ["status", "mode", "carrier", "show", "direction", "from", "to", "q", "sort", "dir"] as const) {
@@ -286,7 +308,7 @@ export default async function ShipmentsPage({
       </form>
 
       <Card>
-        {shipments.length === 0 ? (
+        {total === 0 ? (
           <EmptyState
             icon="shipments"
             title="No shipments match"
