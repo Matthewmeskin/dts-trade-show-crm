@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { Icon, type IconName } from "@/components/icons";
-import { NAV_ITEMS } from "@/lib/nav";
+import { NAV_ITEMS, NAV_EXTRA } from "@/lib/nav";
 import type { SearchGroup, SearchHit } from "@/app/api/search/route";
 
 type Command = {
@@ -19,7 +19,7 @@ type Command = {
   href: string;
 };
 
-const NAV_COMMANDS: Command[] = NAV_ITEMS.map((n) => ({
+const NAV_COMMANDS: Command[] = [...NAV_ITEMS, ...NAV_EXTRA].map((n) => ({
   label: n.label,
   icon: n.icon,
   href: n.href,

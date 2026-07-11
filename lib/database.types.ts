@@ -1467,6 +1467,21 @@ export type Database = {
       }
     }
     Functions: {
+      carrier_shipment_stats: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          carrier_id: string
+          shipment_count: number
+        }[]
+      }
+      exhibitor_shipment_stats: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          exhibitor_id: string
+          load_count: number
+          show_ids: string[]
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
       merge_shows: {
         Args: { p_source: string; p_target: string }
@@ -1479,6 +1494,13 @@ export type Database = {
       show_status: {
         Args: { s: Database["public"]["Tables"]["shows"]["Row"] }
         Returns: Database["public"]["Enums"]["show_status"]
+      }
+      venue_shipment_stats: {
+        Args: never
+        Returns: {
+          load_count: number
+          venue_id: string
+        }[]
       }
     }
     Enums: {

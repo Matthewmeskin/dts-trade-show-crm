@@ -21,6 +21,7 @@ import { formatDate, formatShortDate, formatCurrency } from "@/lib/format";
 import { DateRangeFields } from "@/components/date-range-fields";
 import { Pagination } from "@/components/pagination";
 import { fetchAll } from "@/lib/supabase/fetch-all";
+import { ShipmentsTabs } from "./shipments-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -222,6 +223,8 @@ export default async function ShipmentsPage({
           </Link>
         }
       />
+
+      <ShipmentsTabs active="shipments" />
 
       <div className="mb-3 flex flex-wrap gap-1">
         {statusTabs.map((t) => {
