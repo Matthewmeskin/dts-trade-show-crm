@@ -169,6 +169,7 @@ export async function POST(req: NextRequest) {
   const toClassify = plausible.slice(0, MAX_AI);
   const aiInput: LoadInput[] = toClassify.map((n) => ({
     load_number: n.load_number,
+    customer_name: n.customer_name,
     mode: n.mode,
     pickup_location: n.pickup_location,
     delivery_location: n.delivery_location,
