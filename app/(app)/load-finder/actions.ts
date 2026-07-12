@@ -226,14 +226,15 @@ export async function importCandidate(fd: FormData) {
   if (!id) return;
 
   const supabase = await createClient();
-  const { shipmentId, loadNumber } = await importOne(supabase, id);
+  const { loadNumber } = await importOne(supabase, id);
   // Pull live tracking now so freight detail is populated immediately.
   if (loadNumber) await syncLoadNumber(loadNumber);
 
   revalidatePath("/load-finder");
   revalidatePath("/shipments");
-  if (shipmentId) redirect(`/shipments/${shipmentId}?flash=created`);
-  redirect("/load-finder");
+  // Stay on the Load Finder (the imported candidate drops off the list) rather
+  // than bouncing to the new shipment page.
+  redirect("/load-finder?flash=added");
 }
 
 /** Bulk-import several candidates (checkbox selection or "Add all"). */
