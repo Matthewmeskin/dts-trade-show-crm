@@ -80,6 +80,7 @@ Rules:
 
 export type LoadInput = {
   load_number: string;
+  customer_name?: string | null;
   mode?: string | null;
   pickup_location?: string | null;
   delivery_location?: string | null;
@@ -98,15 +99,23 @@ export type ClassifyResult =
   | { status: "unconfigured" }
   | { status: "error"; message: string };
 
-const CLASSIFY_SYSTEM = `You identify TRADE-SHOW freight for DTS, a freight brokerage's trade show division. Given TMS loads (pickup/delivery addresses + mode), decide which are trade-show shipments.
+const CLASSIFY_SYSTEM = `You identify TRADE-SHOW EXHIBITOR freight for DTS, a freight brokerage's trade show division — booth materials and displays moving to or from a show. Given TMS loads (customer, mode, pickup/delivery addresses), decide which are trade-show shipments. Precision matters far more than recall: a wrong "yes" wastes an operator's time, so only flag a load when there is a REAL trade-show signal.
 
-A load IS a trade-show shipment if any of these hold:
-- Pickup OR delivery is a convention center, expo/exhibition hall, fairgrounds, civic/conference center, or arena used for shows (e.g. "McCormick Place", "Las Vegas Convention Center", "Orange County Convention Center", "Javits", "Mandalay Bay", "Sands Expo").
-- The address references a booth, hall, exhibit space, or show name (e.g. "Booth #4249", "Hall C", "c/o <show>").
-- The mode signals trade show (e.g. "TradeshowLTL", "Tradeshow Truckload").
-Use the provided venue list as strong hints — a match there is high confidence.
+Flag a load (is_candidate=true) ONLY when at least one of these clearly holds:
+- Pickup OR delivery is a NAMED convention/exhibition facility — an actual venue named in the address or matched from the provided known-venue list (e.g. "McCormick Place", "Las Vegas Convention Center", "Orange County Convention Center", "Javits Center", "Sands Expo"). The venue must be the facility itself, not a lookalike street name.
+- The address explicitly references booth / hall / exhibit space / a show name / "c/o <show>" / a general service contractor (Freeman, GES, Shepard, etc.).
+- The mode explicitly signals trade show (e.g. "TradeshowLTL", "Tradeshow Truckload").
 
-Be decisive but don't over-flag ordinary commercial/residential freight. For each load return is_candidate, confidence (high/medium/low), a one-sentence reason citing the specific signal, and the matched venue name (or null).`;
+Do NOT flag on weak or coincidental signals:
+- STREET NAMES that merely contain "Exposition", "Fair", "Convention", "Expo", "Market", "Center", etc. are ordinary addresses, NOT venues. "4511 Exposition Blvd" or "Fairgrounds Rd" is not a show unless the venue itself is named.
+- Fairgrounds, arenas, and civic centers host mostly non-show events (concerts, sports, rodeos, food service). A delivery there is trade-show freight ONLY with an added exhibitor signal (booth / hall / show name / known-venue match). Without one, do not flag.
+- The CUSTOMER usually gives it away. Produce/grocery/food-service, construction/building-materials, industrial or medical suppliers, and similar distributors are almost never trade-show exhibitors (e.g. "Charlie's Produce"). When the customer is clearly such a business, do not flag unless the address unmistakably names a show or booth.
+
+Never invent a venue. The "venue" field must be a facility actually named in the address or copied verbatim from the known-venue list; otherwise set it to null and treat it as no match.
+
+Confidence: high = known-venue-list match, a named major convention center, or an explicit booth/hall/show reference. medium = a plausible venue named in the address but unconfirmed. Anything resting only on a keyword, a fairgrounds with no exhibitor signal, or a clearly non-exhibitor customer is NOT a candidate.
+
+For each load return is_candidate, confidence, a one-sentence reason citing the SPECIFIC signal (or why it isn't a show), and the matched venue name (or null).`;
 
 export async function classifyTradeShowLoads(
   loads: LoadInput[],
