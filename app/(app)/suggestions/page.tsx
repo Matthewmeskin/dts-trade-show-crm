@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { matchVenue, type VenueLite } from "@/lib/venue-match";
@@ -19,7 +20,13 @@ const AW_RE = /\b(advance|marshall(?:ing)?|warehouse|whse)\b/i;
 const STREET_RE =
   /\d{2,6}\s+[A-Za-z0-9.\- ]*?(?:Rd|Road|St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Ln|Lane|Way|Pkwy|Parkway|Pl|Place|Ct|Court|Hwy|Highway|Cir|Circle|Ter|Terrace)\b/i;
 
-export default async function SuggestionsPage() {
+export default async function SuggestionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string }>;
+}) {
+  const { filter: filterParam } = await searchParams;
+  const filter = filterParam === "venue" || filterParam === "show" ? filterParam : "all";
   const supabase = await createClient();
   const [{ data: shipmentsData }, { data: venuesData }, { data: showsData }] = await Promise.all([
     supabase
@@ -169,12 +176,57 @@ export default async function SuggestionsPage() {
     venueId: sh.venue_id,
   }));
 
+  // Split the work into two jobs so the operator can focus on one at a time:
+  // clusters whose loads still need a VENUE, vs. clusters (venue already
+  // linked) whose date groups still need a SHOW.
+  const wantsVenue = (c: Cluster) => c.needsVenue > 0;
+  const wantsShow = (c: Cluster) => c.groups.some((gr) => gr.needsShow > 0);
+  const tabs = [
+    { key: "all", label: "All", count: clusters.length },
+    { key: "venue", label: "Needs venue", count: clusters.filter(wantsVenue).length },
+    { key: "show", label: "Needs show", count: clusters.filter(wantsShow).length },
+  ] as const;
+  const shown =
+    filter === "venue"
+      ? clusters.filter(wantsVenue)
+      : filter === "show"
+        ? clusters.filter(wantsShow)
+        : clusters;
+
   return (
     <div>
       <PageHeader
         title="Suggestions"
         description="Loads grouped by venue, then by show date. Assign a venue, then a show to each date group — search your records or the web."
       />
+
+      {clusters.length > 0 ? (
+        <div className="mb-4 flex flex-wrap items-center gap-1">
+          {tabs.map((t) => {
+            const active = filter === t.key;
+            const href = t.key === "all" ? "/suggestions" : `/suggestions?filter=${t.key}`;
+            return (
+              <Link
+                key={t.key}
+                href={href}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                  active ? "bg-dts-maroon text-white" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                {t.label}
+                <span
+                  className={`rounded-full px-1.5 text-xs ${
+                    active ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+                  }`}
+                >
+                  {t.count}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
+
       {clusters.length === 0 ? (
         <Card>
           <EmptyState
@@ -183,8 +235,20 @@ export default async function SuggestionsPage() {
             description="When new TMS shipments arrive that aren't linked to a venue or show, they'll be grouped here."
           />
         </Card>
+      ) : shown.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon="sparkles"
+            title={filter === "venue" ? "No venues to assign" : "No shows to assign"}
+            description={
+              filter === "venue"
+                ? "Every clustered load already has a venue. Switch to “Needs show” to assign shows."
+                : "Every clustered load already has a show. Switch to “Needs venue” to assign venues."
+            }
+          />
+        </Card>
       ) : (
-        <SuggestionList clusters={clusters} venues={venueOptions} shows={showOptions} />
+        <SuggestionList clusters={shown} venues={venueOptions} shows={showOptions} />
       )}
     </div>
   );
