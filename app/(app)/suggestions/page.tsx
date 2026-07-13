@@ -248,7 +248,7 @@ export default async function SuggestionsPage({
           />
         </Card>
       ) : (
-        <SuggestionList clusters={shown} venues={venueOptions} shows={showOptions} />
+        <SuggestionList clusters={shown} venues={venueOptions} shows={showOptions} filter={filter} />
       )}
     </div>
   );

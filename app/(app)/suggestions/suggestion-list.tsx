@@ -79,19 +79,23 @@ const CONF = {
   low: "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-500/20",
 };
 
+export type SuggestionFilter = "all" | "venue" | "show";
+
 export function SuggestionList({
   clusters,
   venues,
   shows,
+  filter = "all",
 }: {
   clusters: Cluster[];
   venues: VenueOption[];
   shows: ShowOption[];
+  filter?: SuggestionFilter;
 }) {
   return (
     <div className="space-y-4">
       {clusters.map((c, i) => (
-        <ClusterCard key={i} cluster={c} venues={venues} shows={shows} />
+        <ClusterCard key={i} cluster={c} venues={venues} shows={shows} filter={filter} />
       ))}
     </div>
   );
@@ -162,12 +166,18 @@ function ClusterCard({
   cluster,
   venues,
   shows,
+  filter,
 }: {
   cluster: Cluster;
   venues: VenueOption[];
   shows: ShowOption[];
+  filter: SuggestionFilter;
 }) {
   const router = useRouter();
+  // Each tab is a focused workspace: "Needs venue" hides the show date groups,
+  // "Needs show" hides the venue picker once the venue is already linked.
+  const showVenueSection = filter !== "show" || cluster.needsVenue > 0;
+  const showGroups = filter !== "venue";
   const place = [cluster.city, cluster.state].filter(Boolean).join(", ") || "Unknown location";
   const heading = cluster.addressLabel ?? place;
 
@@ -322,6 +332,7 @@ function ClusterCard({
       </div>
 
       {/* Venue assignment */}
+      {showVenueSection ? (
       <div className="mt-3 rounded-lg border border-slate-200 p-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Venue</span>
@@ -349,10 +360,12 @@ function ClusterCard({
           )}
         </div>
       </div>
+      ) : null}
 
       {error ? <p className="mt-3 rounded-lg bg-dts-maroon/5 px-3 py-2 text-xs text-dts-maroon">{error}</p> : null}
 
       {/* Show date groups */}
+      {showGroups ? (
       <div className="mt-3 space-y-2">
         {cluster.groups.map((g) => (
           <ShowGroupRow
@@ -365,6 +378,7 @@ function ClusterCard({
           />
         ))}
       </div>
+      ) : null}
 
       {/* Web-discovery modal */}
       {modal
