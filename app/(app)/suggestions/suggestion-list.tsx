@@ -304,8 +304,14 @@ function ClusterCard({
             <Icon name="check" className="h-3 w-3" /> {venueLabel}
           </span>
         ) : mv ? (
-          <span className="rounded-full bg-dts-blue/10 px-2 py-0.5 text-xs font-medium text-dts-blue">Matches {mv.name}</span>
-        ) : null}
+          <span className="inline-flex items-center gap-1 rounded-full bg-dts-blue/10 px-2 py-0.5 text-xs font-medium text-dts-blue">
+            <Icon name="sparkles" className="h-3 w-3" /> Suggested: {mv.name}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+            <Icon name="alert" className="h-3 w-3" /> No venue match — needs review
+          </span>
+        )}
       </div>
 
       <div className="mt-2 space-y-1 text-xs text-slate-500">
@@ -491,9 +497,21 @@ function ShowGroupRow({
           )}
           <span className="text-slate-400">· {group.count} load{group.count === 1 ? "" : "s"}</span>
         </button>
-        {group.matchedShow ? (
-          <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">Show: {group.matchedShow.name}</span>
-        ) : null}
+
+        {/* At-a-glance status so you don't have to expand every row. */}
+        {group.needsShow === 0 ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+            <Icon name="check" className="h-3 w-3" /> Linked{group.matchedShow ? `: ${group.matchedShow.name}` : ""}
+          </span>
+        ) : group.matchedShow ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
+            <Icon name="sparkles" className="h-3 w-3" /> Suggested: {group.matchedShow.name}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+            <Icon name="alert" className="h-3 w-3" /> Needs a show — review
+          </span>
+        )}
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {group.needsShow === 0 ? (
