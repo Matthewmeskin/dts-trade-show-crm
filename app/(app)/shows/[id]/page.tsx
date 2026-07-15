@@ -304,12 +304,12 @@ async function OverviewTab({ show, links, sales }: { show: ShowWithStatus; links
       : null;
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-      <div className="space-y-5 lg:col-span-2">
-        <Card>
-          <CardHeader title="Key dates" icon="calendar" />
-          <div className="grid grid-cols-1 gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
-            <DateCell label="Show start" value={show.show_start_date} />
+    <div className="space-y-5">
+      {/* Key dates — full width and dense so it isn't a tall sparse column. */}
+      <Card>
+        <CardHeader title="Key dates" icon="calendar" />
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-3 lg:grid-cols-4">
+          <DateCell label="Show start" value={show.show_start_date} />
             <DateCell label="Show end" value={show.show_end_date} />
             <DateCell label="Advance warehouse open" value={show.advance_warehouse_open} />
             <DateCell label="Advance warehouse cutoff" value={show.advance_warehouse_cutoff} />
@@ -328,6 +328,8 @@ async function OverviewTab({ show, links, sales }: { show: ShowWithStatus; links
           </div>
         </Card>
 
+        {/* Everything else — a balanced two-column masonry so both sides fill. */}
+        <div className="gap-5 [&>*]:mb-5 [&>*]:break-inside-avoid lg:columns-2">
         {(() => {
           const aw = composeFreightAddress({
             name: links?.advance_warehouse_name,
@@ -399,9 +401,7 @@ async function OverviewTab({ show, links, sales }: { show: ShowWithStatus; links
             </div>
           </Card>
         )}
-      </div>
 
-      <div className="space-y-5">
         <AssignedTeamCard
           showId={show.id ?? ""}
           users={allUsers.map((u) => ({
@@ -524,7 +524,7 @@ async function OverviewTab({ show, links, sales }: { show: ShowWithStatus; links
 
 function DateCell({ label, value }: { label: string; value: string | null }) {
   return (
-    <div className="bg-white px-4 py-3">
+    <div className="bg-white px-4 py-2.5">
       <div className="text-xs font-medium text-slate-400">{label}</div>
       <div className="mt-0.5 text-sm text-slate-800">{formatDate(value)}</div>
     </div>
@@ -540,7 +540,7 @@ function LinkDetailRow({ label, href }: { label: string; href: string | null }) 
     /* keep raw href if it doesn't parse */
   }
   return (
-    <div className="flex items-start justify-between gap-4 px-5 py-3">
+    <div className="flex items-start justify-between gap-4 px-5 py-2.5">
       <dt className="text-slate-400">{label}</dt>
       <dd className="min-w-0 text-right">
         <a
@@ -567,7 +567,7 @@ function AddressRow({ label, lines }: { label: string; lines: string[] }) {
   if (!lines.length) return null;
   const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lines.join(", "))}`;
   return (
-    <div className="flex items-start justify-between gap-4 px-5 py-3">
+    <div className="flex items-start justify-between gap-4 px-5 py-2.5">
       <dt className="shrink-0 text-slate-400">{label}</dt>
       <dd className="min-w-0 text-right">
         <a href={maps} target="_blank" rel="noopener noreferrer" className="text-dts-blue hover:underline">
@@ -588,7 +588,7 @@ function DetailRow({
   value: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 px-5 py-3">
+    <div className="flex items-start justify-between gap-4 px-5 py-2.5">
       <dt className="text-slate-400">{label}</dt>
       <dd className="text-right font-medium text-slate-800">
         {value ?? <span className="text-slate-300">—</span>}
