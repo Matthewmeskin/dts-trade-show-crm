@@ -170,6 +170,23 @@ export async function attachShipmentToVenue(fd: FormData) {
   revalidatePath(`/shipments/${shipment_id}`);
 }
 
+/** Assign (or change) the show for one load, right from the venue page. */
+export async function assignShowToShipment(fd: FormData) {
+  const venue_id = String(fd.get("venue_id") ?? "");
+  const shipment_id = String(fd.get("shipment_id") ?? "");
+  const show_id = String(fd.get("show_id") ?? "");
+  if (!shipment_id || !show_id) return;
+  const supabase = await createClient();
+  // Operator-assigned — mark sync-owned so the TMS sync won't override it.
+  await supabase
+    .from("shipments")
+    .update({ show_id, show_auto_linked: false })
+    .eq("id", shipment_id);
+  if (venue_id) revalidatePath(`/venues/${venue_id}`);
+  revalidatePath("/shipments");
+  revalidatePath(`/shipments/${shipment_id}`);
+}
+
 /** Unlink a shipment from this venue (keeps the shipment). */
 export async function detachShipmentFromVenue(fd: FormData) {
   const venue_id = String(fd.get("venue_id") ?? "");

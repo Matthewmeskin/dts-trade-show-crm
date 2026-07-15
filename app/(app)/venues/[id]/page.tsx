@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/icons";
-import { LinkRow } from "@/components/link-row";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { inputClass } from "@/components/form";
 import { SHOW_STATUS_META } from "@/lib/shows";
@@ -17,6 +16,7 @@ import {
   removeCarrierFromVenue,
   attachShipmentToVenue,
   detachShipmentFromVenue,
+  assignShowToShipment,
 } from "../actions";
 import { QuickEditVenue } from "./quick-edit";
 import { EnrichVenueButton } from "./enrich-button";
@@ -94,6 +94,44 @@ export default async function VenueRecordPage({
 
   const hasIntel = INTEL_FIELDS.some((f) => venue[f.key]);
   const location = [venue.city, venue.state].filter(Boolean).join(", ");
+
+  // Shows held at this venue — the options for assigning a load's show inline.
+  const showPicker = shows
+    .filter((s): s is typeof s & { id: string } => !!s.id)
+    .map((s) => ({ id: s.id, label: `${s.show_name}${s.edition_year ? ` ${s.edition_year}` : ""}` }));
+
+  // Inline "assign / change show" control for one load, reused across both lists.
+  const showAssign = (shipmentId: string, currentShowId: string | null) =>
+    showPicker.length > 0 ? (
+      <form action={assignShowToShipment} className="flex items-center gap-1.5">
+        <input type="hidden" name="venue_id" value={id} />
+        <input type="hidden" name="shipment_id" value={shipmentId} />
+        <select
+          name="show_id"
+          defaultValue={currentShowId ?? ""}
+          className={`${inputClass} h-8 w-44 py-1 text-xs`}
+        >
+          <option value="" disabled>
+            Assign show…
+          </option>
+          {showPicker.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="submit"
+          className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+        >
+          Save
+        </button>
+      </form>
+    ) : (
+      <Link href="/suggestions?filter=show" className="text-xs font-medium text-amber-800 hover:underline">
+        Assign in Suggestions →
+      </Link>
+    );
 
   return (
     <div>
@@ -202,9 +240,9 @@ export default async function VenueRecordPage({
                         {onShowShipments.map((s) => {
                           const meta = SHIPMENT_STATUS_META[s.status];
                           return (
-                            <LinkRow key={s.id} href={`/shipments/${s.id}`} className="group hover:bg-slate-50/60">
+                            <tr key={s.id} className="hover:bg-slate-50/60">
                               <td className="px-5 py-3">
-                                <Link href={`/shipments/${s.id}`} className="font-medium text-slate-900 group-hover:text-dts-maroon">
+                                <Link href={`/shipments/${s.id}`} className="font-medium text-slate-900 hover:text-dts-maroon">
                                   {s.exhibitor?.company_name ?? "Shipment"}
                                 </Link>
                               </td>
@@ -217,7 +255,7 @@ export default async function VenueRecordPage({
                                   {meta.label}
                                 </Badge>
                               </td>
-                              <td className="px-5 py-3 text-slate-600">{s.show?.show_name ?? "—"}</td>
+                              <td className="px-5 py-3">{showAssign(s.id, s.show_id)}</td>
                               <td className="px-5 py-3 text-slate-600">{formatDate(s.pickup_date)}</td>
                               <td className="px-5 py-3 text-right">
                                 <form action={detachShipmentFromVenue}>
@@ -228,7 +266,7 @@ export default async function VenueRecordPage({
                                   </button>
                                 </form>
                               </td>
-                            </LinkRow>
+                            </tr>
                           );
                         })}
                       </tbody>
@@ -265,14 +303,17 @@ export default async function VenueRecordPage({
                             {s.direction ? (
                               <span className="text-xs text-slate-500">{DIRECTION_META[s.direction].label}</span>
                             ) : null}
-                            <span className="ml-auto text-xs text-slate-500">{formatDate(s.pickup_date)}</span>
-                            <form action={detachShipmentFromVenue}>
-                              <input type="hidden" name="venue_id" value={id} />
-                              <input type="hidden" name="shipment_id" value={s.id} />
-                              <button type="submit" className="text-xs font-medium text-slate-400 hover:text-dts-maroon">
-                                Remove
-                              </button>
-                            </form>
+                            <div className="ml-auto flex items-center gap-2">
+                              {showAssign(s.id, null)}
+                              <span className="text-xs text-slate-500">{formatDate(s.pickup_date)}</span>
+                              <form action={detachShipmentFromVenue}>
+                                <input type="hidden" name="venue_id" value={id} />
+                                <input type="hidden" name="shipment_id" value={s.id} />
+                                <button type="submit" className="text-xs font-medium text-slate-400 hover:text-dts-maroon">
+                                  Remove
+                                </button>
+                              </form>
+                            </div>
                           </div>
                         );
                       })}
