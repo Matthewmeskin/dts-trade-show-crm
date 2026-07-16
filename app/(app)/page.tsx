@@ -19,7 +19,6 @@ import {
   formatShortDate,
   formatCountdown,
 } from "@/lib/format";
-import { AiSummaryCard } from "./ai-summary-card";
 
 export const dynamic = "force-dynamic";
 
@@ -66,12 +65,9 @@ export default async function DashboardPage({
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Featured show */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-3">
           <FeaturedShowCard data={data} />
         </div>
-
-        {/* AI summary (placeholder until Anthropic integration) */}
-        <AiSummaryCard showName={featured?.show_name ?? null} />
 
         {/* Shipment summary tiles */}
         <div className="lg:col-span-3">
@@ -168,10 +164,20 @@ function WeekCalendarCard({ days, basis }: { days: WeekDay[]; basis: WeekBasis }
                     label={
                       <ShipmentSidePanel
                         id={e.id}
-                        className="flex w-full items-center gap-1.5 truncate rounded px-1 py-0.5 text-left text-xs text-slate-700 hover:bg-slate-50"
+                        className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-xs text-slate-700 hover:bg-slate-50"
                       >
                         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${sm.dot}`} />
-                        <span className="truncate">{e.exhibitor ?? "Shipment"}</span>
+                        <span className="min-w-0 flex-1 truncate">{e.exhibitor ?? "Shipment"}</span>
+                        {e.direction === "move_out" ? (
+                          e.checkIn ? (
+                            <Icon name="check" className="h-3 w-3 shrink-0 text-emerald-600" aria-label={`Checked in: ${e.checkIn}`} />
+                          ) : (
+                            <span
+                              className="h-2 w-2 shrink-0 rounded-full border border-amber-400 bg-amber-50"
+                              title="Move-out — no check-in number yet"
+                            />
+                          )
+                        ) : null}
                       </ShipmentSidePanel>
                     }
                   >
