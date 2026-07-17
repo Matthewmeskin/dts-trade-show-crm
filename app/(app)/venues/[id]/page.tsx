@@ -142,7 +142,8 @@ export default async function VenueRecordPage({
         <span>/</span>
         <span className="text-slate-600">{venue.venue_name}</span>
       </div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+      {/* Sticky action bar — the buttons stay reachable while you scroll. */}
+      <div className="sticky top-0 z-20 -mx-4 mb-6 flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 bg-dts-bg px-4 py-3 sm:-mx-6 sm:px-6">
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">
             {venue.venue_name}
@@ -151,7 +152,7 @@ export default async function VenueRecordPage({
             {[venue.address, location].filter(Boolean).join(" · ") || "Location not set"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <EnrichVenueButton venueId={id} />
           <MergeButton kind="venue" targetId={id} targetLabel={venue.venue_name} candidates={venueCandidates} />
           <QuickEditVenue venue={venue} />
