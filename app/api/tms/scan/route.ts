@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { TablesInsert } from "@/lib/database.types";
 import { extractCustomerId, isRoadshow, loadMoney } from "@/lib/tms";
+import { isDts } from "@/lib/mha/dts-identity";
 import {
   classifyTradeShowLoads,
   type LoadInput,
@@ -78,7 +79,11 @@ function normalize(load: RawLoad): Normalized | null {
     mode: str(load.serviceType ?? load.shipmentMode ?? load.mode),
     pickup_location: str(pickStop?.fullAddress ?? pickStop?.addressLine ?? load.pickupLocation ?? load.pickup_location),
     delivery_location: str(dropStop?.fullAddress ?? dropStop?.addressLine ?? load.deliveryLocation ?? load.delivery_location),
-    carrier_name: str(primary?.carrierName ?? load.carrierName ?? load.carrier_name),
+    // Ignore DTS-as-carrier (our own brokerage placeholder for undispatched loads).
+    carrier_name: (() => {
+      const c = str(primary?.carrierName ?? load.carrierName ?? load.carrier_name);
+      return c && isDts(c) ? null : c;
+    })(),
     customer_name: str(load.customerName ?? load.customer_name ?? load.customerCompany),
     tms_customer_id: extractCustomerId(load) ?? null,
     po_ref: str(load.poReference ?? load.po_ref ?? load.poReferenceNo),

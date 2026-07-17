@@ -1,4 +1,5 @@
 import { Constants, type TablesInsert } from "@/lib/database.types";
+import { isDts } from "@/lib/mha/dts-identity";
 
 /**
  * TMS ingest mapping for Hyperion TMS (3pl.hyperiontms.com) tracking payloads.
@@ -419,11 +420,18 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   set("special_requirements", str(item.special_requirements));
   set("notes", str(item.notes));
 
+  // Hyperion lists DTS (our own brokerage) as the "carrier" on loads that
+  // aren't dispatched to an outside carrier yet. That's a placeholder, not a
+  // real hauler, so don't record it — leave the carrier blank until a real one
+  // is assigned.
+  const rawCarrier = str(
+    item.carrier_name ?? item.carrierName ?? primaryCarrier?.carrierName ?? primaryCarrier?.carrier_name,
+  );
+  const carrierName = rawCarrier && isDts(rawCarrier) ? undefined : rawCarrier;
+
   return {
     ref,
-    carrierName: str(
-      item.carrier_name ?? item.carrierName ?? primaryCarrier?.carrierName ?? primaryCarrier?.carrier_name,
-    ),
+    carrierName,
     customerName: str(item.customer_name ?? item.customerName ?? item.customerCompany),
     direction,
     fields,
