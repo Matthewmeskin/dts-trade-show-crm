@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { TablesInsert } from "@/lib/database.types";
-import { extractCustomerId, isRoadshow, loadMoney } from "@/lib/tms";
+import { cleanCarrierName, extractCustomerId, isRoadshow, loadMoney } from "@/lib/tms";
 import { isDts } from "@/lib/mha/dts-identity";
 import {
   classifyTradeShowLoads,
@@ -81,7 +81,7 @@ function normalize(load: RawLoad): Normalized | null {
     delivery_location: str(dropStop?.fullAddress ?? dropStop?.addressLine ?? load.deliveryLocation ?? load.delivery_location),
     // Ignore DTS-as-carrier (our own brokerage placeholder for undispatched loads).
     carrier_name: (() => {
-      const c = str(primary?.carrierName ?? load.carrierName ?? load.carrier_name);
+      const c = cleanCarrierName(primary?.carrierName ?? load.carrierName ?? load.carrier_name) ?? null;
       return c && isDts(c) ? null : c;
     })(),
     customer_name: str(load.customerName ?? load.customer_name ?? load.customerCompany),

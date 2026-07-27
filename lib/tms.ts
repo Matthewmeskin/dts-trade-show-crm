@@ -45,6 +45,25 @@ const str = (v: unknown) => {
   return s === "" ? undefined : s;
 };
 
+// Hyperion staples the carrier's factoring / remit-to company onto the carrier
+// name after a slash (e.g. "Superior Transportation Inc./Orange Commercial
+// Credit"). That trailing company just handles the carrier's payments — it isn't
+// the hauler — so drop it and keep the carrier. Guarded by a factoring-keyword
+// test on the tail so a legitimately slashed carrier name is left untouched.
+const FACTORING_HINT =
+  /(commercial credit|factoring|\bfactors?\b|capital|financial|\bfinance\b|funding|receivables|\bcredit\b)/i;
+export function cleanCarrierName(v: unknown): string | undefined {
+  const s = str(v);
+  if (!s) return undefined;
+  const slash = s.indexOf("/");
+  if (slash > 0) {
+    const head = s.slice(0, slash).trim();
+    const tail = s.slice(slash + 1).trim();
+    if (head && FACTORING_HINT.test(tail)) return head;
+  }
+  return s;
+}
+
 /** Normalize a date to YYYY-MM-DD. Accepts ISO or US "M/D/YYYY [time...]". */
 function dateStr(v: unknown): string | undefined {
   const s = str(v);
@@ -424,7 +443,7 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   // aren't dispatched to an outside carrier yet. That's a placeholder, not a
   // real hauler, so don't record it — leave the carrier blank until a real one
   // is assigned.
-  const rawCarrier = str(
+  const rawCarrier = cleanCarrierName(
     item.carrier_name ?? item.carrierName ?? primaryCarrier?.carrierName ?? primaryCarrier?.carrier_name,
   );
   const carrierName = rawCarrier && isDts(rawCarrier) ? undefined : rawCarrier;
