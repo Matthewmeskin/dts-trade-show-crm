@@ -14,6 +14,11 @@ import {
   StyleSheet,
   renderToBuffer,
 } from "@react-pdf/renderer";
+import { DTS_BILL_TO, type Party, type MoveOutShipment } from "./types";
+
+// Re-export so existing importers of these from MoveOutForm keep working.
+export { DTS_BILL_TO };
+export type { Party, MoveOutShipment };
 
 /* ----------------------------- Brand constants ---------------------------- */
 
@@ -25,64 +30,6 @@ const DTS = {
   grey: "#F4F4F4",
   midGrey: "#818181",
 };
-
-// Default bill-to. Overridable per carrier profile / per load.
-export const DTS_BILL_TO: Party = {
-  company: "Diversified Transportation Services",
-  address1: "19829 Hamilton Avenue",
-  city: "Torrance",
-  state: "CA",
-  zip: "90502",
-};
-
-/* --------------------------------- Types ---------------------------------- */
-
-export interface Party {
-  company: string;
-  address1: string;
-  address2?: string;
-  city: string;
-  state: string;
-  zip: string;
-  phone?: string;
-  attn?: string;
-  specialInstructions?: string;
-}
-
-export interface MoveOutShipment {
-  showName: string;
-  booth?: string;
-  exhibitorCompany: string;
-  contactName?: string;
-  contactPhone?: string;
-  contactEmail?: string;
-
-  // SHIP TO = the consignee on the load
-  shipTo: Party;
-
-  // BILL TO = defaults to DTS; can be overridden per carrier profile or load
-  billTo?: Party;
-
-  // Carrier (prints under "Other Carrier")
-  carrier: { name: string; phone?: string };
-
-  levelOfService?: "ground" | "1day" | "2day" | "deferred" | "specialized";
-
-  accessorials?: {
-    loadingDock?: boolean;
-    insideDelivery?: boolean;
-    liftgate?: boolean;
-    residential?: boolean;
-    padWrap?: boolean;
-    doNotStack?: boolean;
-    airRide?: boolean;
-  };
-
-  // Free-text lines (e.g. "Call before delivery") -> SPECIAL INSTRUCTIONS
-  extraInstructions?: string[];
-
-  numberOfLabels?: number;
-}
 
 /* -------------------------------- Styles ---------------------------------- */
 

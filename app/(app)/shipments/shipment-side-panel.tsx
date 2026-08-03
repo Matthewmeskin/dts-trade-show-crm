@@ -22,6 +22,7 @@ import { hyperionShipmentUrl } from "@/lib/tms";
 import { getShipmentDrawerData } from "./actions";
 import { QuickEditShipment } from "./[id]/quick-edit";
 import { ForcedControl } from "./[id]/forced-control";
+import { MoveOutEditor } from "./[id]/move-out-editor";
 import { CheckInCell } from "./check-in-cell";
 import { ShipmentDocuments } from "./shipment-documents";
 import { QuickEditShow } from "@/app/(app)/shows/[id]/quick-edit";
@@ -219,14 +220,17 @@ function PanelBody({
 
         <div className="mb-4 flex items-center justify-end gap-2">
           {dir === "move_out" ? (
-            <a
-              href={`/api/move-out/${s.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-            >
-              <Icon name="documents" className="h-4 w-4" /> Move-out form
-            </a>
+            <>
+              <a
+                href={`/api/move-out/${s.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                <Icon name="documents" className="h-4 w-4" /> Move-out form
+              </a>
+              <MoveOutEditor shipmentId={s.id} />
+            </>
           ) : null}
           <QuickEditShipment
             shipment={s}

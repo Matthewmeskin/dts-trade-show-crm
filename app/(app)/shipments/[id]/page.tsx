@@ -22,6 +22,8 @@ import { deleteShipment } from "../actions";
 import { QuickEditShipment } from "./quick-edit";
 import { ForcedControl } from "./forced-control";
 import { ShipmentActivity } from "./shipment-activity";
+import { MoveOutEditor } from "./move-out-editor";
+import { mapShipmentToMoveOut, type MoveOutJoined } from "@/lib/move-out/map-shipment";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +38,7 @@ export default async function ShipmentRecordPage({
   const { data: s } = await supabase
     .from("shipments")
     .select(
-      "*, exhibitor:exhibitors(id, company_name), show:shows(id, show_name, edition_year, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(id, carrier_name), venue:venues(id, venue_name), forced_by_profile:profiles!shipments_forced_by_fkey(full_name, email)",
+      "*, exhibitor:exhibitors(id, company_name, primary_contact_name, primary_contact_phone, primary_contact_email), show:shows(id, show_name, edition_year, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(id, carrier_name, bill_to_company, bill_to_address1, bill_to_address2, bill_to_city, bill_to_state, bill_to_zip, bill_to_phone), venue:venues(id, venue_name), forced_by_profile:profiles!shipments_forced_by_fkey(full_name, email)",
     )
     .eq("id", id)
     .single();
@@ -70,6 +72,10 @@ export default async function ShipmentRecordPage({
   const origin = [s.origin_street, s.origin_city, s.origin_state, s.origin_zip]
     .filter(Boolean)
     .join(", ");
+  const moveOutDefaults =
+    s.direction === "move_out"
+      ? mapShipmentToMoveOut(s as unknown as Record<string, unknown> & MoveOutJoined)
+      : null;
 
   return (
     <div>
@@ -104,14 +110,19 @@ export default async function ShipmentRecordPage({
         </div>
         <div className="flex items-center gap-2">
           {s.direction === "move_out" ? (
-            <a
-              href={`/api/move-out/${s.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-            >
-              <Icon name="documents" className="h-4 w-4" /> Move-out form
-            </a>
+            <>
+              <a
+                href={`/api/move-out/${s.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                <Icon name="documents" className="h-4 w-4" /> Move-out form
+              </a>
+              {moveOutDefaults ? (
+                <MoveOutEditor shipmentId={s.id} initial={moveOutDefaults} />
+              ) : null}
+            </>
           ) : null}
           <QuickEditShipment shipment={s} shows={showOptions} exhibitors={exhibitorOptions} />
           <ConfirmDelete
