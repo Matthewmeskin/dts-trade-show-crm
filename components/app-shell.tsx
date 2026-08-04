@@ -7,6 +7,7 @@ import { CommandPalette } from "@/components/command-palette";
 import { FlashToast } from "@/components/toast";
 import { Icon } from "@/components/icons";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { IdleTimeoutMonitor } from "@/components/idle-timeout";
 
 const COLLAPSE_KEY = "dts:sidebarCollapsed";
 
@@ -121,6 +122,7 @@ export function AppShell({
       </div>
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <IdleTimeoutMonitor />
       <Suspense fallback={null}>
         <FlashToast />
       </Suspense>

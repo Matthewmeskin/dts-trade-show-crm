@@ -22,7 +22,9 @@ function SubmitButton() {
 
 export function LoginForm() {
   const [state, formAction] = useActionState(signIn, initialState);
-  const redirect = useSearchParams().get("redirect") ?? "/";
+  const params = useSearchParams();
+  const redirect = params.get("redirect") ?? "/";
+  const timedOut = params.get("reason") === "timeout";
 
   return (
     <form
@@ -30,6 +32,12 @@ export function LoginForm() {
       className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
     >
       <input type="hidden" name="redirect" value={redirect} />
+
+      {timedOut ? (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          You were signed out due to inactivity. Please sign in again.
+        </p>
+      ) : null}
 
       <div className="space-y-1.5">
         <label
