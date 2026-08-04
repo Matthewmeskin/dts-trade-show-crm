@@ -24,7 +24,13 @@ export function LoginForm() {
   const [state, formAction] = useActionState(signIn, initialState);
   const params = useSearchParams();
   const redirect = params.get("redirect") ?? "/";
-  const timedOut = params.get("reason") === "timeout";
+  const reason = params.get("reason");
+  const notice =
+    reason === "timeout"
+      ? "You were signed out due to inactivity. Please sign in again."
+      : reason === "expired"
+        ? "Your session reached its time limit. Please sign in again."
+        : null;
 
   return (
     <form
@@ -33,9 +39,9 @@ export function LoginForm() {
     >
       <input type="hidden" name="redirect" value={redirect} />
 
-      {timedOut ? (
+      {notice ? (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          You were signed out due to inactivity. Please sign in again.
+          {notice}
         </p>
       ) : null}
 

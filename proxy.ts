@@ -1,6 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { LAST_ACTIVITY_COOKIE, isIdleExpired } from "@/lib/auth/session-timeout";
+import {
+  ABSOLUTE_SESSION_MS,
+  LAST_ACTIVITY_COOKIE,
+  SESSION_START_COOKIE,
+  SESSION_EXP_COOKIE,
+  isIdleExpired,
+  isSessionExpired,
+} from "@/lib/auth/session-timeout";
 
 /**
  * Paths an unauthenticated visitor may reach. API routes are public to the
@@ -58,57 +65,93 @@ export async function proxy(request: NextRequest) {
     return res;
   };
 
+  const secure = process.env.NODE_ENV === "production";
+
   // Refresh the server-authoritative idle timer on `response`, stamping now.
   const stampActivity = (response: NextResponse, now: number) => {
     response.cookies.set(LAST_ACTIVITY_COOKIE, String(now), {
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure,
       path: "/",
     });
+  };
+
+  // Revoke the session and bounce to /login with a reason. Fail-closed: even if
+  // the network revoke throws, we expire every auth cookie directly so a
+  // transient failure can't leave the session alive. signOut() also clears the
+  // sb-* cookies via setAll into supabaseResponse, which redirectTo copies over.
+  const expireSession = async (reason: string) => {
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Fall through — the explicit cookie clears below still end the session.
+    }
+    const res = redirectTo("/login", `reason=${reason}`);
+    for (const name of [
+      LAST_ACTIVITY_COOKIE,
+      SESSION_START_COOKIE,
+      SESSION_EXP_COOKIE,
+    ]) {
+      res.cookies.set(name, "", { path: "/", maxAge: 0 });
+    }
+    for (const { name } of request.cookies.getAll()) {
+      if (name.startsWith("sb-")) res.cookies.set(name, "", { path: "/", maxAge: 0 });
+    }
+    return res;
   };
 
   // Unauthenticated visitors are sent to /login (except on public routes).
   if (!user && !isPublic) return redirectTo("/login");
 
-  // Idle-session enforcement. Supabase refresh tokens renew forever, so a stale
-  // `dts-last-activity` cookie is our only signal that a signed-in session has
-  // gone idle. Runs before every other authenticated branch so an expired
-  // session can never slip through to an app page.
+  // Session enforcement. Supabase refresh tokens renew forever, so our cookies
+  // are the only signal that a signed-in session should end. Runs before every
+  // other authenticated branch so an expired session can never reach an app
+  // page.
   if (user) {
     const now = Date.now();
-    const raw = request.cookies.get(LAST_ACTIVITY_COOKIE)?.value;
-    const last = raw ? Number(raw) : NaN;
 
+    // Absolute lifetime — a hard ceiling regardless of activity.
+    const startRaw = request.cookies.get(SESSION_START_COOKIE)?.value;
+    const start = startRaw ? Number(startRaw) : NaN;
+    if (Number.isFinite(start) && isSessionExpired(start, now)) {
+      return await expireSession("expired");
+    }
+
+    // Idle timeout — stale since the last seen activity.
+    const lastRaw = request.cookies.get(LAST_ACTIVITY_COOKIE)?.value;
+    const last = lastRaw ? Number(lastRaw) : NaN;
     if (Number.isFinite(last) && isIdleExpired(last, now)) {
-      // Idle past the window: revoke the session and bounce to login. signOut()
-      // clears the sb-* auth cookies via setAll into supabaseResponse, which
-      // redirectTo copies onto the redirect. Guard the network revoke so a
-      // transient failure can't leave the session alive.
-      try {
-        await supabase.auth.signOut();
-      } catch {
-        // Fall through — we still expire the cookies below.
-      }
-      const res = redirectTo("/login", "reason=timeout");
-      // Belt-and-suspenders: expire the activity cookie and every sb-* auth
-      // cookie directly, in case signOut() didn't reach the auth server.
-      res.cookies.set(LAST_ACTIVITY_COOKIE, "", { path: "/", maxAge: 0 });
-      for (const { name } of request.cookies.getAll()) {
-        if (name.startsWith("sb-")) res.cookies.set(name, "", { path: "/", maxAge: 0 });
-      }
-      return res;
+      return await expireSession("timeout");
     }
 
-    // Signed-in users hitting /login are sent to the dashboard.
-    if (pathname === "/login") {
-      const res = redirectTo("/");
-      stampActivity(res, now);
-      return res;
+    // Signed-in users hitting /login are sent to the dashboard; otherwise the
+    // request passes through. Either way we stamp the timers onto that response.
+    const res = pathname === "/login" ? redirectTo("/") : supabaseResponse;
+
+    // Reset the idle timer on every live request.
+    stampActivity(res, now);
+
+    // Establish the session-start / expiry stamps once, on the first
+    // authenticated request after login; never refreshed afterwards so the
+    // ceiling is fixed to when the session actually began.
+    if (!Number.isFinite(start)) {
+      res.cookies.set(SESSION_START_COOKIE, String(now), {
+        httpOnly: true,
+        sameSite: "lax",
+        secure,
+        path: "/",
+      });
+      // Readable by the client so it can sign an active user out at the cap.
+      res.cookies.set(SESSION_EXP_COOKIE, String(now + ABSOLUTE_SESSION_MS), {
+        httpOnly: false,
+        sameSite: "lax",
+        secure,
+        path: "/",
+      });
     }
 
-    // Live request — reset the idle timer.
-    stampActivity(supabaseResponse, now);
+    if (pathname === "/login") return res;
   }
 
   return supabaseResponse;

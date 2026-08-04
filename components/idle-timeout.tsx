@@ -8,6 +8,7 @@ import {
   HEARTBEAT_THROTTLE_MS,
   LAST_ACTIVITY_STORAGE_KEY,
   LOGOUT_BROADCAST_KEY,
+  SESSION_EXP_COOKIE,
 } from "@/lib/auth/session-timeout";
 
 /** Passive events that count as the user still being present. */
@@ -37,6 +38,8 @@ export function IdleTimeoutMonitor() {
   const lastActivityRef = useRef(0);
   const lastHeartbeatRef = useRef(0);
   const loggingOutRef = useRef(false);
+  // Absolute hard-cap deadline (epoch ms), read from the server-set cookie.
+  const sessionExpRef = useRef(0);
 
   const sendHeartbeat = useCallback((now: number) => {
     lastHeartbeatRef.current = now;
@@ -49,18 +52,19 @@ export function IdleTimeoutMonitor() {
     });
   }, []);
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (reason: "timeout" | "expired") => {
     if (loggingOutRef.current) return;
     loggingOutRef.current = true;
     try {
-      // Broadcast so sibling tabs redirect too, then clear the local session.
-      window.localStorage.setItem(LOGOUT_BROADCAST_KEY, String(Date.now()));
+      // Broadcast (reason:timestamp) so sibling tabs redirect too, then clear
+      // the local session.
+      window.localStorage.setItem(LOGOUT_BROADCAST_KEY, `${reason}:${Date.now()}`);
       await createClient().auth.signOut();
     } catch {
       // Even if signOut fails, force a full navigation — the proxy will see the
-      // stale activity cookie and finish clearing the session.
+      // stale/expired cookies and finish clearing the session.
     }
-    window.location.assign("/login?reason=timeout");
+    window.location.assign(`/login?reason=${reason}`);
   }, []);
 
   const registerActivity = useCallback(
@@ -83,6 +87,13 @@ export function IdleTimeoutMonitor() {
     const now = Date.now();
     lastActivityRef.current = now;
     lastHeartbeatRef.current = now;
+
+    // Read the absolute-expiry deadline the proxy set (readable cookie).
+    const match = document.cookie.match(
+      new RegExp(`(?:^|; )${SESSION_EXP_COOKIE}=([^;]+)`),
+    );
+    const exp = match ? Number(decodeURIComponent(match[1])) : NaN;
+    if (Number.isFinite(exp)) sessionExpRef.current = exp;
   }, []);
 
   // Activity listeners (throttled so mousemove doesn't thrash).
@@ -112,7 +123,8 @@ export function IdleTimeoutMonitor() {
     const onStorage = (e: StorageEvent) => {
       if (e.key === LOGOUT_BROADCAST_KEY && e.newValue) {
         loggingOutRef.current = true;
-        window.location.assign("/login?reason=timeout");
+        const reason = e.newValue.split(":")[0] === "expired" ? "expired" : "timeout";
+        window.location.assign(`/login?reason=${reason}`);
         return;
       }
       if (e.key === LAST_ACTIVITY_STORAGE_KEY && e.newValue) {
@@ -130,11 +142,17 @@ export function IdleTimeoutMonitor() {
   useEffect(() => {
     const tick = () => {
       if (!lastActivityRef.current) return; // not primed yet
-      const elapsed = Date.now() - lastActivityRef.current;
-      const remaining = IDLE_TIMEOUT_MS - elapsed;
+      const now = Date.now();
 
+      // Absolute hard cap — fires regardless of activity, cannot be extended.
+      if (sessionExpRef.current && now >= sessionExpRef.current) {
+        void logout("expired");
+        return;
+      }
+
+      const remaining = IDLE_TIMEOUT_MS - (now - lastActivityRef.current);
       if (remaining <= 0) {
-        void logout();
+        void logout("timeout");
         return;
       }
       if (remaining <= IDLE_WARNING_MS) {
@@ -189,7 +207,7 @@ export function IdleTimeoutMonitor() {
           </button>
           <button
             type="button"
-            onClick={() => void logout()}
+            onClick={() => void logout("timeout")}
             className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
             Sign out
