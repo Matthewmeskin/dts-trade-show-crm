@@ -16,6 +16,24 @@ function yearRange(a: number | null, b: number | null) {
   return String(a ?? b);
 }
 
+/**
+ * Whether a customer is confirmed to exhibit at THIS show in 2026.
+ *
+ * `confirmed_2026` is the customer's whole list of 2026-confirmed shows (the
+ * same text on every one of their history rows), e.g. "FABTECH 2026, IMTS 2026".
+ * So a per-show answer means checking whether this show appears in that list.
+ * Names differ between the legacy history ("FABTECH") and the 2026 list
+ * ("FABTECH 2026", sometimes smushed like "PACKEXPOINTERNATIONAL2026"), so we
+ * compare on alphanumerics only. Best-effort: it can miss a match when the two
+ * naming styles diverge, but it won't claim a return that isn't in the list.
+ */
+const alnum = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+function returningTo(showName: string, confirmed: string | null): boolean {
+  if (!confirmed) return false;
+  const key = alnum(showName);
+  return key.length >= 3 && alnum(confirmed).includes(key);
+}
+
 export default async function ShowHistoryPage({
   searchParams,
 }: {
@@ -37,7 +55,7 @@ export default async function ShowHistoryPage({
     const list = rows ?? [];
     const totalLoads = list.reduce((s, r) => s + (r.show_loads ?? 0), 0);
     const totalMargin = list.reduce((s, r) => s + (r.margin ?? 0), 0);
-    const confirmed = list.filter((r) => r.confirmed_2026).length;
+    const returning = list.filter((r) => returningTo(show, r.confirmed_2026)).length;
 
     return (
       <div>
@@ -50,7 +68,7 @@ export default async function ShowHistoryPage({
         </div>
         <PageHeader
           title={show}
-          description={`${list.length} exhibitor${list.length === 1 ? "" : "s"} shipped here · ${totalLoads} loads · ${formatCurrency(totalMargin)} margin · ${confirmed} confirmed for 2026`}
+          description={`${list.length} exhibitor${list.length === 1 ? "" : "s"} shipped here · ${totalLoads} loads · ${formatCurrency(totalMargin)} margin · ${returning} confirmed to return in 2026`}
         />
 
         <Card>
@@ -68,7 +86,9 @@ export default async function ShowHistoryPage({
                     <th className="px-5 py-3 text-right">Loads</th>
                     <th className="px-5 py-3">Years</th>
                     <th className="px-5 py-3 text-right">Margin</th>
-                    <th className="px-5 py-3">2026?</th>
+                    <th className="px-5 py-3" title="Confirmed to exhibit at this show in 2026 (from the customer's 2026 confirmations)">
+                      Back in 2026?
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -108,9 +128,16 @@ export default async function ShowHistoryPage({
                         <td className="px-5 py-3 text-right tabular-nums text-slate-700">
                           {r.margin != null ? formatCurrency(r.margin) : "—"}
                         </td>
-                        <td className="px-5 py-3 text-xs">
-                          {r.confirmed_2026 ? (
-                            <span className="text-emerald-600">✓</span>
+                        <td
+                          className="px-5 py-3 text-xs"
+                          title={r.confirmed_2026 ? `2026 confirmed: ${r.confirmed_2026}` : undefined}
+                        >
+                          {returningTo(show, r.confirmed_2026) ? (
+                            <span className="font-medium text-emerald-600">✓ Yes</span>
+                          ) : r.confirmed_2026 ? (
+                            <span className="text-slate-400" title={`Not this show. 2026 confirmed: ${r.confirmed_2026}`}>
+                              other shows
+                            </span>
                           ) : (
                             <span className="text-slate-300">—</span>
                           )}
@@ -193,7 +220,9 @@ export default async function ShowHistoryPage({
                   <th className="px-5 py-3 text-right">Exhibitors</th>
                   <th className="px-5 py-3 text-right">Loads</th>
                   <th className="px-5 py-3 text-right">Margin</th>
-                  <th className="px-5 py-3 text-right">2026 confirmed</th>
+                  <th className="px-5 py-3 text-right" title="Past exhibitors confirmed to return to this show in 2026">
+                    Returning 2026
+                  </th>
                   <th className="px-5 py-3">Years</th>
                 </tr>
               </thead>
