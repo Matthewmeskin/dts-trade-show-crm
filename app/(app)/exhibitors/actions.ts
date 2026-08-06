@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { PRIORITY_TIER_OPTIONS } from "@/lib/exhibitors";
 import type { Json, TablesInsert } from "@/lib/database.types";
 
 export type ExhibitorFormState = {
@@ -41,10 +42,21 @@ function parseExhibitor(fd: FormData): {
   const company_name = str(fd, "company_name");
   if (!company_name) return { fieldErrors: { company_name: "Company name is required." } };
 
+  const sales_status = str(fd, "sales_status");
+  const priority_tier = str(fd, "priority_tier");
+
   return {
     data: {
       company_name,
       industry: str(fd, "industry"),
+      website: str(fd, "website"),
+      owner_rep: str(fd, "owner_rep"),
+      sales_status,
+      priority_tier,
+      // Keep the human-readable tier label in sync when set from the form.
+      priority_tier_label: priority_tier
+        ? PRIORITY_TIER_OPTIONS.find((o) => o.value === priority_tier)?.label ?? priority_tier
+        : null,
       primary_contact_name: str(fd, "primary_contact_name"),
       primary_contact_title: str(fd, "primary_contact_title"),
       primary_contact_email: str(fd, "primary_contact_email"),

@@ -6,6 +6,7 @@ import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { SHOW_STATUS_META } from "@/lib/shows";
 import { SHIPMENT_STATUS_META } from "@/lib/shipments";
+import { salesStatusMeta, priorityTierMeta } from "@/lib/exhibitors";
 import { formatDate, formatDateRange, formatCurrency } from "@/lib/format";
 import { deleteExhibitor } from "../actions";
 import { QuickEditExhibitor } from "./quick-edit";
@@ -49,7 +50,7 @@ export default async function ExhibitorRecordPage({
   if (from) shipQuery = shipQuery.gte("pickup_date", from);
   if (to) shipQuery = shipQuery.lte("pickup_date", to);
 
-  const [showsRes, shipRes] = await Promise.all([
+  const [showsRes, shipRes, historyRes] = await Promise.all([
     showIds.length
       ? supabase
           .from("shows_with_status")
@@ -58,10 +59,18 @@ export default async function ExhibitorRecordPage({
           .order("move_in_start", { ascending: true, nullsFirst: false })
       : Promise.resolve({ data: [] as never[] }),
     shipQuery.order("pickup_date", { ascending: true, nullsFirst: false }),
+    supabase
+      .from("exhibitor_show_history")
+      .select("show_name, show_loads, first_year, last_year, billed, margin, confirmed_2026")
+      .eq("exhibitor_id", id)
+      .order("margin", { ascending: false, nullsFirst: false }),
   ]);
 
   const shows = showsRes.data ?? [];
   const shipments = shipRes.data ?? [];
+  const history = historyRes.data ?? [];
+  const statusMeta = salesStatusMeta(e.sales_status);
+  const tierMeta = priorityTierMeta(e.priority_tier);
   const marginTotal = shipments.reduce((sum, s) => sum + (s.margin ?? 0), 0);
   const hasMargin = shipments.some((s) => s.margin != null);
   const secondary = (Array.isArray(e.secondary_contacts)
@@ -79,12 +88,36 @@ export default async function ExhibitorRecordPage({
       </div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">
-            {e.company_name}
-          </h1>
-          {e.industry ? (
-            <p className="mt-1 text-sm text-slate-500">{e.industry}</p>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">
+              {e.company_name}
+            </h1>
+            {statusMeta ? (
+              <Badge className={statusMeta.badge}>
+                <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dot}`} />
+                {statusMeta.label}
+              </Badge>
+            ) : null}
+            {tierMeta ? (
+              <Badge className={tierMeta.badge}>Tier {tierMeta.label}</Badge>
+            ) : null}
+          </div>
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500">
+            {e.industry ? <span>{e.industry}</span> : null}
+            {e.industry && (e.owner_rep || e.website) ? <span className="text-slate-300">·</span> : null}
+            {e.owner_rep ? <span>Rep: {e.owner_rep}</span> : null}
+            {e.owner_rep && e.website ? <span className="text-slate-300">·</span> : null}
+            {e.website ? (
+              <a
+                href={e.website.startsWith("http") ? e.website : `https://${e.website}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-dts-maroon hover:underline"
+              >
+                Website
+              </a>
+            ) : null}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <QuickEditExhibitor exhibitor={e} />
@@ -201,6 +234,64 @@ export default async function ExhibitorRecordPage({
             )}
           </Card>
 
+          {/* Legacy per-show history */}
+          {history.length > 0 ? (
+            <Card>
+              <CardHeader
+                title={`Show history — legacy (${history.length})`}
+                icon="shows"
+              />
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
+                      <th className="px-5 py-3">Show</th>
+                      <th className="px-5 py-3 text-right">Loads</th>
+                      <th className="px-5 py-3">Years</th>
+                      <th className="px-5 py-3 text-right">Billed</th>
+                      <th className="px-5 py-3 text-right">Margin</th>
+                      <th className="px-5 py-3">2026?</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {history.map((h, i) => (
+                      <tr key={i}>
+                        <td className="px-5 py-3 font-medium text-slate-800">{h.show_name}</td>
+                        <td className="px-5 py-3 text-right tabular-nums text-slate-600">
+                          {h.show_loads ?? "—"}
+                        </td>
+                        <td className="px-5 py-3 text-slate-500">
+                          {h.first_year && h.last_year
+                            ? h.first_year === h.last_year
+                              ? h.first_year
+                              : `${h.first_year}–${h.last_year}`
+                            : "—"}
+                        </td>
+                        <td className="px-5 py-3 text-right tabular-nums text-slate-600">
+                          {h.billed != null ? formatCurrency(h.billed) : "—"}
+                        </td>
+                        <td className="px-5 py-3 text-right tabular-nums text-slate-700">
+                          {h.margin != null ? formatCurrency(h.margin) : "—"}
+                        </td>
+                        <td className="px-5 py-3 text-xs text-slate-500">
+                          {h.confirmed_2026 ? (
+                            <span className="text-emerald-600">✓</span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="px-5 py-2.5 text-xs text-slate-400">
+                Imported from the legacy trade-show master. Show names are as recorded
+                and are not linked to show records.
+              </p>
+            </Card>
+          ) : null}
+
           {/* Notes */}
           {(e.freight_profile_notes || e.general_notes) && (
             <Card>
@@ -228,6 +319,76 @@ export default async function ExhibitorRecordPage({
         </div>
 
         <div className="space-y-5">
+          {/* Book of business (legacy roll-ups) */}
+          {e.legacy_loads != null ||
+          e.ttm_loads != null ||
+          e.legacy_margin != null ||
+          e.shows_confirmed_2026 ||
+          e.top_show_cities ? (
+            <Card>
+              <CardHeader title="Book of business" icon="reports" />
+              <div className="p-5 text-sm">
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  {e.ttm_loads != null ? (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-slate-400">TTM loads</dt>
+                      <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{e.ttm_loads}</dd>
+                    </div>
+                  ) : null}
+                  {e.ttm_margin != null ? (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-slate-400">TTM margin</dt>
+                      <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{formatCurrency(e.ttm_margin)}</dd>
+                    </div>
+                  ) : null}
+                  {e.legacy_loads != null ? (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-slate-400">Lifetime loads</dt>
+                      <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">
+                        {e.legacy_loads}
+                        {e.legacy_first_year && e.legacy_last_year ? (
+                          <span className="ml-1 text-xs font-normal text-slate-400">
+                            {e.legacy_first_year}–{e.legacy_last_year}
+                          </span>
+                        ) : null}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {e.legacy_margin != null ? (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-slate-400">Lifetime margin</dt>
+                      <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{formatCurrency(e.legacy_margin)}</dd>
+                    </div>
+                  ) : null}
+                  {e.legacy_billed != null ? (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-slate-400">Lifetime billed</dt>
+                      <dd className="mt-0.5 tabular-nums text-slate-700">{formatCurrency(e.legacy_billed)}</dd>
+                    </div>
+                  ) : null}
+                  {e.last_pickup ? (
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-slate-400">Last pickup</dt>
+                      <dd className="mt-0.5 text-slate-700">{formatDate(e.last_pickup)}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+                {e.shows_confirmed_2026 ? (
+                  <div className="mt-4 border-t border-slate-100 pt-3">
+                    <dt className="text-xs uppercase tracking-wide text-slate-400">2026 shows confirmed</dt>
+                    <dd className="mt-1 text-slate-700">{e.shows_confirmed_2026}</dd>
+                  </div>
+                ) : null}
+                {e.top_show_cities ? (
+                  <div className="mt-3">
+                    <dt className="text-xs uppercase tracking-wide text-slate-400">Top show cities</dt>
+                    <dd className="mt-1 text-slate-700">{e.top_show_cities}</dd>
+                  </div>
+                ) : null}
+              </div>
+            </Card>
+          ) : null}
+
           {/* Contacts */}
           <Card>
             <CardHeader title="Contacts" icon="contacts" />

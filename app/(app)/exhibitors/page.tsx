@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { LinkRow } from "@/components/link-row";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader, Card, EmptyState } from "@/components/ui";
+import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { DateRangeFields } from "@/components/date-range-fields";
 import { Pagination } from "@/components/pagination";
+import {
+  SALES_STATUS_OPTIONS,
+  PRIORITY_TIER_OPTIONS,
+  salesStatusMeta,
+  priorityTierMeta,
+} from "@/lib/exhibitors";
 
 export const dynamic = "force-dynamic";
 
@@ -13,14 +19,25 @@ const PAGE_SIZE = 50;
 export default async function ExhibitorsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; industry?: string; from?: string; to?: string; page?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    industry?: string;
+    status?: string;
+    tier?: string;
+    from?: string;
+    to?: string;
+    page?: string;
+  }>;
 }) {
-  const { q = "", industry = "", from = "", to = "", page: pageParam } = await searchParams;
+  const { q = "", industry = "", status = "", tier = "", from = "", to = "", page: pageParam } =
+    await searchParams;
   const supabase = await createClient();
 
   let query = supabase.from("exhibitors").select("*").order("company_name");
   if (q.trim()) query = query.ilike("company_name", `%${q.trim()}%`);
   if (industry.trim()) query = query.eq("industry", industry);
+  if (status.trim()) query = query.eq("sales_status", status);
+  if (tier.trim()) query = query.eq("priority_tier", tier);
 
   // When a date range is set, count only loads that pick up in the window, and
   // narrow the directory to exhibitors that have such loads.
@@ -66,11 +83,14 @@ export default async function ExhibitorsPage({
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (industry) params.set("industry", industry);
+    if (status) params.set("status", status);
+    if (tier) params.set("tier", tier);
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     if (p > 1) params.set("page", String(p));
     return `/exhibitors${params.toString() ? `?${params}` : ""}`;
   };
+  const anyFilter = !!(q || industry || status || tier || from || to);
 
   return (
     <div>
@@ -89,6 +109,30 @@ export default async function ExhibitorsPage({
 
       <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
         <form className="flex items-center gap-2">
+          <select
+            name="status"
+            defaultValue={status}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon"
+          >
+            <option value="">All statuses</option>
+            {SALES_STATUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {salesStatusMeta(o.value)?.label ?? o.value}
+              </option>
+            ))}
+          </select>
+          <select
+            name="tier"
+            defaultValue={tier}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon"
+          >
+            <option value="">All tiers</option>
+            {PRIORITY_TIER_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                Tier {o.value}
+              </option>
+            ))}
+          </select>
           <select
             name="industry"
             defaultValue={industry}
@@ -116,7 +160,7 @@ export default async function ExhibitorsPage({
           </button>
           {from || to ? (
             <Link
-              href={`/exhibitors${(() => { const p = new URLSearchParams(); if (industry) p.set("industry", industry); if (q) p.set("q", q); return p.toString() ? `?${p}` : ""; })()}`}
+              href={`/exhibitors${(() => { const p = new URLSearchParams(); if (industry) p.set("industry", industry); if (status) p.set("status", status); if (tier) p.set("tier", tier); if (q) p.set("q", q); return p.toString() ? `?${p}` : ""; })()}`}
               className="text-sm font-medium text-slate-400 hover:text-slate-700"
             >
               Clear dates
@@ -129,9 +173,9 @@ export default async function ExhibitorsPage({
         {rows.length === 0 ? (
           <EmptyState
             icon="exhibitors"
-            title={q || industry || from || to ? "No exhibitors match" : "No exhibitors yet"}
+            title={anyFilter ? "No exhibitors match" : "No exhibitors yet"}
             description={
-              q || industry || from || to
+              anyFilter
                 ? "Try a different search, filter, or date range."
                 : "Add your first exhibitor to the directory."
             }
@@ -142,46 +186,69 @@ export default async function ExhibitorsPage({
               <thead>
                 <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
                   <th className="px-5 py-3">Company</th>
-                  <th className="px-5 py-3">Industry</th>
-                  <th className="px-5 py-3">Primary contact</th>
-                  <th className="px-5 py-3">Loads</th>
-                  <th className="px-5 py-3">Shows</th>
+                  <th className="px-5 py-3">Owner / rep</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Tier</th>
+                  <th className="px-5 py-3 text-right">Loads</th>
+                  <th className="px-5 py-3 text-right">Shows</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {pagedRows.map((e) => (
-                  <LinkRow key={e.id} href={`/exhibitors/${e.id}`} className="group hover:bg-slate-50/60">
-                    <td className="px-5 py-3">
-                      <Link
-                        href={`/exhibitors/${e.id}`}
-                        className="font-medium text-slate-900 group-hover:text-dts-maroon"
-                      >
-                        {e.company_name}
-                      </Link>
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {e.industry ?? <span className="text-slate-300">—</span>}
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {e.primary_contact_name ? (
-                        <>
-                          {e.primary_contact_name}
-                          {e.primary_contact_title ? (
-                            <span className="text-slate-400"> · {e.primary_contact_title}</span>
-                          ) : null}
-                        </>
-                      ) : (
-                        <span className="text-slate-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {loadCount.get(e.id) ?? 0}
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {showSets.get(e.id)?.size ?? 0}
-                    </td>
-                  </LinkRow>
-                ))}
+                {pagedRows.map((e) => {
+                  const sm = salesStatusMeta(e.sales_status);
+                  const tm = priorityTierMeta(e.priority_tier);
+                  const liveLoads = loadCount.get(e.id) ?? 0;
+                  return (
+                    <LinkRow key={e.id} href={`/exhibitors/${e.id}`} className="group hover:bg-slate-50/60">
+                      <td className="px-5 py-3">
+                        <Link
+                          href={`/exhibitors/${e.id}`}
+                          className="font-medium text-slate-900 group-hover:text-dts-maroon"
+                        >
+                          {e.company_name}
+                        </Link>
+                        {e.industry ? (
+                          <div className="text-xs text-slate-400">{e.industry}</div>
+                        ) : null}
+                      </td>
+                      <td className="px-5 py-3 text-slate-600">
+                        {e.owner_rep ?? <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-5 py-3">
+                        {sm ? (
+                          <Badge className={sm.badge}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${sm.dot}`} />
+                            {sm.label}
+                          </Badge>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3">
+                        {tm ? (
+                          <Badge className={tm.badge}>{tm.label}</Badge>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-right tabular-nums text-slate-600">
+                        {liveLoads > 0 ? (
+                          liveLoads
+                        ) : e.legacy_loads ? (
+                          <span className="text-slate-400" title="Legacy loads (pre-TMS)">
+                            {e.legacy_loads}
+                            <span className="ml-1 text-[10px] uppercase tracking-wide">leg</span>
+                          </span>
+                        ) : (
+                          0
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-right tabular-nums text-slate-600">
+                        {showSets.get(e.id)?.size ?? 0}
+                      </td>
+                    </LinkRow>
+                  );
+                })}
               </tbody>
             </table>
             <Pagination

@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { Card } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { Field, FormSection, SubmitButton, inputClass } from "@/components/form";
+import { SALES_STATUS_OPTIONS, PRIORITY_TIER_OPTIONS } from "@/lib/exhibitors";
 import type { ExhibitorFormState } from "./actions";
 import type { Tables } from "@/lib/database.types";
 
@@ -60,6 +61,31 @@ export function ExhibitorForm({
           </Field>
           <Field label="Industry" htmlFor="industry">
             <input id="industry" name="industry" defaultValue={d?.industry ?? ""} className={inputClass} placeholder="Manufacturing" />
+          </Field>
+          <Field label="Website" htmlFor="website">
+            <input id="website" name="website" defaultValue={d?.website ?? ""} className={inputClass} placeholder="https://…" />
+          </Field>
+        </FormSection>
+
+        <FormSection title="Sales">
+          <Field label="Owner / rep" htmlFor="owner_rep">
+            <input id="owner_rep" name="owner_rep" defaultValue={d?.owner_rep ?? ""} className={inputClass} placeholder="e.g. Jimmy White" />
+          </Field>
+          <Field label="Status" htmlFor="sales_status">
+            <select id="sales_status" name="sales_status" defaultValue={d?.sales_status ?? ""} className={inputClass}>
+              <option value="">—</option>
+              {SALES_STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Priority tier" htmlFor="priority_tier">
+            <select id="priority_tier" name="priority_tier" defaultValue={d?.priority_tier ?? ""} className={inputClass}>
+              <option value="">—</option>
+              {PRIORITY_TIER_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </Field>
         </FormSection>
 

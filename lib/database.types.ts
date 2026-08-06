@@ -331,6 +331,53 @@ export type Database = {
           },
         ]
       }
+      exhibitor_show_history: {
+        Row: {
+          billed: number | null
+          confirmed_2026: string | null
+          created_at: string
+          exhibitor_id: string
+          first_year: number | null
+          id: string
+          last_year: number | null
+          margin: number | null
+          show_loads: number | null
+          show_name: string
+        }
+        Insert: {
+          billed?: number | null
+          confirmed_2026?: string | null
+          created_at?: string
+          exhibitor_id: string
+          first_year?: number | null
+          id?: string
+          last_year?: number | null
+          margin?: number | null
+          show_loads?: number | null
+          show_name: string
+        }
+        Update: {
+          billed?: number | null
+          confirmed_2026?: string | null
+          created_at?: string
+          exhibitor_id?: string
+          first_year?: number | null
+          id?: string
+          last_year?: number | null
+          margin?: number | null
+          show_loads?: number | null
+          show_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exhibitor_show_history_exhibitor_id_fkey"
+            columns: ["exhibitor_id"]
+            isOneToOne: false
+            referencedRelation: "exhibitors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exhibitors: {
         Row: {
           company_name: string
@@ -338,13 +385,32 @@ export type Database = {
           freight_profile_notes: string | null
           general_notes: string | null
           id: string
+          imported_at: string | null
           industry: string | null
+          last_pickup: string | null
+          legacy_billed: number | null
+          legacy_first_year: number | null
+          legacy_last_year: number | null
+          legacy_loads: number | null
+          legacy_margin: number | null
+          legacy_margin_per_load: number | null
+          owner_rep: string | null
           primary_contact_email: string | null
           primary_contact_name: string | null
           primary_contact_phone: string | null
           primary_contact_title: string | null
+          priority_tier: string | null
+          priority_tier_label: string | null
+          sales_status: string | null
           secondary_contacts: Json
+          shows_confirmed_2026: string | null
+          shows_shipped: string | null
+          source: string
+          top_show_cities: string | null
+          ttm_loads: number | null
+          ttm_margin: number | null
           updated_at: string
+          website: string | null
         }
         Insert: {
           company_name: string
@@ -352,13 +418,32 @@ export type Database = {
           freight_profile_notes?: string | null
           general_notes?: string | null
           id?: string
+          imported_at?: string | null
           industry?: string | null
+          last_pickup?: string | null
+          legacy_billed?: number | null
+          legacy_first_year?: number | null
+          legacy_last_year?: number | null
+          legacy_loads?: number | null
+          legacy_margin?: number | null
+          legacy_margin_per_load?: number | null
+          owner_rep?: string | null
           primary_contact_email?: string | null
           primary_contact_name?: string | null
           primary_contact_phone?: string | null
           primary_contact_title?: string | null
+          priority_tier?: string | null
+          priority_tier_label?: string | null
+          sales_status?: string | null
           secondary_contacts?: Json
+          shows_confirmed_2026?: string | null
+          shows_shipped?: string | null
+          source?: string
+          top_show_cities?: string | null
+          ttm_loads?: number | null
+          ttm_margin?: number | null
           updated_at?: string
+          website?: string | null
         }
         Update: {
           company_name?: string
@@ -366,13 +451,32 @@ export type Database = {
           freight_profile_notes?: string | null
           general_notes?: string | null
           id?: string
+          imported_at?: string | null
           industry?: string | null
+          last_pickup?: string | null
+          legacy_billed?: number | null
+          legacy_first_year?: number | null
+          legacy_last_year?: number | null
+          legacy_loads?: number | null
+          legacy_margin?: number | null
+          legacy_margin_per_load?: number | null
+          owner_rep?: string | null
           primary_contact_email?: string | null
           primary_contact_name?: string | null
           primary_contact_phone?: string | null
           primary_contact_title?: string | null
+          priority_tier?: string | null
+          priority_tier_label?: string | null
+          sales_status?: string | null
           secondary_contacts?: Json
+          shows_confirmed_2026?: string | null
+          shows_shipped?: string | null
+          source?: string
+          top_show_cities?: string | null
+          ttm_loads?: number | null
+          ttm_margin?: number | null
           updated_at?: string
+          website?: string | null
         }
         Relationships: []
       }
