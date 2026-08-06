@@ -28,6 +28,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Shows & Freight",
     items: [
       { label: "Shows", href: "/shows", icon: "shows" },
+      { label: "Show History", href: "/show-history", icon: "clock" },
       // Quotes lives as a tab on Shipments, so light Shipments up there too.
       { label: "Shipments", href: "/shipments", icon: "shipments", match: ["/quotes"] },
       { label: "MHA Check", href: "/mha-check", icon: "truck" },

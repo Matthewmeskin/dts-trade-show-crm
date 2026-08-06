@@ -1470,6 +1470,18 @@ export type Database = {
       }
     }
     Views: {
+      show_history_summary: {
+        Row: {
+          show_name: string | null
+          exhibitor_count: number | null
+          total_loads: number | null
+          total_margin: number | null
+          confirmed_2026_count: number | null
+          first_year: number | null
+          last_year: number | null
+        }
+        Relationships: []
+      }
       shows_with_status: {
         Row: {
           actual_revenue: number | null
