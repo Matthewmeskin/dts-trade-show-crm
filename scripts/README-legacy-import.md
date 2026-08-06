@@ -18,11 +18,26 @@ the CRM as enriched **exhibitors** + per-show history.
 Source counts: **871 companies**, **1,526 show-history rows** (596 companies
 have history).
 
-## Steps
+> Migration `0035` is already applied to the CRM database. Only the data load
+> below remains.
+
+## Option A — single SQL file (no Node, no keys)
+
+Run the pre-built, transaction-wrapped, idempotent script against the CRM DB:
+
+```
+supabase db execute --file scripts/data/legacy_import.sql
+# or:  psql "<CRM connection string>" -f scripts/data/legacy_import.sql
+# or:  paste its contents into the Supabase SQL editor and run
+```
+
+It creates temp staging tables, loads all rows, dedupe-enriches/inserts
+exhibitors, upserts the show history, and drops the staging tables.
+
+## Option B — Node importer
 
 1. **Apply the migration** `supabase/migrations/0035_exhibitor_sales_book.sql`
-   to the CRM database (e.g. `supabase db push`, or paste it into the Supabase
-   SQL editor).
+   to the CRM database (already applied) — `supabase db push` if starting fresh.
 
 2. **Set credentials.** The importer needs the CRM project's URL + service-role
    key (RLS gates the tables; the service key runs server-side). Put them in
