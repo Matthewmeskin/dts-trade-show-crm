@@ -47,6 +47,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Load Finder", href: "/load-finder", icon: "sparkles" },
       { label: "Suggestions", href: "/suggestions", icon: "sparkles" },
+      { label: "Roster Match", href: "/roster-match", icon: "check" },
       { label: "Tasks", href: "/tasks", icon: "tasks" },
     ],
   },
