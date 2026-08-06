@@ -381,6 +381,41 @@ export type Database = {
           },
         ]
       }
+      exhibitor_show_roster: {
+        Row: {
+          created_at: string
+          exhibitor_id: string
+          id: string
+          show_name: string
+          source: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          exhibitor_id: string
+          id?: string
+          show_name: string
+          source?: string
+          year?: number
+        }
+        Update: {
+          created_at?: string
+          exhibitor_id?: string
+          id?: string
+          show_name?: string
+          source?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exhibitor_show_roster_exhibitor_id_fkey"
+            columns: ["exhibitor_id"]
+            isOneToOne: false
+            referencedRelation: "exhibitors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exhibitors: {
         Row: {
           company_name: string
@@ -1482,6 +1517,7 @@ export type Database = {
           confirmed_2026_count: number | null
           first_year: number | null
           last_year: number | null
+          has_roster_2026: boolean | null
         }
         Relationships: []
       }

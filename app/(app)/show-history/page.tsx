@@ -50,12 +50,17 @@ export default async function ShowHistoryPage({
 
   // ---- Detail: one show's historical exhibitors --------------------------
   if (show) {
-    const { data: rows } = await supabase
-      .from("exhibitor_show_history")
-      .select(
-        "show_name, show_loads, first_year, last_year, margin, confirmed_2026, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, priority_tier)",
-      )
-      .eq("canonical_show_name", show);
+    const [{ data: rows }, { data: rosterRows }] = await Promise.all([
+      supabase
+        .from("exhibitor_show_history")
+        .select(
+          "show_name, show_loads, first_year, last_year, margin, confirmed_2026, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, priority_tier)",
+        )
+        .eq("canonical_show_name", show),
+      supabase.from("exhibitor_show_roster").select("exhibitor_id").eq("show_name", show).eq("year", 2026),
+    ]);
+    const rosterSet = new Set((rosterRows ?? []).map((r) => r.exhibitor_id));
+    const hasRoster = rosterSet.size > 0;
 
     // Merge a customer's variant rows (e.g. "FABTECH" + "FABTECH McCormick Place").
     type Agg = {
@@ -98,7 +103,9 @@ export default async function ShowHistoryPage({
     const list = [...byExhibitor.values()].sort((a, b) => b.margin - a.margin);
     const totalLoads = list.reduce((s, r) => s + r.loads, 0);
     const totalMargin = list.reduce((s, r) => s + r.margin, 0);
-    const returning = list.filter((r) => returningTo(show, r.confirmed)).length;
+    const returning = hasRoster
+      ? list.filter((r) => r.id && rosterSet.has(r.id)).length
+      : list.filter((r) => returningTo(show, r.confirmed)).length;
 
     return (
       <div>
@@ -111,7 +118,7 @@ export default async function ShowHistoryPage({
         </div>
         <PageHeader
           title={show}
-          description={`${list.length} exhibitor${list.length === 1 ? "" : "s"} shipped here · ${totalLoads} loads · ${formatCurrency(totalMargin)} margin · ${returning} confirmed to return in 2026`}
+          description={`${list.length} exhibitor${list.length === 1 ? "" : "s"} shipped here · ${totalLoads} loads · ${formatCurrency(totalMargin)} margin · ${returning} ${hasRoster ? "on the 2026 roster" : "confirmed to return in 2026"}`}
         />
 
         <Card>
@@ -129,7 +136,7 @@ export default async function ShowHistoryPage({
                     <th className="px-5 py-3 text-right">Loads</th>
                     <th className="px-5 py-3">Years</th>
                     <th className="px-5 py-3 text-right">Margin</th>
-                    <th className="px-5 py-3" title="Confirmed to exhibit at this show in 2026">
+                    <th className="px-5 py-3" title={hasRoster ? "On the saved 2026 roster for this show" : "Confirmed to exhibit at this show in 2026 (from scraped 2026 confirmations)"}>
                       Back in 2026?
                     </th>
                   </tr>
@@ -165,7 +172,13 @@ export default async function ShowHistoryPage({
                           {r.margin ? formatCurrency(r.margin) : "—"}
                         </td>
                         <td className="px-5 py-3 text-xs" title={r.confirmed ? `2026 confirmed: ${r.confirmed}` : undefined}>
-                          {returningTo(show, r.confirmed) ? (
+                          {hasRoster ? (
+                            r.id && rosterSet.has(r.id) ? (
+                              <span className="font-medium text-emerald-600">✓ Roster</span>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )
+                          ) : returningTo(show, r.confirmed) ? (
                             <span className="font-medium text-emerald-600">✓ Yes</span>
                           ) : r.confirmed ? (
                             <span className="text-slate-400">other shows</span>
@@ -291,9 +304,15 @@ export default async function ShowHistoryPage({
                     <td className="px-5 py-3 text-right tabular-nums text-slate-700">{s.exhibitor_count}</td>
                     <td className="px-5 py-3 text-right tabular-nums text-slate-600">{s.total_loads}</td>
                     <td className="px-5 py-3 text-right tabular-nums text-slate-700">{formatCurrency(s.total_margin ?? 0)}</td>
-                    <td className="px-5 py-3 text-right tabular-nums">
+                    <td
+                      className="px-5 py-3 text-right tabular-nums"
+                      title={s.has_roster_2026 ? "From a saved 2026 roster" : "From scraped 2026 confirmations"}
+                    >
                       {s.confirmed_2026_count ? (
-                        <span className="text-emerald-600">{s.confirmed_2026_count}</span>
+                        <span className="text-emerald-600">
+                          {s.confirmed_2026_count}
+                          {s.has_roster_2026 ? <span className="ml-1 text-[10px] text-slate-400">roster</span> : null}
+                        </span>
                       ) : (
                         <span className="text-slate-300">0</span>
                       )}

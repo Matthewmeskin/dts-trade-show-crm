@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAll } from "@/lib/supabase/fetch-all";
 
@@ -13,26 +14,32 @@ export type MatchedExhibitor = {
   legacy_margin: number | null;
 };
 
-export type MatchRow = { input: string; matched: MatchedExhibitor | null };
+/** Prior shipping history for the selected show, if any. */
+export type ShowHistory = { loads: number; first: number | null; last: number | null };
+
+export type MatchRow = {
+  input: string;
+  matched: MatchedExhibitor | null;
+  history: ShowHistory | null;
+};
 
 export type RosterState = {
   results: MatchRow[];
   total: number;
   matchedCount: number;
+  show: string;
   error: string | null;
 };
 
-// Legal-entity noise stripped before comparing company names.
 const SUFFIXES = new Set([
   "inc", "incorporated", "llc", "llp", "lp", "corp", "corporation", "co",
   "company", "ltd", "limited", "group", "gmbh", "ag", "oa", "usa", "na", "the",
 ]);
 
-/** Normalize a company name to a comparison key (order-preserving, de-noised). */
 function normCompany(s: string): string {
   let t = s
     .toLowerCase()
-    .replace(/\(.*?\)/g, " ") // drop parentheticals like "(OA)"
+    .replace(/\(.*?\)/g, " ")
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9 ]/g, " ")
     .replace(/\s+/g, " ")
@@ -43,23 +50,27 @@ function normCompany(s: string): string {
   return toks.join("");
 }
 
-export async function matchRoster(_prev: RosterState, formData: FormData): Promise<RosterState> {
-  const raw = String(formData.get("names") ?? "");
-  // One company per line; take the part before the first tab (spreadsheet copy).
+function parseNames(raw: string): string[] {
   const seen = new Set<string>();
   const names: string[] = [];
   for (const line of raw.split(/\r?\n/)) {
     const name = line.split("\t")[0].trim();
     if (!name) continue;
-    const dedupe = name.toLowerCase();
-    if (seen.has(dedupe)) continue;
-    seen.add(dedupe);
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
     names.push(name);
     if (names.length >= 5000) break;
   }
+  return names;
+}
+
+export async function matchRoster(_prev: RosterState, formData: FormData): Promise<RosterState> {
+  const show = String(formData.get("show") ?? "").trim();
+  const names = parseNames(String(formData.get("names") ?? ""));
 
   if (names.length === 0) {
-    return { results: [], total: 0, matchedCount: 0, error: "Paste or upload a list of company names (one per line)." };
+    return { results: [], total: 0, matchedCount: 0, show, error: "Paste or upload a list of company names (one per line)." };
   }
 
   const supabase = await createClient();
@@ -75,11 +86,50 @@ export async function matchRoster(_prev: RosterState, formData: FormData): Promi
     if (k && !byKey.has(k)) byKey.set(k, e);
   }
 
-  const results: MatchRow[] = names.map((input) => ({
-    input,
-    matched: byKey.get(normCompany(input)) ?? null,
-  }));
+  // Prior history for the chosen show: aggregate that show's rows per exhibitor.
+  const historyByExhibitor = new Map<string, ShowHistory>();
+  if (show) {
+    const rows = await fetchAll<{ exhibitor_id: string; show_loads: number | null; first_year: number | null; last_year: number | null }>(
+      () =>
+        supabase
+          .from("exhibitor_show_history")
+          .select("exhibitor_id, show_loads, first_year, last_year")
+          .eq("canonical_show_name", show),
+    );
+    for (const r of rows) {
+      const cur = historyByExhibitor.get(r.exhibitor_id) ?? { loads: 0, first: null, last: null };
+      cur.loads += r.show_loads ?? 0;
+      if (r.first_year != null) cur.first = cur.first == null ? r.first_year : Math.min(cur.first, r.first_year);
+      if (r.last_year != null) cur.last = cur.last == null ? r.last_year : Math.max(cur.last, r.last_year);
+      historyByExhibitor.set(r.exhibitor_id, cur);
+    }
+  }
+
+  const results: MatchRow[] = names.map((input) => {
+    const matched = byKey.get(normCompany(input)) ?? null;
+    return { input, matched, history: matched ? historyByExhibitor.get(matched.id) ?? null : null };
+  });
   const matchedCount = results.filter((r) => r.matched).length;
 
-  return { results, total: results.length, matchedCount, error: null };
+  return { results, total: results.length, matchedCount, show, error: null };
+}
+
+export type RecordState = { saved: number; error: string | null };
+
+/** Save the matched customers as the authoritative 2026 roster for a show. */
+export async function recordRoster(_prev: RecordState, formData: FormData): Promise<RecordState> {
+  const show = String(formData.get("show") ?? "").trim();
+  const ids = String(formData.get("ids") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (!show) return { saved: 0, error: "Enter the show name first." };
+  if (ids.length === 0) return { saved: 0, error: "No matched customers to save." };
+
+  const supabase = await createClient();
+  const rows = ids.map((exhibitor_id) => ({ show_name: show, year: 2026, exhibitor_id, source: "roster_upload" }));
+  const { error } = await supabase
+    .from("exhibitor_show_roster")
+    .upsert(rows, { onConflict: "show_name,year,exhibitor_id" });
+  if (error) return { saved: 0, error: error.message };
+
+  revalidatePath("/show-history");
+  return { saved: ids.length, error: null };
 }
