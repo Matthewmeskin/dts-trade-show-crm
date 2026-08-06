@@ -334,6 +334,7 @@ export type Database = {
       exhibitor_show_history: {
         Row: {
           billed: number | null
+          canonical_show_name: string | null
           confirmed_2026: string | null
           created_at: string
           exhibitor_id: string
@@ -346,6 +347,7 @@ export type Database = {
         }
         Insert: {
           billed?: number | null
+          canonical_show_name?: string | null
           confirmed_2026?: string | null
           created_at?: string
           exhibitor_id: string
@@ -358,6 +360,7 @@ export type Database = {
         }
         Update: {
           billed?: number | null
+          canonical_show_name?: string | null
           confirmed_2026?: string | null
           created_at?: string
           exhibitor_id?: string
