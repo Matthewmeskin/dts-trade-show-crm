@@ -1,9 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="DTS">
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="DTS Trade Shows">
   <rect width="64" height="64" rx="14" fill="#AB0534"/>
-  <g transform="skewX(-12)" fill="#ffffff">
-    <rect x="41" y="10" width="15" height="2.2" rx="1.1" opacity="0.95"/>
-    <rect x="43" y="14" width="13" height="2.2" rx="1.1" opacity="0.6"/>
-    <rect x="45" y="18" width="11" height="2.2" rx="1.1" opacity="0.35"/>
+  <!-- binding tabs -->
+  <rect x="21" y="10" width="5" height="10" rx="2.5" fill="#ffffff"/>
+  <rect x="38" y="10" width="5" height="10" rx="2.5" fill="#ffffff"/>
+  <!-- calendar card -->
+  <rect x="13" y="15" width="38" height="37" rx="5.5" fill="#ffffff"/>
+  <!-- header divider -->
+  <rect x="13" y="25" width="38" height="3.4" fill="#AB0534"/>
+  <!-- day cells -->
+  <g fill="#AB0534" opacity="0.28">
+    <rect x="18.5" y="33" width="7" height="6" rx="1.6"/>
+    <rect x="28.5" y="33" width="7" height="6" rx="1.6"/>
+    <rect x="18.5" y="42" width="7" height="6" rx="1.6"/>
   </g>
-  <text x="31" y="46" text-anchor="middle" font-family="Montserrat, 'Segoe UI', system-ui, -apple-system, sans-serif" font-size="31" font-weight="800" font-style="italic" letter-spacing="-2" fill="#ffffff">DTS</text>
+  <!-- highlighted show day -->
+  <rect x="38.5" y="42" width="7" height="6" rx="1.6" fill="#AB0534"/>
 </svg>
