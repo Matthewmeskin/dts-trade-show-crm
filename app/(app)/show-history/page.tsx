@@ -181,7 +181,7 @@ export default async function ShowHistoryPage({
     const SEGMENTS: { key: string; label: string }[] = [
       { key: "all", label: "All" },
       { key: "roster", label: "On 2026 roster" },
-      { key: "new", label: "New to show" },
+      { key: "new", label: "Never shipped w/ you" },
       { key: "freight", label: "Freight" },
       { key: "shipped", label: "Shipped before" },
     ];
@@ -300,10 +300,10 @@ export default async function ShowHistoryPage({
                           {r.company_name}
                           {r.rosterOnly ? (
                             <span
-                              className="ml-1.5 rounded bg-dts-blue/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-dts-blue"
-                              title="On the 2026 roster; no prior shipping history with you (e.g. a freight customer)"
+                              className="ml-1.5 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700"
+                              title="On the 2026 roster, but you've never shipped this show for them — a freight opportunity"
                             >
-                              new to show
+                              opportunity
                             </span>
                           ) : null}
                         </td>
