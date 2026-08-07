@@ -57,7 +57,11 @@ export default async function ShowHistoryPage({
           "show_name, show_loads, first_year, last_year, margin, confirmed_2026, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, priority_tier)",
         )
         .eq("canonical_show_name", show),
-      supabase.from("exhibitor_show_roster").select("exhibitor_id").eq("show_name", show).eq("year", 2026),
+      supabase
+        .from("exhibitor_show_roster")
+        .select("exhibitor_id, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, priority_tier)")
+        .eq("show_name", show)
+        .eq("year", 2026),
     ]);
     const rosterSet = new Set((rosterRows ?? []).map((r) => r.exhibitor_id));
     const hasRoster = rosterSet.size > 0;
@@ -74,6 +78,7 @@ export default async function ShowHistoryPage({
       first: number | null;
       last: number | null;
       confirmed: string | null;
+      rosterOnly?: boolean;
     };
     const byExhibitor = new Map<string, Agg>();
     for (const r of rows ?? []) {
@@ -99,6 +104,27 @@ export default async function ShowHistoryPage({
       if (r.last_year != null) cur.last = cur.last == null ? r.last_year : Math.max(cur.last, r.last_year);
       cur.confirmed = cur.confirmed ?? r.confirmed_2026;
       byExhibitor.set(key, cur);
+    }
+    // Exhibitors who shipped this show historically.
+    const shippedCount = byExhibitor.size;
+    // Add 2026-roster members with no shipping history (e.g. freight customers
+    // just promoted to exhibitors) so they appear on the show, tagged as new.
+    for (const rr of rosterRows ?? []) {
+      const e = rr.exhibitor;
+      if (!e || byExhibitor.has(e.id)) continue;
+      byExhibitor.set(e.id, {
+        id: e.id,
+        company_name: e.company_name,
+        owner_rep: e.owner_rep,
+        sales_status: e.sales_status,
+        priority_tier: e.priority_tier,
+        loads: 0,
+        margin: 0,
+        first: null,
+        last: null,
+        confirmed: null,
+        rosterOnly: true,
+      });
     }
     const isReturning = (r: Agg) => (hasRoster ? !!(r.id && rosterSet.has(r.id)) : returningTo(show, r.confirmed));
     const dSorts: Record<string, boolean> = {
@@ -161,7 +187,7 @@ export default async function ShowHistoryPage({
         </div>
         <PageHeader
           title={show}
-          description={`${list.length} exhibitor${list.length === 1 ? "" : "s"} shipped here · ${totalLoads} loads · ${formatCurrency(totalMargin)} margin · ${returning} ${hasRoster ? "on the 2026 roster" : "confirmed to return in 2026"}`}
+          description={`${shippedCount} exhibitor${shippedCount === 1 ? "" : "s"} shipped here · ${totalLoads} loads · ${formatCurrency(totalMargin)} margin · ${returning} ${hasRoster ? "on the 2026 roster" : "confirmed to return in 2026"}`}
         />
 
         <Card>
@@ -190,6 +216,14 @@ export default async function ShowHistoryPage({
                       <LinkRow key={i} href={r.id ? `/exhibitors/${r.id}` : "#"} className="group hover:bg-slate-50/60">
                         <td className="px-5 py-3 font-medium text-slate-900 group-hover:text-dts-maroon">
                           {r.company_name}
+                          {r.rosterOnly ? (
+                            <span
+                              className="ml-1.5 rounded bg-dts-blue/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-dts-blue"
+                              title="On the 2026 roster; no prior shipping history with you (e.g. a freight customer)"
+                            >
+                              new to show
+                            </span>
+                          ) : null}
                         </td>
                         <td className="px-5 py-3 text-slate-600">
                           {r.owner_rep ?? <span className="text-slate-300">—</span>}
