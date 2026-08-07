@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LinkRow } from "@/components/link-row";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import { formatCurrency } from "@/lib/format";
@@ -63,16 +64,44 @@ export default async function ShowHistoryPage({
         .select("exhibitor_id, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, priority_tier, source)")
         .eq("show_name", show)
         .eq("year", 2026),
-      supabase.from("shows").select("id, show_name").eq("edition_year", 2026),
+      supabase.from("shows").select("id, show_name, edition_year"),
     ]);
-    // Match an existing 2026 show by name — real show names are descriptive
-    // ("IMTS ( International Manufacturing Technology Show)"), so compare on
-    // alphanumerics: a real name that contains the canonical key is the show.
+    // Real show records whose (descriptive) name matches this canonical name —
+    // e.g. "IMTS ( International Manufacturing Technology Show)" for "IMTS".
+    // Compare on alphanumerics: a real name that contains the canonical key.
     const showKey = alnum(show);
-    const existingShowId =
+    const matchedShows =
       showKey.length >= 4
-        ? (existingShowRes.data ?? []).find((s) => alnum(s.show_name ?? "").includes(showKey))?.id ?? null
-        : null;
+        ? (existingShowRes.data ?? []).filter((s) => alnum(s.show_name ?? "").includes(showKey))
+        : [];
+    const matchedShowIds = matchedShows.map((s) => s.id);
+    const existingShowId = matchedShows.find((s) => s.edition_year === 2026)?.id ?? null;
+
+    // Live TMS shipments for those real shows (all editions) — folds real loads
+    // into the legacy per-show picture so actual shippers aren't shown blank.
+    const tmsRows =
+      matchedShowIds.length > 0
+        ? await fetchAll<{
+            exhibitor_id: string | null;
+            pickup_date: string | null;
+            margin: number | null;
+            exhibitor: {
+              id: string;
+              company_name: string;
+              owner_rep: string | null;
+              sales_status: string | null;
+              priority_tier: string | null;
+              source: string;
+            } | null;
+          }>(() =>
+            supabase
+              .from("shipments")
+              .select(
+                "exhibitor_id, pickup_date, margin, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, priority_tier, source)",
+              )
+              .in("show_id", matchedShowIds),
+          )
+        : [];
     const rosterSet = new Set((rosterRows ?? []).map((r) => r.exhibitor_id));
     const hasRoster = rosterSet.size > 0;
 
@@ -117,7 +146,35 @@ export default async function ShowHistoryPage({
       cur.confirmed = cur.confirmed ?? r.confirmed_2026;
       byExhibitor.set(key, cur);
     }
-    // Exhibitors who shipped this show historically.
+    // Fold in live TMS shipments (each shipment = one load).
+    for (const s of tmsRows) {
+      const e = s.exhibitor;
+      if (!e?.id) continue;
+      const cur =
+        byExhibitor.get(e.id) ??
+        {
+          id: e.id,
+          company_name: e.company_name,
+          owner_rep: e.owner_rep,
+          sales_status: e.sales_status,
+          priority_tier: e.priority_tier,
+          loads: 0,
+          margin: 0,
+          first: null,
+          last: null,
+          confirmed: null,
+          source: e.source,
+        };
+      cur.loads += 1;
+      cur.margin += s.margin ?? 0;
+      const yr = s.pickup_date ? Number(s.pickup_date.slice(0, 4)) : null;
+      if (yr) {
+        cur.first = cur.first == null ? yr : Math.min(cur.first, yr);
+        cur.last = cur.last == null ? yr : Math.max(cur.last, yr);
+      }
+      byExhibitor.set(e.id, cur);
+    }
+    // Exhibitors who shipped this show (legacy history + live TMS).
     const shippedCount = byExhibitor.size;
     // Add 2026-roster members with no shipping history (e.g. freight customers
     // just promoted to exhibitors) so they appear on the show, tagged as new.
