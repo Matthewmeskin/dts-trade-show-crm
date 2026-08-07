@@ -5,9 +5,9 @@ import Link from "next/link";
 import { Card, Badge } from "@/components/ui";
 import { formatCurrency } from "@/lib/format";
 import { salesStatusMeta, priorityTierMeta } from "@/lib/exhibitors";
-import { matchRoster, recordRoster, type RosterState, type RecordState } from "./actions";
+import { matchRoster, recordRoster, type RosterState, type RecordState, type MatchRow } from "./actions";
 
-const initial: RosterState = { results: [], total: 0, matchedCount: 0, show: "", error: null };
+const initial: RosterState = { results: [], total: 0, matchedCount: 0, customerCount: 0, show: "", error: null };
 const recordInitial: RecordState = { saved: 0, error: null };
 
 type Filter = "all" | "matched" | "new";
@@ -32,21 +32,22 @@ export function RosterMatch({ shows }: { shows: string[] }) {
   // Filter, then float customers to the top (highest lifetime value first) so
   // the useful rows aren't buried in a thousand-line roster.
   const shown = useMemo(() => {
+    const rank = (r: MatchRow) => (r.matched ? 2 : r.customer ? 1 : 0);
     const rows = state.results.filter((r) =>
-      filter === "matched" ? r.matched : filter === "new" ? !r.matched : true,
+      filter === "matched" ? r.matched || r.customer : filter === "new" ? !r.matched && !r.customer : true,
     );
     return rows
       .map((r, idx) => ({ r, idx }))
       .sort((a, b) => {
-        const am = a.r.matched ? 1 : 0;
-        const bm = b.r.matched ? 1 : 0;
-        if (am !== bm) return bm - am;
-        if (am) return (b.r.matched?.legacy_margin ?? 0) - (a.r.matched?.legacy_margin ?? 0);
-        return a.idx - b.idx; // keep original order among prospects
+        const ar = rank(a.r);
+        const br = rank(b.r);
+        if (ar !== br) return br - ar;
+        if (ar === 2) return (b.r.matched?.legacy_margin ?? 0) - (a.r.matched?.legacy_margin ?? 0);
+        return a.idx - b.idx; // keep original order within a rank
       })
       .map((x) => x.r);
   }, [state.results, filter]);
-  const newCount = state.total - state.matchedCount;
+  const newCount = state.total - state.matchedCount - state.customerCount;
   const matchedIds = state.results.map((r) => r.matched?.id).filter((id): id is string => !!id);
   const returningCount = state.results.filter((r) => r.history).length;
   const hasShow = !!state.show;
@@ -134,9 +135,13 @@ export function RosterMatch({ shows }: { shows: string[] }) {
         <Card>
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
             <div className="text-sm text-slate-600">
-              <span className="font-semibold text-slate-900">{state.matchedCount}</span> of{" "}
+              <span className="font-semibold text-slate-900">{state.matchedCount + state.customerCount}</span> of{" "}
               <span className="font-semibold text-slate-900">{state.total}</span> are existing customers
-              <span className="text-slate-400"> · {newCount} new prospect{newCount === 1 ? "" : "s"}</span>
+              <span className="text-slate-400">
+                {" "}
+                ({state.matchedCount} trade-show
+                {state.customerCount > 0 ? ` · ${state.customerCount} freight-only` : ""}) · {newCount} new
+              </span>
               {hasShow ? (
                 <span className="text-slate-400">
                   {" "}
@@ -210,6 +215,13 @@ export function RosterMatch({ shows }: { shows: string[] }) {
                           <Link href={`/exhibitors/${m.id}`} className="font-medium text-dts-maroon hover:underline">
                             {m.company_name}
                           </Link>
+                        ) : r.customer ? (
+                          <span>
+                            <span className="font-medium text-slate-700">{r.customer.company_name}</span>
+                            <span className="ml-1.5 rounded bg-dts-blue/10 px-1.5 py-0.5 text-xs font-medium text-dts-blue">
+                              Freight customer
+                            </span>
+                          </span>
                         ) : (
                           <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">New prospect</span>
                         )}
@@ -233,7 +245,9 @@ export function RosterMatch({ shows }: { shows: string[] }) {
                           )}
                         </td>
                       ) : null}
-                      <td className="px-5 py-3 text-slate-600">{m?.owner_rep ?? <span className="text-slate-300">—</span>}</td>
+                      <td className="px-5 py-3 text-slate-600">
+                        {m?.owner_rep ?? r.customer?.owner_rep ?? <span className="text-slate-300">—</span>}
+                      </td>
                       <td className="px-5 py-3">
                         {sm ? (
                           <Badge className={sm.badge}>

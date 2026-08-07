@@ -14,19 +14,30 @@ export type MatchedExhibitor = {
   legacy_margin: number | null;
 };
 
+/** A hit in the general customer master (freight customer, may have no show history). */
+export type MatchedCustomer = {
+  id: string;
+  company_name: string;
+  owner_rep: string | null;
+  city: string | null;
+  state: string | null;
+};
+
 /** Prior shipping history for the selected show, if any. */
 export type ShowHistory = { loads: number; first: number | null; last: number | null };
 
 export type MatchRow = {
   input: string;
-  matched: MatchedExhibitor | null;
+  matched: MatchedExhibitor | null;   // trade-show exhibitor/customer
+  customer: MatchedCustomer | null;   // freight customer (only when no exhibitor match)
   history: ShowHistory | null;
 };
 
 export type RosterState = {
   results: MatchRow[];
   total: number;
-  matchedCount: number;
+  matchedCount: number;   // trade-show exhibitor matches
+  customerCount: number;  // freight-customer-only matches
   show: string;
   error: string | null;
 };
@@ -70,20 +81,30 @@ export async function matchRoster(_prev: RosterState, formData: FormData): Promi
   const names = parseNames(String(formData.get("names") ?? ""));
 
   if (names.length === 0) {
-    return { results: [], total: 0, matchedCount: 0, show, error: "Paste or upload a list of company names (one per line)." };
+    return { results: [], total: 0, matchedCount: 0, customerCount: 0, show, error: "Paste or upload a list of company names (one per line)." };
   }
 
   const supabase = await createClient();
-  const exhibitors = await fetchAll<MatchedExhibitor>(() =>
-    supabase
-      .from("exhibitors")
-      .select("id, company_name, priority_tier, sales_status, owner_rep, legacy_loads, legacy_margin"),
-  );
+  const [exhibitors, customers] = await Promise.all([
+    fetchAll<MatchedExhibitor>(() =>
+      supabase
+        .from("exhibitors")
+        .select("id, company_name, priority_tier, sales_status, owner_rep, legacy_loads, legacy_margin"),
+    ),
+    fetchAll<MatchedCustomer>(() =>
+      supabase.from("customers").select("id, company_name, owner_rep, city, state"),
+    ),
+  ]);
 
   const byKey = new Map<string, MatchedExhibitor>();
   for (const e of exhibitors) {
     const k = normCompany(e.company_name);
     if (k && !byKey.has(k)) byKey.set(k, e);
+  }
+  const byKeyCustomer = new Map<string, MatchedCustomer>();
+  for (const c of customers) {
+    const k = normCompany(c.company_name);
+    if (k && !byKeyCustomer.has(k)) byKeyCustomer.set(k, c);
   }
 
   // Prior history for the chosen show: aggregate that show's rows per exhibitor.
@@ -106,12 +127,21 @@ export async function matchRoster(_prev: RosterState, formData: FormData): Promi
   }
 
   const results: MatchRow[] = names.map((input) => {
-    const matched = byKey.get(normCompany(input)) ?? null;
-    return { input, matched, history: matched ? historyByExhibitor.get(matched.id) ?? null : null };
+    const key = normCompany(input);
+    const matched = byKey.get(key) ?? null;
+    // Only surface a freight-customer hit when there's no trade-show match.
+    const customer = matched ? null : byKeyCustomer.get(key) ?? null;
+    return {
+      input,
+      matched,
+      customer,
+      history: matched ? historyByExhibitor.get(matched.id) ?? null : null,
+    };
   });
   const matchedCount = results.filter((r) => r.matched).length;
+  const customerCount = results.filter((r) => r.customer).length;
 
-  return { results, total: results.length, matchedCount, show, error: null };
+  return { results, total: results.length, matchedCount, customerCount, show, error: null };
 }
 
 export type RecordState = { saved: number; error: string | null };

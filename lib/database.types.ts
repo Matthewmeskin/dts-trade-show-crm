@@ -269,6 +269,48 @@ export type Database = {
           },
         ]
       }
+      customers: {
+        Row: {
+          city: string | null
+          company_name: string
+          created_at: string
+          external_id: string | null
+          id: string
+          notes: string | null
+          owner_rep: string | null
+          source: string
+          state: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          company_name: string
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          notes?: string | null
+          owner_rep?: string | null
+          source?: string
+          state?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          company_name?: string
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          notes?: string | null
+          owner_rep?: string | null
+          source?: string
+          state?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           document_name: string
