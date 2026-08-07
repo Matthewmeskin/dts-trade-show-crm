@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { logActivity, diffPayload, VENUE_FIELD_LABELS } from "@/lib/activity";
 import type { TablesInsert, TablesUpdate } from "@/lib/database.types";
 
 export type VenueFormState = {
@@ -76,7 +77,16 @@ export async function createVenue(
     .single();
   if (error) return { error: error.message };
 
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "venue",
+    entityId: row.id,
+    entityLabel: data!.venue_name,
+    summary: `Added venue "${data!.venue_name}"`,
+  });
+
   revalidatePath("/venues");
+  revalidatePath("/activity");
   redirect(`/venues/${row.id}?flash=created`);
 }
 
@@ -91,12 +101,35 @@ export async function updateVenue(
   if (fieldErrors) return { error: "Please fix the highlighted fields.", fieldErrors };
 
   const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("venues")
+    .select(Object.keys(data!).join(", "))
+    .eq("id", id)
+    .maybeSingle();
+
   const { error } = await supabase.from("venues").update(data!).eq("id", id);
   if (error) return { error: error.message };
+
+  const { keys, summary } = diffPayload(
+    before as Record<string, unknown> | null,
+    data! as Record<string, unknown>,
+    VENUE_FIELD_LABELS,
+  );
+  if (keys.length) {
+    await logActivity(supabase, {
+      action: "updated",
+      entityType: "venue",
+      entityId: id,
+      entityLabel: data!.venue_name,
+      summary,
+      details: { fields: keys },
+    });
+  }
 
   revalidatePath("/venues");
   revalidatePath(`/venues/${id}`);
   revalidatePath("/calendar");
+  revalidatePath("/activity");
   const back = String(fd.get("redirect_to") ?? "");
   redirect(back.startsWith("/") ? back : `/venues/${id}?flash=updated`);
 }
@@ -105,9 +138,22 @@ export async function deleteVenue(fd: FormData) {
   const id = String(fd.get("id") ?? "");
   if (!id) return;
   const supabase = await createClient();
+  const { data: doomed } = await supabase
+    .from("venues")
+    .select("venue_name")
+    .eq("id", id)
+    .maybeSingle();
   // shows.venue_id is ON DELETE SET NULL, so shows are preserved.
   await supabase.from("venues").delete().eq("id", id);
+  await logActivity(supabase, {
+    action: "deleted",
+    entityType: "venue",
+    entityId: id,
+    entityLabel: doomed?.venue_name ?? null,
+    summary: doomed?.venue_name ? `Deleted venue "${doomed.venue_name}"` : "Deleted a venue",
+  });
   revalidatePath("/venues");
+  revalidatePath("/activity");
   redirect("/venues?flash=deleted");
 }
 

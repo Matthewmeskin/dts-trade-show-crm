@@ -41,6 +41,17 @@ export function formatDate(value: string | Date | null | undefined): string {
   return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
+/** "Jun 16, 2026 · 2:45 PM" — absolute timestamp for logs/audit trails. */
+export function formatDateTime(value: string | Date | null | undefined): string {
+  const d = value instanceof Date ? value : value ? new Date(value) : null;
+  if (!d || Number.isNaN(d.getTime())) return "—";
+  let h = d.getHours();
+  const m = d.getMinutes().toString().padStart(2, "0");
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} · ${h}:${m} ${ampm}`;
+}
+
 /** "Jun 16" */
 export function formatShortDate(value: string | Date | null | undefined): string {
   const d = value instanceof Date ? value : parseDate(value);

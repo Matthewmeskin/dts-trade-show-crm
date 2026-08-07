@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { logActivity, diffPayload, TASK_FIELD_LABELS } from "@/lib/activity";
 import { Constants, type TablesInsert } from "@/lib/database.types";
 
 export type TaskFormState = {
@@ -61,7 +62,16 @@ export async function createTask(
     .single();
   if (error) return { error: error.message };
 
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "task",
+    entityId: row.id,
+    entityLabel: data!.title,
+    summary: `Added task "${data!.title}"`,
+  });
+
   revalidatePath("/tasks");
+  revalidatePath("/activity");
   redirect(`/tasks/${row.id}?flash=created`);
 }
 
@@ -76,11 +86,34 @@ export async function updateTask(
   if (fieldErrors) return { error: "Please fix the highlighted fields.", fieldErrors };
 
   const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("tasks")
+    .select(Object.keys(data!).join(", "))
+    .eq("id", id)
+    .maybeSingle();
+
   const { error } = await supabase.from("tasks").update(data!).eq("id", id);
   if (error) return { error: error.message };
 
+  const { keys, summary } = diffPayload(
+    before as Record<string, unknown> | null,
+    data! as Record<string, unknown>,
+    TASK_FIELD_LABELS,
+  );
+  if (keys.length) {
+    await logActivity(supabase, {
+      action: "updated",
+      entityType: "task",
+      entityId: id,
+      entityLabel: data!.title,
+      summary,
+      details: { fields: keys },
+    });
+  }
+
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${id}`);
+  revalidatePath("/activity");
   redirect(`/tasks/${id}?flash=updated`);
 }
 
@@ -90,8 +123,21 @@ export async function updateTaskStatus(fd: FormData) {
   if (!id) return;
   const supabase = await createClient();
   await supabase.from("tasks").update({ status }).eq("id", id);
+  const { data: task } = await supabase
+    .from("tasks")
+    .select("title")
+    .eq("id", id)
+    .maybeSingle();
+  await logActivity(supabase, {
+    action: "status_changed",
+    entityType: "task",
+    entityId: id,
+    entityLabel: task?.title ?? null,
+    summary: `Set status to ${status}`,
+  });
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${id}`);
+  revalidatePath("/activity");
   revalidatePath("/");
 }
 
@@ -99,7 +145,20 @@ export async function deleteTask(fd: FormData) {
   const id = String(fd.get("id") ?? "");
   if (!id) return;
   const supabase = await createClient();
+  const { data: doomed } = await supabase
+    .from("tasks")
+    .select("title")
+    .eq("id", id)
+    .maybeSingle();
   await supabase.from("tasks").delete().eq("id", id);
+  await logActivity(supabase, {
+    action: "deleted",
+    entityType: "task",
+    entityId: id,
+    entityLabel: doomed?.title ?? null,
+    summary: doomed?.title ? `Deleted task "${doomed.title}"` : "Deleted a task",
+  });
   revalidatePath("/tasks");
+  revalidatePath("/activity");
   redirect("/tasks?flash=deleted");
 }

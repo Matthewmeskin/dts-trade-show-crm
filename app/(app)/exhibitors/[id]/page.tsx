@@ -7,7 +7,9 @@ import { ConfirmDelete } from "@/components/confirm-delete";
 import { SHOW_STATUS_META } from "@/lib/shows";
 import { SHIPMENT_STATUS_META } from "@/lib/shipments";
 import { salesStatusMeta, priorityTierMeta, confirmedForShow2026, statusReasonLabel } from "@/lib/exhibitors";
-import { formatDate, formatDateRange, formatCurrency } from "@/lib/format";
+import { formatDate, formatDateRange, formatCurrency, formatDateTime } from "@/lib/format";
+import { ACTION_META } from "@/lib/activity";
+import { RelativeTime } from "@/components/relative-time";
 import { deleteExhibitor } from "../actions";
 import { QuickEditExhibitor } from "./quick-edit";
 import { ExhibitorNotesCard } from "./notes-card";
@@ -51,7 +53,7 @@ export default async function ExhibitorRecordPage({
   if (from) shipQuery = shipQuery.gte("pickup_date", from);
   if (to) shipQuery = shipQuery.lte("pickup_date", to);
 
-  const [showsRes, shipRes, historyRes, rosterRes] = await Promise.all([
+  const [showsRes, shipRes, historyRes, rosterRes, activityRes] = await Promise.all([
     showIds.length
       ? supabase
           .from("shows_with_status")
@@ -66,11 +68,19 @@ export default async function ExhibitorRecordPage({
       .eq("exhibitor_id", id)
       .order("margin", { ascending: false, nullsFirst: false }),
     supabase.from("exhibitor_show_roster").select("show_name").eq("exhibitor_id", id).eq("year", 2026),
+    supabase
+      .from("activity_log")
+      .select("id, action, summary, created_at, actor:profiles(full_name, email)")
+      .eq("entity_type", "exhibitor")
+      .eq("entity_id", id)
+      .order("created_at", { ascending: false })
+      .limit(12),
   ]);
 
   const shows = showsRes.data ?? [];
   const shipments = shipRes.data ?? [];
   const history = historyRes.data ?? [];
+  const activity = activityRes.data ?? [];
   const roster2026 = new Set((rosterRes.data ?? []).map((r) => r.show_name));
   const statusMeta = salesStatusMeta(e.sales_status);
   const tierMeta = priorityTierMeta(e.priority_tier);
@@ -470,6 +480,37 @@ export default async function ExhibitorRecordPage({
               </ul>
             )}
           </Card>
+
+          {/* Recent activity for this exhibitor */}
+          {activity.length > 0 ? (
+            <Card>
+              <CardHeader title="Recent activity" icon="clock" />
+              <ul className="divide-y divide-slate-50">
+                {activity.map((a) => {
+                  const am = ACTION_META[a.action];
+                  const who = a.actor?.full_name?.trim() || a.actor?.email?.trim() || "System";
+                  return (
+                    <li key={a.id} className="px-5 py-3 text-sm">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {am ? (
+                          <Badge className={am.badge}>{am.label}</Badge>
+                        ) : (
+                          <span className="text-slate-500">{a.action}</span>
+                        )}
+                        <span className="font-medium text-slate-700">{who}</span>
+                        <span className="ml-auto whitespace-nowrap text-xs text-slate-400">
+                          <RelativeTime iso={a.created_at} title={formatDateTime(a.created_at)} />
+                        </span>
+                      </div>
+                      {a.summary ? (
+                        <p className="mt-1 text-slate-500">{a.summary}</p>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+          ) : null}
         </div>
       </div>
     </div>

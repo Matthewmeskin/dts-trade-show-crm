@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { logActivity, diffPayload, CONTACT_FIELD_LABELS } from "@/lib/activity";
 import { Constants, type TablesInsert } from "@/lib/database.types";
 
 export type ContactFormState = {
@@ -64,7 +65,17 @@ export async function createContact(
     .single();
   if (error) return { error: error.message };
 
+  const contactName = [data!.first_name, data!.last_name].filter(Boolean).join(" ") || "contact";
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "contact",
+    entityId: row.id,
+    entityLabel: contactName,
+    summary: `Added contact "${contactName}"`,
+  });
+
   revalidatePath("/contacts");
+  revalidatePath("/activity");
   const showId = String(fd.get("show_id") ?? "");
   if (showId) revalidatePath(`/shows/${showId}`);
   redirect(`/contacts/${row.id}?flash=created`);
@@ -81,11 +92,35 @@ export async function updateContact(
   if (fieldErrors) return { error: "Please fix the highlighted fields.", fieldErrors };
 
   const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("contacts")
+    .select(Object.keys(data!).join(", "))
+    .eq("id", id)
+    .maybeSingle();
+
   const { error } = await supabase.from("contacts").update(data!).eq("id", id);
   if (error) return { error: error.message };
 
+  const contactName = [data!.first_name, data!.last_name].filter(Boolean).join(" ") || "contact";
+  const { keys, summary } = diffPayload(
+    before as Record<string, unknown> | null,
+    data! as Record<string, unknown>,
+    CONTACT_FIELD_LABELS,
+  );
+  if (keys.length) {
+    await logActivity(supabase, {
+      action: "updated",
+      entityType: "contact",
+      entityId: id,
+      entityLabel: contactName,
+      summary,
+      details: { fields: keys },
+    });
+  }
+
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${id}`);
+  revalidatePath("/activity");
   redirect(`/contacts/${id}?flash=updated`);
 }
 
@@ -93,7 +128,23 @@ export async function deleteContact(fd: FormData) {
   const id = String(fd.get("id") ?? "");
   if (!id) return;
   const supabase = await createClient();
+  const { data: doomed } = await supabase
+    .from("contacts")
+    .select("first_name, last_name")
+    .eq("id", id)
+    .maybeSingle();
   await supabase.from("contacts").delete().eq("id", id);
+  const doomedName = doomed
+    ? [doomed.first_name, doomed.last_name].filter(Boolean).join(" ")
+    : "";
+  await logActivity(supabase, {
+    action: "deleted",
+    entityType: "contact",
+    entityId: id,
+    entityLabel: doomedName || null,
+    summary: doomedName ? `Deleted contact "${doomedName}"` : "Deleted a contact",
+  });
   revalidatePath("/contacts");
+  revalidatePath("/activity");
   redirect("/contacts?flash=deleted");
 }

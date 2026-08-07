@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { logActivity, diffPayload, CARRIER_FIELD_LABELS } from "@/lib/activity";
 import type { TablesInsert } from "@/lib/database.types";
 
 export type CarrierFormState = {
@@ -51,7 +52,16 @@ export async function createCarrier(
     .single();
   if (error) return { error: error.message };
 
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "carrier",
+    entityId: row.id,
+    entityLabel: data!.carrier_name,
+    summary: `Added carrier "${data!.carrier_name}"`,
+  });
+
   revalidatePath("/carriers");
+  revalidatePath("/activity");
   redirect(`/carriers/${row.id}?flash=created`);
 }
 
@@ -66,12 +76,35 @@ export async function updateCarrier(
   if (fieldErrors) return { error: "Please fix the highlighted fields.", fieldErrors };
 
   const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("carriers")
+    .select(Object.keys(data!).join(", "))
+    .eq("id", id)
+    .maybeSingle();
+
   const { error } = await supabase.from("carriers").update(data!).eq("id", id);
   if (error) return { error: error.message };
+
+  const { keys, summary } = diffPayload(
+    before as Record<string, unknown> | null,
+    data! as Record<string, unknown>,
+    CARRIER_FIELD_LABELS,
+  );
+  if (keys.length) {
+    await logActivity(supabase, {
+      action: "updated",
+      entityType: "carrier",
+      entityId: id,
+      entityLabel: data!.carrier_name,
+      summary,
+      details: { fields: keys },
+    });
+  }
 
   revalidatePath("/carriers");
   revalidatePath(`/carriers/${id}`);
   revalidatePath("/calendar");
+  revalidatePath("/activity");
   const back = String(fd.get("redirect_to") ?? "");
   redirect(back.startsWith("/") ? back : `/carriers/${id}?flash=updated`);
 }
@@ -80,8 +113,21 @@ export async function deleteCarrier(fd: FormData) {
   const id = String(fd.get("id") ?? "");
   if (!id) return;
   const supabase = await createClient();
+  const { data: doomed } = await supabase
+    .from("carriers")
+    .select("carrier_name")
+    .eq("id", id)
+    .maybeSingle();
   await supabase.from("carriers").delete().eq("id", id);
+  await logActivity(supabase, {
+    action: "deleted",
+    entityType: "carrier",
+    entityId: id,
+    entityLabel: doomed?.carrier_name ?? null,
+    summary: doomed?.carrier_name ? `Deleted carrier "${doomed.carrier_name}"` : "Deleted a carrier",
+  });
   revalidatePath("/carriers");
+  revalidatePath("/activity");
   redirect("/carriers?flash=deleted");
 }
 

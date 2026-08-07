@@ -53,7 +53,10 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: "Insights",
-    items: [{ label: "Reports", href: "/reports", icon: "reports" }],
+    items: [
+      { label: "Reports", href: "/reports", icon: "reports" },
+      { label: "Activity", href: "/activity", icon: "clock" },
+    ],
   },
   {
     items: [{ label: "Users", href: "/users", icon: "users", adminOnly: true }],

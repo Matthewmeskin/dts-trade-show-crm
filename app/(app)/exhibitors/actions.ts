@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PRIORITY_TIER_OPTIONS } from "@/lib/exhibitors";
+import { logActivity, diffPayload, EXHIBITOR_FIELD_LABELS } from "@/lib/activity";
 import type { Json, TablesInsert } from "@/lib/database.types";
 
 export type ExhibitorFormState = {
@@ -84,7 +85,16 @@ export async function createExhibitor(
     .single();
   if (error) return { error: error.message };
 
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "exhibitor",
+    entityId: row.id,
+    entityLabel: data!.company_name,
+    summary: `Added exhibitor "${data!.company_name}"`,
+  });
+
   revalidatePath("/exhibitors");
+  revalidatePath("/activity");
   redirect(`/exhibitors/${row.id}?flash=created`);
 }
 
@@ -99,12 +109,36 @@ export async function updateExhibitor(
   if (fieldErrors) return { error: "Please fix the highlighted fields.", fieldErrors };
 
   const supabase = await createClient();
+  // Snapshot the before-state so we can log exactly which fields changed.
+  const { data: before } = await supabase
+    .from("exhibitors")
+    .select(Object.keys(data!).join(", "))
+    .eq("id", id)
+    .maybeSingle();
+
   const { error } = await supabase.from("exhibitors").update(data!).eq("id", id);
   if (error) return { error: error.message };
+
+  const { keys, summary } = diffPayload(
+    before as Record<string, unknown> | null,
+    data! as Record<string, unknown>,
+    EXHIBITOR_FIELD_LABELS,
+  );
+  if (keys.length) {
+    await logActivity(supabase, {
+      action: "updated",
+      entityType: "exhibitor",
+      entityId: id,
+      entityLabel: data!.company_name,
+      summary,
+      details: { fields: keys },
+    });
+  }
 
   revalidatePath("/exhibitors");
   revalidatePath(`/exhibitors/${id}`);
   revalidatePath("/calendar");
+  revalidatePath("/activity");
   const back = String(fd.get("redirect_to") ?? "");
   redirect(back.startsWith("/") ? back : `/exhibitors/${id}?flash=updated`);
 }
@@ -122,10 +156,33 @@ export async function updateExhibitorNotes(
   const status_reason = String(fd.get("status_reason") ?? "").trim() || null;
 
   const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("exhibitors")
+    .select("company_name, general_notes, status_reason")
+    .eq("id", id)
+    .maybeSingle();
+
   const { error } = await supabase.from("exhibitors").update({ general_notes, status_reason }).eq("id", id);
   if (error) return { ok: false, error: error.message };
 
+  const { keys, summary } = diffPayload(
+    before as Record<string, unknown> | null,
+    { general_notes, status_reason },
+    EXHIBITOR_FIELD_LABELS,
+  );
+  if (keys.length) {
+    await logActivity(supabase, {
+      action: "updated",
+      entityType: "exhibitor",
+      entityId: id,
+      entityLabel: before?.company_name ?? null,
+      summary,
+      details: { fields: keys },
+    });
+  }
+
   revalidatePath(`/exhibitors/${id}`);
+  revalidatePath("/activity");
   return { ok: true, error: null };
 }
 
@@ -133,7 +190,20 @@ export async function deleteExhibitor(fd: FormData) {
   const id = String(fd.get("id") ?? "");
   if (!id) return;
   const supabase = await createClient();
+  const { data: doomed } = await supabase
+    .from("exhibitors")
+    .select("company_name")
+    .eq("id", id)
+    .maybeSingle();
   await supabase.from("exhibitors").delete().eq("id", id);
+  await logActivity(supabase, {
+    action: "deleted",
+    entityType: "exhibitor",
+    entityId: id,
+    entityLabel: doomed?.company_name ?? null,
+    summary: doomed?.company_name ? `Deleted exhibitor "${doomed.company_name}"` : "Deleted an exhibitor",
+  });
   revalidatePath("/exhibitors");
+  revalidatePath("/activity");
   redirect("/exhibitors?flash=deleted");
 }

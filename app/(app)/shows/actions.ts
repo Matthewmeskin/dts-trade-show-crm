@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { logActivity, diffPayload, SHOW_FIELD_LABELS } from "@/lib/activity";
 import type { TablesInsert } from "@/lib/database.types";
 import {
   composeFreightAddress,
@@ -174,7 +175,16 @@ export async function createShow(
 
   if (error) return { error: error.message };
 
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "show",
+    entityId: row.id,
+    entityLabel: data!.show_name,
+    summary: `Added show "${data!.show_name}"`,
+  });
+
   revalidatePath("/shows");
+  revalidatePath("/activity");
   redirect(`/shows/${row.id}?flash=created`);
 }
 
@@ -189,13 +199,36 @@ export async function updateShow(
   if (fieldErrors) return { error: "Please fix the highlighted fields.", fieldErrors };
 
   const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("shows")
+    .select(Object.keys(data!).join(", "))
+    .eq("id", id)
+    .maybeSingle();
+
   const { error } = await supabase.from("shows").update(data!).eq("id", id);
   if (error) return { error: error.message };
+
+  const { keys, summary } = diffPayload(
+    before as Record<string, unknown> | null,
+    data! as Record<string, unknown>,
+    SHOW_FIELD_LABELS,
+  );
+  if (keys.length) {
+    await logActivity(supabase, {
+      action: "updated",
+      entityType: "show",
+      entityId: id,
+      entityLabel: data!.show_name,
+      summary,
+      details: { fields: keys },
+    });
+  }
 
   revalidatePath("/shows");
   revalidatePath("/shows/sales");
   revalidatePath(`/shows/${id}`);
   revalidatePath("/calendar");
+  revalidatePath("/activity");
   const back = String(fd.get("redirect_to") ?? "");
   redirect(back.startsWith("/") ? back : `/shows/${id}?flash=updated`);
 }
@@ -219,16 +252,42 @@ export async function updateShowSales(fd: FormData) {
       instantly_created: fd.get("instantly_created") === "on",
     })
     .eq("id", id);
+  const { data: show } = await supabase
+    .from("shows")
+    .select("show_name")
+    .eq("id", id)
+    .maybeSingle();
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "show",
+    entityId: id,
+    entityLabel: show?.show_name ?? null,
+    summary: "Updated sales calendar",
+  });
   revalidatePath("/shows/sales");
   revalidatePath(`/shows/${id}`);
+  revalidatePath("/activity");
 }
 
 export async function deleteShow(fd: FormData) {
   const id = String(fd.get("id") ?? "");
   if (!id) return;
   const supabase = await createClient();
+  const { data: doomed } = await supabase
+    .from("shows")
+    .select("show_name")
+    .eq("id", id)
+    .maybeSingle();
   await supabase.from("shows").delete().eq("id", id);
+  await logActivity(supabase, {
+    action: "deleted",
+    entityType: "show",
+    entityId: id,
+    entityLabel: doomed?.show_name ?? null,
+    summary: doomed?.show_name ? `Deleted show "${doomed.show_name}"` : "Deleted a show",
+  });
   revalidatePath("/shows");
+  revalidatePath("/activity");
   redirect("/shows?flash=deleted");
 }
 
