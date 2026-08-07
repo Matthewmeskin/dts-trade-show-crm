@@ -100,12 +100,55 @@ export default async function ShowHistoryPage({
       cur.confirmed = cur.confirmed ?? r.confirmed_2026;
       byExhibitor.set(key, cur);
     }
-    const list = [...byExhibitor.values()].sort((a, b) => b.margin - a.margin);
+    const isReturning = (r: Agg) => (hasRoster ? !!(r.id && rosterSet.has(r.id)) : returningTo(show, r.confirmed));
+    const dSorts: Record<string, boolean> = {
+      name: true, owner: true, status: true, tier: true, // string sorts (asc default)
+      loads: false, years: false, margin: false, back: false, // numeric (desc default)
+    };
+    const dsort = sortParam && sortParam in dSorts ? sortParam : "margin";
+    const ddir: "asc" | "desc" =
+      dirParam === "asc" ? "asc" : dirParam === "desc" ? "desc" : dSorts[dsort] ? "asc" : "desc";
+    const dval = (r: Agg): string | number => {
+      switch (dsort) {
+        case "name": return r.company_name.toLowerCase();
+        case "owner": return (r.owner_rep ?? "").toLowerCase();
+        case "status": return r.sales_status ?? "";
+        case "tier": return r.priority_tier ?? "";
+        case "loads": return r.loads;
+        case "years": return r.last ?? 0;
+        case "back": return isReturning(r) ? 1 : 0;
+        default: return r.margin;
+      }
+    };
+    const list = [...byExhibitor.values()].sort((a, b) => {
+      const av = dval(a);
+      const bv = dval(b);
+      if (av < bv) return ddir === "asc" ? -1 : 1;
+      if (av > bv) return ddir === "asc" ? 1 : -1;
+      return 0;
+    });
     const totalLoads = list.reduce((s, r) => s + r.loads, 0);
     const totalMargin = list.reduce((s, r) => s + r.margin, 0);
-    const returning = hasRoster
-      ? list.filter((r) => r.id && rosterSet.has(r.id)).length
-      : list.filter((r) => returningTo(show, r.confirmed)).length;
+    const returning = list.filter(isReturning).length;
+
+    const dSortHref = (key: string) => {
+      const params = new URLSearchParams();
+      params.set("show", show);
+      if (q) params.set("q", q);
+      const nextDir = dsort === key ? (ddir === "asc" ? "desc" : "asc") : dSorts[key] ? "asc" : "desc";
+      params.set("sort", key);
+      params.set("dir", nextDir);
+      return `/show-history?${params}`;
+    };
+    const dArrow = (key: string) => (dsort === key ? (ddir === "asc" ? " ↑" : " ↓") : "");
+    const dth = (key: string, label: string, align: "left" | "right" = "left") => (
+      <th key={key} className={`px-5 py-3 ${align === "right" ? "text-right" : "text-left"}`}>
+        <Link href={dSortHref(key)} className="inline-flex items-center hover:text-slate-700">
+          {label}
+          <span className="text-dts-maroon">{dArrow(key)}</span>
+        </Link>
+      </th>
+    );
 
     return (
       <div>
@@ -128,17 +171,15 @@ export default async function ShowHistoryPage({
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
-                    <th className="px-5 py-3">Exhibitor</th>
-                    <th className="px-5 py-3">Owner / rep</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Tier</th>
-                    <th className="px-5 py-3 text-right">Loads</th>
-                    <th className="px-5 py-3">Years</th>
-                    <th className="px-5 py-3 text-right">Margin</th>
-                    <th className="px-5 py-3" title={hasRoster ? "On the saved 2026 roster for this show" : "Confirmed to exhibit at this show in 2026 (from scraped 2026 confirmations)"}>
-                      Back in 2026?
-                    </th>
+                  <tr className="border-b border-slate-100 text-xs font-medium uppercase tracking-wide text-slate-400">
+                    {dth("name", "Exhibitor")}
+                    {dth("owner", "Owner / rep")}
+                    {dth("status", "Status")}
+                    {dth("tier", "Tier")}
+                    {dth("loads", "Loads", "right")}
+                    {dth("years", "Years")}
+                    {dth("margin", "Margin", "right")}
+                    {dth("back", "Back in 2026?")}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">

@@ -6,7 +6,7 @@ import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { SHOW_STATUS_META } from "@/lib/shows";
 import { SHIPMENT_STATUS_META } from "@/lib/shipments";
-import { salesStatusMeta, priorityTierMeta } from "@/lib/exhibitors";
+import { salesStatusMeta, priorityTierMeta, confirmedForShow2026 } from "@/lib/exhibitors";
 import { formatDate, formatDateRange, formatCurrency } from "@/lib/format";
 import { deleteExhibitor } from "../actions";
 import { QuickEditExhibitor } from "./quick-edit";
@@ -50,7 +50,7 @@ export default async function ExhibitorRecordPage({
   if (from) shipQuery = shipQuery.gte("pickup_date", from);
   if (to) shipQuery = shipQuery.lte("pickup_date", to);
 
-  const [showsRes, shipRes, historyRes] = await Promise.all([
+  const [showsRes, shipRes, historyRes, rosterRes] = await Promise.all([
     showIds.length
       ? supabase
           .from("shows_with_status")
@@ -61,14 +61,16 @@ export default async function ExhibitorRecordPage({
     shipQuery.order("pickup_date", { ascending: true, nullsFirst: false }),
     supabase
       .from("exhibitor_show_history")
-      .select("show_name, show_loads, first_year, last_year, billed, margin, confirmed_2026")
+      .select("show_name, canonical_show_name, show_loads, first_year, last_year, billed, margin, confirmed_2026")
       .eq("exhibitor_id", id)
       .order("margin", { ascending: false, nullsFirst: false }),
+    supabase.from("exhibitor_show_roster").select("show_name").eq("exhibitor_id", id).eq("year", 2026),
   ]);
 
   const shows = showsRes.data ?? [];
   const shipments = shipRes.data ?? [];
   const history = historyRes.data ?? [];
+  const roster2026 = new Set((rosterRes.data ?? []).map((r) => r.show_name));
   const statusMeta = salesStatusMeta(e.sales_status);
   const tierMeta = priorityTierMeta(e.priority_tier);
   const marginTotal = shipments.reduce((sum, s) => sum + (s.margin ?? 0), 0);
@@ -273,8 +275,13 @@ export default async function ExhibitorRecordPage({
                         <td className="px-5 py-3 text-right tabular-nums text-slate-700">
                           {h.margin != null ? formatCurrency(h.margin) : "—"}
                         </td>
-                        <td className="px-5 py-3 text-xs text-slate-500">
-                          {h.confirmed_2026 ? (
+                        <td
+                          className="px-5 py-3 text-xs text-slate-500"
+                          title={h.confirmed_2026 ? `2026 confirmed: ${h.confirmed_2026}` : undefined}
+                        >
+                          {roster2026.has(h.canonical_show_name ?? h.show_name) ? (
+                            <span className="font-medium text-emerald-600">✓ Roster</span>
+                          ) : confirmedForShow2026(h.canonical_show_name ?? h.show_name, h.confirmed_2026) ? (
                             <span className="text-emerald-600">✓</span>
                           ) : (
                             <span className="text-slate-300">—</span>

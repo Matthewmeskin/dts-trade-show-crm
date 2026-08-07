@@ -68,3 +68,18 @@ export function priorityTierMeta(v: string | null | undefined) {
     ? PRIORITY_TIER_META[v as PriorityTier]
     : null;
 }
+
+/**
+ * Whether a show appears in a customer's scraped 2026-confirmed list. The list
+ * names and the legacy show names use different styles, so compare on
+ * alphanumerics only. Best-effort: won't claim a confirmation that isn't there.
+ */
+export function confirmedForShow2026(
+  showName: string | null | undefined,
+  confirmedText: string | null | undefined,
+): boolean {
+  if (!showName || !confirmedText) return false;
+  const alnum = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const key = alnum(showName);
+  return key.length >= 3 && alnum(confirmedText).includes(key);
+}
