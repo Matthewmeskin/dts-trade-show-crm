@@ -5,7 +5,7 @@ import { fetchAll } from "@/lib/supabase/fetch-all";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import { formatCurrency } from "@/lib/format";
-import { salesStatusMeta, priorityTierMeta } from "@/lib/exhibitors";
+import { salesStatusMeta, priorityTierMeta, statusReasonLabel } from "@/lib/exhibitors";
 import { createShowFromHistory } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -56,12 +56,12 @@ export default async function ShowHistoryPage({
       supabase
         .from("exhibitor_show_history")
         .select(
-          "show_name, show_loads, first_year, last_year, margin, confirmed_2026, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, priority_tier, source)",
+          "show_name, show_loads, first_year, last_year, margin, confirmed_2026, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, status_reason, priority_tier, source)",
         )
         .eq("canonical_show_name", show),
       supabase
         .from("exhibitor_show_roster")
-        .select("exhibitor_id, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, priority_tier, source)")
+        .select("exhibitor_id, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, status_reason, priority_tier, source)")
         .eq("show_name", show)
         .eq("year", 2026),
       supabase.from("shows").select("id, show_name, edition_year"),
@@ -90,6 +90,7 @@ export default async function ShowHistoryPage({
               company_name: string;
               owner_rep: string | null;
               sales_status: string | null;
+              status_reason: string | null;
               priority_tier: string | null;
               source: string;
             } | null;
@@ -97,7 +98,7 @@ export default async function ShowHistoryPage({
             supabase
               .from("shipments")
               .select(
-                "exhibitor_id, pickup_date, margin, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, priority_tier, source)",
+                "exhibitor_id, pickup_date, margin, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, status_reason, priority_tier, source)",
               )
               .in("show_id", matchedShowIds),
           )
@@ -111,6 +112,7 @@ export default async function ShowHistoryPage({
       company_name: string;
       owner_rep: string | null;
       sales_status: string | null;
+      status_reason: string | null;
       priority_tier: string | null;
       loads: number;
       margin: number;
@@ -131,6 +133,7 @@ export default async function ShowHistoryPage({
           company_name: e?.company_name ?? "—",
           owner_rep: e?.owner_rep ?? null,
           sales_status: e?.sales_status ?? null,
+          status_reason: e?.status_reason ?? null,
           priority_tier: e?.priority_tier ?? null,
           loads: 0,
           margin: 0,
@@ -157,6 +160,7 @@ export default async function ShowHistoryPage({
           company_name: e.company_name,
           owner_rep: e.owner_rep,
           sales_status: e.sales_status,
+          status_reason: e.status_reason,
           priority_tier: e.priority_tier,
           loads: 0,
           margin: 0,
@@ -186,6 +190,7 @@ export default async function ShowHistoryPage({
         company_name: e.company_name,
         owner_rep: e.owner_rep,
         sales_status: e.sales_status,
+        status_reason: e.status_reason,
         priority_tier: e.priority_tier,
         loads: 0,
         margin: 0,
@@ -385,6 +390,11 @@ export default async function ShowHistoryPage({
                           ) : (
                             <span className="text-slate-300">—</span>
                           )}
+                          {statusReasonLabel(r.status_reason) ? (
+                            <div className="mt-1 text-[11px] text-slate-400">
+                              {statusReasonLabel(r.status_reason)}
+                            </div>
+                          ) : null}
                         </td>
                         <td className="px-5 py-3">
                           {tm ? <Badge className={tm.badge}>{tm.label}</Badge> : <span className="text-slate-300">—</span>}
