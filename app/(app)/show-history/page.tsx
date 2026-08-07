@@ -181,7 +181,7 @@ export default async function ShowHistoryPage({
     const SEGMENTS: { key: string; label: string }[] = [
       { key: "all", label: "All" },
       { key: "roster", label: "On 2026 roster" },
-      { key: "new", label: "Never shipped w/ you" },
+      { key: "new", label: "No loads here" },
       { key: "freight", label: "Freight" },
       { key: "shipped", label: "Shipped before" },
     ];
@@ -299,12 +299,21 @@ export default async function ShowHistoryPage({
                         <td className="px-5 py-3 font-medium text-slate-900 group-hover:text-dts-maroon">
                           {r.company_name}
                           {r.rosterOnly ? (
-                            <span
-                              className="ml-1.5 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700"
-                              title="On the 2026 roster, but you've never shipped this show for them — a freight opportunity"
-                            >
-                              opportunity
-                            </span>
+                            r.source === "promoted_from_customer" ? (
+                              <span
+                                className="ml-1.5 rounded bg-dts-blue/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-dts-blue"
+                                title="Freight customer promoted to exhibitor — new to trade-show freight with you"
+                              >
+                                freight customer
+                              </span>
+                            ) : (
+                              <span
+                                className="ml-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700"
+                                title="On the 2026 roster; no loads for THIS show on record. They may ship other shows with you (or the legacy show-level detail is missing) — check their exhibitor page."
+                              >
+                                no loads here
+                              </span>
+                            )
                           ) : null}
                         </td>
                         <td className="px-5 py-3 text-slate-600">
