@@ -271,43 +271,58 @@ export type Database = {
       }
       customers: {
         Row: {
+          address: string | null
+          address2: string | null
           city: string | null
           company_name: string
           created_at: string
           external_id: string | null
+          fax: string | null
           id: string
           notes: string | null
           owner_rep: string | null
+          phone: string | null
           source: string
           state: string | null
           status: string | null
           updated_at: string
+          zip: string | null
         }
         Insert: {
+          address?: string | null
+          address2?: string | null
           city?: string | null
           company_name: string
           created_at?: string
           external_id?: string | null
+          fax?: string | null
           id?: string
           notes?: string | null
           owner_rep?: string | null
+          phone?: string | null
           source?: string
           state?: string | null
           status?: string | null
           updated_at?: string
+          zip?: string | null
         }
         Update: {
+          address?: string | null
+          address2?: string | null
           city?: string | null
           company_name?: string
           created_at?: string
           external_id?: string | null
+          fax?: string | null
           id?: string
           notes?: string | null
           owner_rep?: string | null
+          phone?: string | null
           source?: string
           state?: string | null
           status?: string | null
           updated_at?: string
+          zip?: string | null
         }
         Relationships: []
       }
