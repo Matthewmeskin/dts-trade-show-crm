@@ -5,10 +5,19 @@ import Link from "next/link";
 import { Card, Badge } from "@/components/ui";
 import { formatCurrency } from "@/lib/format";
 import { salesStatusMeta, priorityTierMeta } from "@/lib/exhibitors";
-import { matchRoster, recordRoster, type RosterState, type RecordState, type MatchRow } from "./actions";
+import {
+  matchRoster,
+  recordRoster,
+  promoteFreightToRoster,
+  type RosterState,
+  type RecordState,
+  type PromoteState,
+  type MatchRow,
+} from "./actions";
 
 const initial: RosterState = { results: [], total: 0, matchedCount: 0, customerCount: 0, show: "", error: null };
 const recordInitial: RecordState = { saved: 0, error: null };
+const promoteInitial: PromoteState = { promoted: 0, error: null };
 
 type Filter = "all" | "matched" | "new";
 
@@ -17,6 +26,7 @@ const RESULT_PAGE = 100;
 export function RosterMatch({ shows }: { shows: string[] }) {
   const [state, action, pending] = useActionState(matchRoster, initial);
   const [recordState, doRecord, recording] = useActionState(recordRoster, recordInitial);
+  const [promoteState, doPromote, promoting] = useActionState(promoteFreightToRoster, promoteInitial);
   const [text, setText] = useState("");
   const [show, setShow] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -49,6 +59,9 @@ export function RosterMatch({ shows }: { shows: string[] }) {
   }, [state.results, filter]);
   const newCount = state.total - state.matchedCount - state.customerCount;
   const matchedIds = state.results.map((r) => r.matched?.id).filter((id): id is string => !!id);
+  const freightIds = state.results
+    .filter((r) => r.customer && !r.matched)
+    .map((r) => r.customer!.id);
   const returningCount = state.results.filter((r) => r.history).length;
   const hasShow = !!state.show;
 
@@ -166,26 +179,49 @@ export function RosterMatch({ shows }: { shows: string[] }) {
           </div>
 
           {/* Save-to-roster */}
-          {hasShow && matchedIds.length > 0 ? (
+          {hasShow && (matchedIds.length > 0 || freightIds.length > 0) ? (
             <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3">
-              <form action={doRecord}>
-                <input type="hidden" name="show" value={state.show} />
-                <input type="hidden" name="ids" value={matchedIds.join(",")} />
-                <button
-                  type="submit"
-                  disabled={recording}
-                  className="rounded-lg border border-dts-maroon px-3 py-1.5 text-sm font-medium text-dts-maroon transition hover:bg-dts-maroon hover:text-white disabled:opacity-60"
-                >
-                  {recording ? "Saving…" : `Save ${matchedIds.length} customers as ${state.show} 2026 roster`}
-                </button>
-              </form>
+              {matchedIds.length > 0 ? (
+                <form action={doRecord}>
+                  <input type="hidden" name="show" value={state.show} />
+                  <input type="hidden" name="ids" value={matchedIds.join(",")} />
+                  <button
+                    type="submit"
+                    disabled={recording}
+                    className="rounded-lg border border-dts-maroon px-3 py-1.5 text-sm font-medium text-dts-maroon transition hover:bg-dts-maroon hover:text-white disabled:opacity-60"
+                  >
+                    {recording ? "Saving…" : `Save ${matchedIds.length} trade-show customers to ${state.show} 2026`}
+                  </button>
+                </form>
+              ) : null}
+              {freightIds.length > 0 ? (
+                <form action={doPromote}>
+                  <input type="hidden" name="show" value={state.show} />
+                  <input type="hidden" name="customer_ids" value={freightIds.join(",")} />
+                  <button
+                    type="submit"
+                    disabled={promoting}
+                    className="rounded-lg border border-dts-blue px-3 py-1.5 text-sm font-medium text-dts-blue transition hover:bg-dts-blue hover:text-white disabled:opacity-60"
+                  >
+                    {promoting
+                      ? "Adding…"
+                      : `Add ${freightIds.length} freight customer${freightIds.length === 1 ? "" : "s"} as exhibitors + roster`}
+                  </button>
+                </form>
+              ) : null}
               {recordState.saved > 0 ? (
                 <span className="text-sm font-medium text-emerald-600">
-                  ✓ Saved — {state.show} now shows these as confirmed for 2026 in Show History.
+                  ✓ Saved {recordState.saved} to {state.show} 2026 roster.
+                </span>
+              ) : null}
+              {promoteState.promoted > 0 ? (
+                <span className="text-sm font-medium text-emerald-600">
+                  ✓ Added {promoteState.promoted} freight customer{promoteState.promoted === 1 ? "" : "s"} as exhibitors and rostered them. Re-run to refresh.
                 </span>
               ) : null}
               {recordState.error ? <span className="text-sm text-dts-maroon">{recordState.error}</span> : null}
-              <span className="text-xs text-slate-400">New prospects aren&rsquo;t saved (add them as exhibitors first).</span>
+              {promoteState.error ? <span className="text-sm text-dts-maroon">{promoteState.error}</span> : null}
+              <span className="text-xs text-slate-400">New prospects aren&rsquo;t added (they&rsquo;re not customers).</span>
             </div>
           ) : null}
 

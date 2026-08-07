@@ -144,6 +144,67 @@ export async function matchRoster(_prev: RosterState, formData: FormData): Promi
   return { results, total: results.length, matchedCount, customerCount, show, error: null };
 }
 
+export type PromoteState = { promoted: number; error: string | null };
+
+/**
+ * Promote freight-only customers (on a show's roster but with no exhibitor
+ * record) into exhibitors, then add them to that show's 2026 roster — so a
+ * customer you've only done non-trade-show freight for, who's now exhibiting,
+ * becomes a rostered exhibitor.
+ */
+export async function promoteFreightToRoster(_prev: PromoteState, formData: FormData): Promise<PromoteState> {
+  const show = String(formData.get("show") ?? "").trim();
+  const ids = String(formData.get("customer_ids") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (!show) return { promoted: 0, error: "Pick a show first." };
+  if (ids.length === 0) return { promoted: 0, error: "No freight customers to add." };
+
+  const supabase = await createClient();
+  const { data: custs, error: cErr } = await supabase
+    .from("customers")
+    .select("id, company_name, phone, owner_rep")
+    .in("id", ids);
+  if (cErr) return { promoted: 0, error: cErr.message };
+
+  const rosterRows: { show_name: string; year: number; exhibitor_id: string; source: string }[] = [];
+  for (const c of custs ?? []) {
+    // Reuse an existing exhibitor with the same name if one somehow exists,
+    // otherwise create one from the customer record.
+    const { data: existing } = await supabase
+      .from("exhibitors")
+      .select("id")
+      .ilike("company_name", c.company_name)
+      .limit(1)
+      .maybeSingle();
+    let exhibitorId = existing?.id;
+    if (!exhibitorId) {
+      const { data: ins, error: iErr } = await supabase
+        .from("exhibitors")
+        .insert({
+          company_name: c.company_name,
+          primary_contact_phone: c.phone,
+          owner_rep: c.owner_rep,
+          source: "promoted_from_customer",
+        })
+        .select("id")
+        .single();
+      if (iErr) return { promoted: rosterRows.length, error: iErr.message };
+      exhibitorId = ins.id;
+    }
+    rosterRows.push({ show_name: show, year: 2026, exhibitor_id: exhibitorId, source: "roster_upload" });
+  }
+
+  if (rosterRows.length > 0) {
+    const { error: rErr } = await supabase
+      .from("exhibitor_show_roster")
+      .upsert(rosterRows, { onConflict: "show_name,year,exhibitor_id" });
+    if (rErr) return { promoted: rosterRows.length, error: rErr.message };
+  }
+
+  revalidatePath("/show-history");
+  revalidatePath("/exhibitors");
+  return { promoted: rosterRows.length, error: null };
+}
+
 export type RecordState = { saved: number; error: string | null };
 
 /** Save the matched customers as the authoritative 2026 roster for a show. */
