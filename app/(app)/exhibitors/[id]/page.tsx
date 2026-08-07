@@ -6,7 +6,7 @@ import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { SHOW_STATUS_META } from "@/lib/shows";
 import { SHIPMENT_STATUS_META } from "@/lib/shipments";
-import { salesStatusMeta, priorityTierMeta, confirmedForShow2026 } from "@/lib/exhibitors";
+import { salesStatusMeta, priorityTierMeta, confirmedForShow2026, statusReasonLabel } from "@/lib/exhibitors";
 import { formatDate, formatDateRange, formatCurrency } from "@/lib/format";
 import { deleteExhibitor } from "../actions";
 import { QuickEditExhibitor } from "./quick-edit";
@@ -103,6 +103,11 @@ export default async function ExhibitorRecordPage({
             ) : null}
             {tierMeta ? (
               <Badge className={tierMeta.badge}>Tier {tierMeta.label}</Badge>
+            ) : null}
+            {statusReasonLabel(e.status_reason) ? (
+              <Badge className="bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-300">
+                {statusReasonLabel(e.status_reason)}
+              </Badge>
             ) : null}
           </div>
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500">
@@ -305,6 +310,7 @@ export default async function ExhibitorRecordPage({
             exhibitorId={e.id}
             freightNotes={e.freight_profile_notes}
             initialNotes={e.general_notes ?? ""}
+            initialReason={e.status_reason ?? ""}
           />
         </div>
 

@@ -57,6 +57,23 @@ export const PRIORITY_TIER_OPTIONS: { value: PriorityTier; label: string }[] = [
   { value: "Internal", label: "Internal" },
 ];
 
+/** Structured reason for the relationship state — especially why we're not
+ * (or are) working with an exhibitor. Filterable in the directory. */
+export const STATUS_REASON_OPTIONS: { value: string; label: string }[] = [
+  { value: "lost_on_price", label: "Lost on price" },
+  { value: "payment_issue", label: "Payment / credit issue" },
+  { value: "uses_in_house", label: "Ships in-house" },
+  { value: "competitor", label: "Uses a competitor" },
+  { value: "no_need", label: "No freight need" },
+  { value: "do_not_contact", label: "Do not contact" },
+  { value: "active_relationship", label: "Active relationship" },
+  { value: "other", label: "Other (see notes)" },
+];
+
+export function statusReasonLabel(v: string | null | undefined): string | null {
+  return v ? STATUS_REASON_OPTIONS.find((o) => o.value === v)?.label ?? v : null;
+}
+
 export function salesStatusMeta(v: string | null | undefined) {
   return v && v in SALES_STATUS_META
     ? SALES_STATUS_META[v as SalesStatus]

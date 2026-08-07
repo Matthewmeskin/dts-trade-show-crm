@@ -5,7 +5,7 @@ import { useActionState, useState } from "react";
 import { Card } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { Field, FormSection, SubmitButton, inputClass } from "@/components/form";
-import { SALES_STATUS_OPTIONS, PRIORITY_TIER_OPTIONS } from "@/lib/exhibitors";
+import { SALES_STATUS_OPTIONS, PRIORITY_TIER_OPTIONS, STATUS_REASON_OPTIONS } from "@/lib/exhibitors";
 import type { ExhibitorFormState } from "./actions";
 import type { Tables } from "@/lib/database.types";
 
@@ -83,6 +83,14 @@ export function ExhibitorForm({
             <select id="priority_tier" name="priority_tier" defaultValue={d?.priority_tier ?? ""} className={inputClass}>
               <option value="">—</option>
               {PRIORITY_TIER_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Status reason" htmlFor="status_reason">
+            <select id="status_reason" name="status_reason" defaultValue={d?.status_reason ?? ""} className={inputClass}>
+              <option value="">—</option>
+              {STATUS_REASON_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>

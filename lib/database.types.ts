@@ -501,6 +501,7 @@ export type Database = {
           shows_confirmed_2026: string | null
           shows_shipped: string | null
           source: string
+          status_reason: string | null
           top_show_cities: string | null
           ttm_loads: number | null
           ttm_margin: number | null
@@ -534,6 +535,7 @@ export type Database = {
           shows_confirmed_2026?: string | null
           shows_shipped?: string | null
           source?: string
+          status_reason?: string | null
           top_show_cities?: string | null
           ttm_loads?: number | null
           ttm_margin?: number | null
@@ -567,6 +569,7 @@ export type Database = {
           shows_confirmed_2026?: string | null
           shows_shipped?: string | null
           source?: string
+          status_reason?: string | null
           top_show_cities?: string | null
           ttm_loads?: number | null
           ttm_margin?: number | null

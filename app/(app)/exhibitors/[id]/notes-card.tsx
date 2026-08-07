@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { Card, CardHeader } from "@/components/ui";
 import { inputClass } from "@/components/form";
+import { STATUS_REASON_OPTIONS } from "@/lib/exhibitors";
 import { updateExhibitorNotes, type NotesState } from "../actions";
 
 const initial: NotesState = { ok: false, error: null };
@@ -16,14 +17,17 @@ export function ExhibitorNotesCard({
   exhibitorId,
   freightNotes,
   initialNotes,
+  initialReason,
 }: {
   exhibitorId: string;
   freightNotes: string | null;
   initialNotes: string;
+  initialReason: string;
 }) {
   const [state, action, pending] = useActionState(updateExhibitorNotes, initial);
   const [notes, setNotes] = useState(initialNotes);
-  const dirty = notes !== initialNotes;
+  const [reason, setReason] = useState(initialReason);
+  const dirty = notes !== initialNotes || reason !== initialReason;
 
   return (
     <Card>
@@ -39,6 +43,26 @@ export function ExhibitorNotesCard({
             <p className="whitespace-pre-wrap text-slate-700">{freightNotes}</p>
           </div>
         ) : null}
+
+        <div>
+          <label htmlFor="status_reason" className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
+            Status reason
+          </label>
+          <select
+            id="status_reason"
+            name="status_reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">—</option>
+            {STATUS_REASON_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <div>
           <label htmlFor="general_notes" className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">

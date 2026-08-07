@@ -8,6 +8,7 @@ import { Pagination } from "@/components/pagination";
 import {
   SALES_STATUS_OPTIONS,
   PRIORITY_TIER_OPTIONS,
+  STATUS_REASON_OPTIONS,
   salesStatusMeta,
   priorityTierMeta,
 } from "@/lib/exhibitors";
@@ -24,12 +25,13 @@ export default async function ExhibitorsPage({
     industry?: string;
     status?: string;
     tier?: string;
+    reason?: string;
     from?: string;
     to?: string;
     page?: string;
   }>;
 }) {
-  const { q = "", industry = "", status = "", tier = "", from = "", to = "", page: pageParam } =
+  const { q = "", industry = "", status = "", tier = "", reason = "", from = "", to = "", page: pageParam } =
     await searchParams;
   const supabase = await createClient();
 
@@ -38,6 +40,7 @@ export default async function ExhibitorsPage({
   if (industry.trim()) query = query.eq("industry", industry);
   if (status.trim()) query = query.eq("sales_status", status);
   if (tier.trim()) query = query.eq("priority_tier", tier);
+  if (reason.trim()) query = query.eq("status_reason", reason);
 
   // When a date range is set, count only loads that pick up in the window, and
   // narrow the directory to exhibitors that have such loads.
@@ -85,12 +88,13 @@ export default async function ExhibitorsPage({
     if (industry) params.set("industry", industry);
     if (status) params.set("status", status);
     if (tier) params.set("tier", tier);
+    if (reason) params.set("reason", reason);
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     if (p > 1) params.set("page", String(p));
     return `/exhibitors${params.toString() ? `?${params}` : ""}`;
   };
-  const anyFilter = !!(q || industry || status || tier || from || to);
+  const anyFilter = !!(q || industry || status || tier || reason || from || to);
 
   return (
     <div>
@@ -134,6 +138,18 @@ export default async function ExhibitorsPage({
             ))}
           </select>
           <select
+            name="reason"
+            defaultValue={reason}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon"
+          >
+            <option value="">All reasons</option>
+            {STATUS_REASON_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <select
             name="industry"
             defaultValue={industry}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon"
@@ -160,7 +176,7 @@ export default async function ExhibitorsPage({
           </button>
           {from || to ? (
             <Link
-              href={`/exhibitors${(() => { const p = new URLSearchParams(); if (industry) p.set("industry", industry); if (status) p.set("status", status); if (tier) p.set("tier", tier); if (q) p.set("q", q); return p.toString() ? `?${p}` : ""; })()}`}
+              href={`/exhibitors${(() => { const p = new URLSearchParams(); if (industry) p.set("industry", industry); if (status) p.set("status", status); if (tier) p.set("tier", tier); if (reason) p.set("reason", reason); if (q) p.set("q", q); return p.toString() ? `?${p}` : ""; })()}`}
               className="text-sm font-medium text-slate-400 hover:text-slate-700"
             >
               Clear dates

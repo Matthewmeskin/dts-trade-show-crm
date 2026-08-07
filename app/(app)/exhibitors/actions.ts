@@ -52,6 +52,7 @@ function parseExhibitor(fd: FormData): {
       website: str(fd, "website"),
       owner_rep: str(fd, "owner_rep"),
       sales_status,
+      status_reason: str(fd, "status_reason"),
       priority_tier,
       // Keep the human-readable tier label in sync when set from the form.
       priority_tier_label: priority_tier
@@ -118,9 +119,10 @@ export async function updateExhibitorNotes(
   const id = String(fd.get("id") ?? "");
   if (!id) return { ok: false, error: "Missing exhibitor id." };
   const general_notes = String(fd.get("general_notes") ?? "").trim() || null;
+  const status_reason = String(fd.get("status_reason") ?? "").trim() || null;
 
   const supabase = await createClient();
-  const { error } = await supabase.from("exhibitors").update({ general_notes }).eq("id", id);
+  const { error } = await supabase.from("exhibitors").update({ general_notes, status_reason }).eq("id", id);
   if (error) return { ok: false, error: error.message };
 
   revalidatePath(`/exhibitors/${id}`);
