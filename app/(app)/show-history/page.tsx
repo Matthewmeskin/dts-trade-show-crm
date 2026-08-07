@@ -5,6 +5,7 @@ import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import { formatCurrency } from "@/lib/format";
 import { salesStatusMeta, priorityTierMeta } from "@/lib/exhibitors";
+import { createShowFromHistory } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -43,26 +44,35 @@ type SortKey = keyof typeof SORTS;
 export default async function ShowHistoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; show?: string; page?: string; sort?: string; dir?: string }>;
+  searchParams: Promise<{ q?: string; show?: string; page?: string; sort?: string; dir?: string; seg?: string }>;
 }) {
-  const { q = "", show = "", page: pageParam, sort: sortParam, dir: dirParam } = await searchParams;
+  const { q = "", show = "", page: pageParam, sort: sortParam, dir: dirParam, seg: segParam } = await searchParams;
   const supabase = await createClient();
 
   // ---- Detail: one show's historical exhibitors --------------------------
   if (show) {
-    const [{ data: rows }, { data: rosterRows }] = await Promise.all([
+    const [{ data: rows }, { data: rosterRows }, existingShowRes] = await Promise.all([
       supabase
         .from("exhibitor_show_history")
         .select(
-          "show_name, show_loads, first_year, last_year, margin, confirmed_2026, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, priority_tier)",
+          "show_name, show_loads, first_year, last_year, margin, confirmed_2026, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, priority_tier, source)",
         )
         .eq("canonical_show_name", show),
       supabase
         .from("exhibitor_show_roster")
-        .select("exhibitor_id, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, priority_tier)")
+        .select("exhibitor_id, exhibitor:exhibitors(id, company_name, owner_rep, sales_status, priority_tier, source)")
         .eq("show_name", show)
         .eq("year", 2026),
+      supabase.from("shows").select("id, show_name").eq("edition_year", 2026),
     ]);
+    // Match an existing 2026 show by name — real show names are descriptive
+    // ("IMTS ( International Manufacturing Technology Show)"), so compare on
+    // alphanumerics: a real name that contains the canonical key is the show.
+    const showKey = alnum(show);
+    const existingShowId =
+      showKey.length >= 4
+        ? (existingShowRes.data ?? []).find((s) => alnum(s.show_name ?? "").includes(showKey))?.id ?? null
+        : null;
     const rosterSet = new Set((rosterRows ?? []).map((r) => r.exhibitor_id));
     const hasRoster = rosterSet.size > 0;
 
@@ -78,6 +88,7 @@ export default async function ShowHistoryPage({
       first: number | null;
       last: number | null;
       confirmed: string | null;
+      source: string | null;
       rosterOnly?: boolean;
     };
     const byExhibitor = new Map<string, Agg>();
@@ -97,6 +108,7 @@ export default async function ShowHistoryPage({
           first: null,
           last: null,
           confirmed: r.confirmed_2026,
+          source: e?.source ?? null,
         };
       cur.loads += r.show_loads ?? 0;
       cur.margin += r.margin ?? 0;
@@ -123,6 +135,7 @@ export default async function ShowHistoryPage({
         first: null,
         last: null,
         confirmed: null,
+        source: e.source ?? null,
         rosterOnly: true,
       });
     }
@@ -157,13 +170,41 @@ export default async function ShowHistoryPage({
     const totalMargin = list.reduce((s, r) => s + r.margin, 0);
     const returning = list.filter(isReturning).length;
 
+    // Segment filter.
+    const segPred: Record<string, (r: Agg) => boolean> = {
+      all: () => true,
+      roster: (r) => isReturning(r),
+      new: (r) => !!r.rosterOnly,
+      freight: (r) => r.source === "promoted_from_customer",
+      shipped: (r) => !r.rosterOnly,
+    };
+    const SEGMENTS: { key: string; label: string }[] = [
+      { key: "all", label: "All" },
+      { key: "roster", label: "On 2026 roster" },
+      { key: "new", label: "New to show" },
+      { key: "freight", label: "Freight" },
+      { key: "shipped", label: "Shipped before" },
+    ];
+    const seg = segParam && segParam in segPred ? segParam : "all";
+    const filtered = list.filter(segPred[seg]);
+
     const dSortHref = (key: string) => {
       const params = new URLSearchParams();
       params.set("show", show);
       if (q) params.set("q", q);
+      if (seg !== "all") params.set("seg", seg);
       const nextDir = dsort === key ? (ddir === "asc" ? "desc" : "asc") : dSorts[key] ? "asc" : "desc";
       params.set("sort", key);
       params.set("dir", nextDir);
+      return `/show-history?${params}`;
+    };
+    const segHref = (key: string) => {
+      const params = new URLSearchParams();
+      params.set("show", show);
+      if (q) params.set("q", q);
+      if (dsort !== "margin") params.set("sort", dsort);
+      if (ddir !== "desc") params.set("dir", ddir);
+      if (key !== "all") params.set("seg", key);
       return `/show-history?${params}`;
     };
     const dArrow = (key: string) => (dsort === key ? (ddir === "asc" ? " ↑" : " ↓") : "");
@@ -188,9 +229,50 @@ export default async function ShowHistoryPage({
         <PageHeader
           title={show}
           description={`${shippedCount} exhibitor${shippedCount === 1 ? "" : "s"} shipped here · ${totalLoads} loads · ${formatCurrency(totalMargin)} margin · ${returning} ${hasRoster ? "on the 2026 roster" : "confirmed to return in 2026"}`}
+          actions={
+            existingShowId ? (
+              <Link
+                href={`/shows/${existingShowId}`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-dts-maroon px-3.5 py-2 text-sm font-medium text-dts-maroon transition hover:bg-dts-maroon hover:text-white"
+              >
+                Open 2026 show
+              </Link>
+            ) : (
+              <form action={createShowFromHistory}>
+                <input type="hidden" name="show" value={show} />
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3.5 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark"
+                  title="Create a 2026 show record and attach these exhibitors"
+                >
+                  Create 2026 show
+                </button>
+              </form>
+            )
+          }
         />
 
         <Card>
+          {list.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 px-5 py-3 text-sm">
+              {SEGMENTS.map((s) => {
+                const count = list.filter(segPred[s.key]).length;
+                if (s.key !== "all" && count === 0) return null;
+                return (
+                  <Link
+                    key={s.key}
+                    href={segHref(s.key)}
+                    className={`rounded-lg px-2.5 py-1 font-medium transition ${
+                      seg === s.key ? "bg-dts-maroon text-white" : "text-slate-500 hover:bg-slate-100"
+                    }`}
+                  >
+                    {s.label}{" "}
+                    <span className={seg === s.key ? "text-white/70" : "text-slate-400"}>{count}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : null}
           {list.length === 0 ? (
             <EmptyState icon="shows" title="No history" description="No exhibitors recorded for this show." />
           ) : (
@@ -209,7 +291,7 @@ export default async function ShowHistoryPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {list.map((r, i) => {
+                  {filtered.map((r, i) => {
                     const sm = salesStatusMeta(r.sales_status);
                     const tm = priorityTierMeta(r.priority_tier);
                     return (
