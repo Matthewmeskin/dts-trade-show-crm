@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { Card, Badge } from "@/components/ui";
 import { formatCurrency } from "@/lib/format";
@@ -12,12 +12,15 @@ const recordInitial: RecordState = { saved: 0, error: null };
 
 type Filter = "all" | "matched" | "new";
 
+const RESULT_PAGE = 100;
+
 export function RosterMatch({ shows }: { shows: string[] }) {
   const [state, action, pending] = useActionState(matchRoster, initial);
   const [recordState, doRecord, recording] = useActionState(recordRoster, recordInitial);
   const [text, setText] = useState("");
   const [show, setShow] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [page, setPage] = useState(0);
 
   const onFile = (file: File | undefined) => {
     if (!file) return;
@@ -26,18 +29,41 @@ export function RosterMatch({ shows }: { shows: string[] }) {
     reader.readAsText(file);
   };
 
-  const shown = state.results.filter((r) =>
-    filter === "matched" ? r.matched : filter === "new" ? !r.matched : true,
-  );
+  // Filter, then float customers to the top (highest lifetime value first) so
+  // the useful rows aren't buried in a thousand-line roster.
+  const shown = useMemo(() => {
+    const rows = state.results.filter((r) =>
+      filter === "matched" ? r.matched : filter === "new" ? !r.matched : true,
+    );
+    return rows
+      .map((r, idx) => ({ r, idx }))
+      .sort((a, b) => {
+        const am = a.r.matched ? 1 : 0;
+        const bm = b.r.matched ? 1 : 0;
+        if (am !== bm) return bm - am;
+        if (am) return (b.r.matched?.legacy_margin ?? 0) - (a.r.matched?.legacy_margin ?? 0);
+        return a.idx - b.idx; // keep original order among prospects
+      })
+      .map((x) => x.r);
+  }, [state.results, filter]);
   const newCount = state.total - state.matchedCount;
   const matchedIds = state.results.map((r) => r.matched?.id).filter((id): id is string => !!id);
   const returningCount = state.results.filter((r) => r.history).length;
   const hasShow = !!state.show;
 
+  // Paginate the rendered rows so a multi-thousand-row roster doesn't freeze.
+  const pageCount = Math.max(1, Math.ceil(shown.length / RESULT_PAGE));
+  const p = Math.min(page, pageCount - 1);
+  const pageRows = shown.slice(p * RESULT_PAGE, (p + 1) * RESULT_PAGE);
+  const setFilterReset = (f: Filter) => {
+    setFilter(f);
+    setPage(0);
+  };
+
   return (
     <div className="space-y-5">
       <Card>
-        <form action={action} className="p-5">
+        <form action={action} onSubmit={() => setPage(0)} className="p-5">
           <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
             <div>
               <label htmlFor="names" className="block text-sm font-medium text-slate-700">
@@ -123,7 +149,7 @@ export function RosterMatch({ shows }: { shows: string[] }) {
                 <button
                   key={f}
                   type="button"
-                  onClick={() => setFilter(f)}
+                  onClick={() => setFilterReset(f)}
                   className={`rounded-lg px-3 py-1 font-medium transition ${
                     filter === f ? "bg-dts-maroon text-white" : "text-slate-500 hover:bg-slate-100"
                   }`}
@@ -172,7 +198,7 @@ export function RosterMatch({ shows }: { shows: string[] }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {shown.map((r, i) => {
+                {pageRows.map((r, i) => {
                   const m = r.matched;
                   const sm = salesStatusMeta(m?.sales_status);
                   const tm = priorityTierMeta(m?.priority_tier);
@@ -230,6 +256,34 @@ export function RosterMatch({ shows }: { shows: string[] }) {
               </tbody>
             </table>
           </div>
+
+          {pageCount > 1 ? (
+            <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 text-sm">
+              <span className="text-slate-500">
+                {shown.length === 0
+                  ? "No rows"
+                  : `${p * RESULT_PAGE + 1}–${Math.min((p + 1) * RESULT_PAGE, shown.length)} of ${shown.length}`}
+              </span>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setPage((n) => Math.max(0, n - 1))}
+                  disabled={p === 0}
+                  className="rounded-lg border border-slate-300 px-3 py-1 font-medium text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((n) => Math.min(pageCount - 1, n + 1))}
+                  disabled={p >= pageCount - 1}
+                  className="rounded-lg border border-slate-300 px-3 py-1 font-medium text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          ) : null}
         </Card>
       ) : null}
     </div>
