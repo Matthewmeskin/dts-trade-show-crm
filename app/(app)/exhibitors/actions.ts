@@ -108,6 +108,25 @@ export async function updateExhibitor(
   redirect(back.startsWith("/") ? back : `/exhibitors/${id}?flash=updated`);
 }
 
+export type NotesState = { ok: boolean; error: string | null };
+
+/** Inline-edit an exhibitor's general notes (e.g. why we are / aren't working with them). */
+export async function updateExhibitorNotes(
+  _prev: NotesState,
+  fd: FormData,
+): Promise<NotesState> {
+  const id = String(fd.get("id") ?? "");
+  if (!id) return { ok: false, error: "Missing exhibitor id." };
+  const general_notes = String(fd.get("general_notes") ?? "").trim() || null;
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("exhibitors").update({ general_notes }).eq("id", id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/exhibitors/${id}`);
+  return { ok: true, error: null };
+}
+
 export async function deleteExhibitor(fd: FormData) {
   const id = String(fd.get("id") ?? "");
   if (!id) return;

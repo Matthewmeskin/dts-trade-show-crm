@@ -10,6 +10,7 @@ import { salesStatusMeta, priorityTierMeta, confirmedForShow2026 } from "@/lib/e
 import { formatDate, formatDateRange, formatCurrency } from "@/lib/format";
 import { deleteExhibitor } from "../actions";
 import { QuickEditExhibitor } from "./quick-edit";
+import { ExhibitorNotesCard } from "./notes-card";
 
 export const dynamic = "force-dynamic";
 
@@ -299,30 +300,12 @@ export default async function ExhibitorRecordPage({
             </Card>
           ) : null}
 
-          {/* Notes */}
-          {(e.freight_profile_notes || e.general_notes) && (
-            <Card>
-              <CardHeader title="Notes" icon="documents" />
-              <div className="space-y-4 p-5 text-sm">
-                {e.freight_profile_notes ? (
-                  <div>
-                    <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
-                      Freight profile
-                    </div>
-                    <p className="whitespace-pre-wrap text-slate-700">{e.freight_profile_notes}</p>
-                  </div>
-                ) : null}
-                {e.general_notes ? (
-                  <div>
-                    <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
-                      General
-                    </div>
-                    <p className="whitespace-pre-wrap text-slate-700">{e.general_notes}</p>
-                  </div>
-                ) : null}
-              </div>
-            </Card>
-          )}
+          {/* Notes (inline editable) */}
+          <ExhibitorNotesCard
+            exhibitorId={e.id}
+            freightNotes={e.freight_profile_notes}
+            initialNotes={e.general_notes ?? ""}
+          />
         </div>
 
         <div className="space-y-5">
