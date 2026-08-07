@@ -17,6 +17,8 @@ import {
 } from "@/lib/format";
 import { composeFreightAddress } from "@/lib/freight";
 import { startCallDate, emailTeamDate, weekBeforeDate } from "@/lib/sales";
+import { salesStatusMeta, priorityTierMeta } from "@/lib/exhibitors";
+import { deriveDirection, DIRECTION_META } from "@/lib/shipments";
 import {
   addExhibitorToShow,
   removeExhibitorFromShow,
@@ -56,10 +58,10 @@ export default async function ShowRecordPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; ef?: string }>;
 }) {
   const { id } = await params;
-  const { tab } = await searchParams;
+  const { tab, ef } = await searchParams;
   const active: TabKey =
     (TABS.find((t) => t.key === tab)?.key as TabKey) ?? "overview";
 
@@ -169,7 +171,7 @@ export default async function ShowRecordPage({
       </div>
 
       {active === "overview" && <OverviewTab show={show} links={links} sales={editRow} />}
-      {active === "exhibitors" && <ExhibitorsTab showId={id} />}
+      {active === "exhibitors" && <ExhibitorsTab showId={id} filter={ef} />}
       {active === "shipments" && <ShipmentsTab showId={id} />}
       {active === "carriers" && <CarriersTab showId={id} />}
       {active === "contacts" && <ContactsTab showId={id} />}
@@ -601,48 +603,76 @@ function DetailRow({
 /* Exhibitors                                                                  */
 /* -------------------------------------------------------------------------- */
 
-async function ExhibitorsTab({ showId }: { showId: string }) {
+async function ExhibitorsTab({ showId, filter }: { showId: string; filter?: string }) {
   const supabase = await createClient();
+  const EMBED = "exhibitor:exhibitors(id, company_name, industry, sales_status, priority_tier, owner_rep)";
   const [linkedRes, shipRes, allRes] = await Promise.all([
-    supabase
-      .from("show_exhibitors")
-      .select("exhibitor:exhibitors(id, company_name, industry, primary_contact_name)")
-      .eq("show_id", showId),
-    supabase
-      .from("shipments")
-      .select("exhibitor:exhibitors(id, company_name, industry, primary_contact_name)")
-      .eq("show_id", showId),
+    supabase.from("show_exhibitors").select(EMBED).eq("show_id", showId),
+    supabase.from("shipments").select(`direction, destination_type, ${EMBED}`).eq("show_id", showId),
     supabase.from("exhibitors").select("id, company_name").order("company_name"),
   ]);
 
-  // Exhibitors come from manual show_exhibitors links AND from the show's
-  // shipments (where TMS-driven freight carries the link). Track which have a
-  // manual link so only those expose a Remove control.
+  // Exhibitors come from manual show_exhibitors links (roster) AND from the
+  // show's shipments (freight carries the link). Track the "why" plus move-in /
+  // move-out counts from the linked shipments.
   type ExhRow = {
     id: string;
     company_name: string;
     industry: string | null;
-    primary_contact_name: string | null;
-    manual: boolean;
+    sales_status: string | null;
+    priority_tier: string | null;
+    owner_rep: string | null;
+    roster: boolean;
+    viaFreight: boolean;
+    moveIn: number;
+    moveOut: number;
   };
   const byId = new Map<string, ExhRow>();
-  for (const r of linkedRes.data ?? []) {
-    if (r.exhibitor) byId.set(r.exhibitor.id, { ...r.exhibitor, manual: true });
-  }
+  const ensure = (e: {
+    id: string;
+    company_name: string;
+    industry: string | null;
+    sales_status: string | null;
+    priority_tier: string | null;
+    owner_rep: string | null;
+  }): ExhRow => {
+    let cur = byId.get(e.id);
+    if (!cur) {
+      cur = { ...e, roster: false, viaFreight: false, moveIn: 0, moveOut: 0 };
+      byId.set(e.id, cur);
+    }
+    return cur;
+  };
+  for (const r of linkedRes.data ?? []) if (r.exhibitor) ensure(r.exhibitor).roster = true;
   for (const r of shipRes.data ?? []) {
-    if (r.exhibitor && !byId.has(r.exhibitor.id))
-      byId.set(r.exhibitor.id, { ...r.exhibitor, manual: false });
+    if (!r.exhibitor) continue;
+    const cur = ensure(r.exhibitor);
+    cur.viaFreight = true;
+    const dir = r.direction ?? deriveDirection(r.destination_type);
+    if (dir === "move_in") cur.moveIn += 1;
+    else if (dir === "move_out") cur.moveOut += 1;
   }
-  const linked = [...byId.values()].sort((a, b) =>
-    a.company_name.localeCompare(b.company_name),
-  );
-  const linkedIds = new Set(linked.map((e) => e.id));
+  const all = [...byId.values()].sort((a, b) => a.company_name.localeCompare(b.company_name));
+
+  const FILTERS: { key: string; label: string; pred: (e: ExhRow) => boolean }[] = [
+    { key: "all", label: "All", pred: () => true },
+    { key: "movein", label: "Moving in", pred: (e) => e.moveIn > 0 },
+    { key: "moveout", label: "Moving out", pred: (e) => e.moveOut > 0 },
+    { key: "noloads", label: "No freight yet", pred: (e) => !e.viaFreight },
+    { key: "roster", label: "Roster", pred: (e) => e.roster },
+  ];
+  const f = FILTERS.find((x) => x.key === filter) ? filter! : "all";
+  const activePred = FILTERS.find((x) => x.key === f)!.pred;
+  const linked = all.filter(activePred);
+  const linkedIds = new Set(all.map((e) => e.id));
   const available = (allRes.data ?? []).filter((e) => !linkedIds.has(e.id));
+  const efHref = (key: string) =>
+    `?tab=exhibitors${key === "all" ? "" : `&ef=${key}`}`;
 
   return (
     <Card>
       <CardHeader
-        title={`Exhibitors (${linked.length})`}
+        title={`Exhibitors (${all.length})`}
         icon="exhibitors"
         action={
           available.length > 0 ? (
@@ -668,42 +698,88 @@ async function ExhibitorsTab({ showId }: { showId: string }) {
           ) : null
         }
       />
-      {linked.length === 0 ? (
+      {all.length === 0 ? (
         <EmptyState
           icon="exhibitors"
           title="No exhibitors on this show"
           description="Add an existing exhibitor, or create one in the Exhibitors section first."
         />
       ) : (
-        <ul className="divide-y divide-slate-100">
-          {linked.map((e) => (
-            <li key={e.id} className="flex items-center justify-between px-5 py-3">
-              <div>
-                <Link href={`/exhibitors/${e.id}`} className="text-sm font-medium text-slate-900 hover:text-dts-maroon">
-                  {e.company_name}
+        <>
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 px-5 py-3 text-sm">
+            {FILTERS.map((x) => {
+              const count = all.filter(x.pred).length;
+              if (x.key !== "all" && count === 0) return null;
+              return (
+                <Link
+                  key={x.key}
+                  href={efHref(x.key)}
+                  className={`rounded-lg px-2.5 py-1 font-medium transition ${
+                    f === x.key ? "bg-dts-maroon text-white" : "text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  {x.label} <span className={f === x.key ? "text-white/70" : "text-slate-400"}>{count}</span>
                 </Link>
-                {[e.industry, e.primary_contact_name].filter(Boolean).length > 0 ? (
-                  <div className="text-xs text-slate-400">
-                    {[e.industry, e.primary_contact_name].filter(Boolean).join(" · ")}
+              );
+            })}
+          </div>
+          <ul className="divide-y divide-slate-100">
+            {linked.map((e) => {
+              const sm = salesStatusMeta(e.sales_status);
+              const tm = priorityTierMeta(e.priority_tier);
+              return (
+                <li key={e.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link href={`/exhibitors/${e.id}`} className="text-sm font-medium text-slate-900 hover:text-dts-maroon">
+                        {e.company_name}
+                      </Link>
+                      {sm ? (
+                        <Badge className={sm.badge}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${sm.dot}`} />
+                          {sm.label}
+                        </Badge>
+                      ) : null}
+                      {tm ? <Badge className={tm.badge}>{tm.label}</Badge> : null}
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-400">
+                      {e.owner_rep ? <span>Rep: {e.owner_rep}</span> : null}
+                      {e.industry ? <span>{e.industry}</span> : null}
+                      {/* Why they're on the show */}
+                      {e.roster ? <span className="text-dts-maroon">On roster</span> : null}
+                      {e.viaFreight ? <span className="text-slate-500">Has freight</span> : <span className="text-amber-600">No freight yet</span>}
+                    </div>
                   </div>
-                ) : null}
-              </div>
-              {e.manual ? (
-                <form action={removeExhibitorFromShow}>
-                  <input type="hidden" name="show_id" value={showId} />
-                  <input type="hidden" name="exhibitor_id" value={e.id} />
-                  <button type="submit" className="text-xs font-medium text-slate-400 hover:text-dts-maroon">
-                    Remove
-                  </button>
-                </form>
-              ) : (
-                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
-                  Via freight
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {e.moveIn > 0 ? (
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${DIRECTION_META.move_in.badge}`}>
+                        {e.moveIn} in
+                      </span>
+                    ) : null}
+                    {e.moveOut > 0 ? (
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${DIRECTION_META.move_out.badge}`}>
+                        {e.moveOut} out
+                      </span>
+                    ) : null}
+                    {e.roster ? (
+                      <form action={removeExhibitorFromShow}>
+                        <input type="hidden" name="show_id" value={showId} />
+                        <input type="hidden" name="exhibitor_id" value={e.id} />
+                        <button type="submit" className="text-xs font-medium text-slate-400 hover:text-dts-maroon">
+                          Remove
+                        </button>
+                      </form>
+                    ) : (
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                        Via freight
+                      </span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
     </Card>
   );
