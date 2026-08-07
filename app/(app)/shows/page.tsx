@@ -12,13 +12,18 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
 
+// Default view ("" → Current) hides completed & archived shows; "all" shows
+// every status. The rest filter to a single status.
 const STATUS_TABS: { label: string; value: string }[] = [
-  { label: "All", value: "" },
+  { label: "Current", value: "" },
   { label: "Upcoming", value: "upcoming" },
   { label: "Active", value: "active" },
   { label: "Completed", value: "completed" },
   { label: "Archived", value: "archived" },
+  { label: "All", value: "all" },
 ];
+
+const SINGLE_STATUSES = ["upcoming", "active", "completed", "archived"];
 
 export default async function ShowsPage({
   searchParams,
@@ -33,8 +38,11 @@ export default async function ShowsPage({
     .select("*")
     .order("move_in_start", { ascending: true, nullsFirst: false });
 
-  if (STATUS_TABS.some((t) => t.value === status && t.value !== "")) {
+  if (SINGLE_STATUSES.includes(status)) {
     query = query.eq("status", status as ShowStatus);
+  } else if (status !== "all") {
+    // Default "Current" view: hide completed & archived.
+    query = query.in("status", ["upcoming", "active"]);
   }
   if (q.trim()) {
     query = query.ilike("show_name", `%${q.trim()}%`);
@@ -149,11 +157,11 @@ export default async function ShowsPage({
         {rows.length === 0 ? (
           <EmptyState
             icon="shows"
-            title={q || status || from || to ? "No shows match" : "No shows yet"}
+            title={status === "all" && !q && !from && !to ? "No shows yet" : "No shows match"}
             description={
-              q || status || from || to
-                ? "Try a different filter, date range, or search term."
-                : "Create your first show to get started."
+              status === "all" && !q && !from && !to
+                ? "Create your first show to get started."
+                : "Try a different filter, date range, or search term."
             }
           />
         ) : (
