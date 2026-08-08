@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { parseLoad, isRoadshow, type ParsedLoad } from "@/lib/tms";
+import { parseLoad, isRoadshow, MOVE_OUT_OWNED_FIELDS, type ParsedLoad } from "@/lib/tms";
 import { resolveVenueId, resolveShowId, type ShowLite } from "@/lib/tms-link";
 import type { TablesInsert } from "@/lib/database.types";
 
@@ -84,11 +84,13 @@ export async function POST(req: NextRequest) {
   // (or cleared the link), so the sync must not re-link.
   const existingVenueAuto = new Map<string, boolean>();
   const existingShowAuto = new Map<string, boolean>();
+  // true = operator hand-entered the move-out details; sync must not overwrite.
+  const existingMoveOutManual = new Map<string, boolean>();
   if (refs.length) {
     const { data } = await supabase
       .from("shipments")
       .select(
-        "tms_reference_id, exhibitor_id, venue_id, show_id, direction, venue_auto_linked, show_auto_linked",
+        "tms_reference_id, exhibitor_id, venue_id, show_id, direction, venue_auto_linked, show_auto_linked, move_out_manual",
       )
       .in("tms_reference_id", refs);
     for (const r of data ?? [])
@@ -100,6 +102,7 @@ export async function POST(req: NextRequest) {
         existingDirection.set(r.tms_reference_id, r.direction);
         existingVenueAuto.set(r.tms_reference_id, r.venue_auto_linked);
         existingShowAuto.set(r.tms_reference_id, r.show_auto_linked);
+        existingMoveOutManual.set(r.tms_reference_id, r.move_out_manual);
       }
   }
 
@@ -184,6 +187,12 @@ export async function POST(req: NextRequest) {
             shows,
           )
         : undefined;
+
+    // Manual wins: once an operator owns the move-out details, never let the
+    // sync overwrite booth / ship-to / pieces.
+    if (existingMoveOutManual.get(p.ref)) {
+      for (const k of MOVE_OUT_OWNED_FIELDS) delete p.fields[k];
+    }
 
     const row: TablesInsert<"shipments"> = {
       tms_reference_id: p.ref,

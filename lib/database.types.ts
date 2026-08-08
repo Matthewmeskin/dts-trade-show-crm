@@ -762,6 +762,7 @@ export type Database = {
           id: string
           margin: number | null
           mode: Database["public"]["Enums"]["shipment_mode"] | null
+          move_out_manual: boolean
           notes: string | null
           origin_city: string | null
           origin_state: string | null
@@ -826,6 +827,7 @@ export type Database = {
           id?: string
           margin?: number | null
           mode?: Database["public"]["Enums"]["shipment_mode"] | null
+          move_out_manual?: boolean
           notes?: string | null
           origin_city?: string | null
           origin_state?: string | null
@@ -890,6 +892,7 @@ export type Database = {
           id?: string
           margin?: number | null
           mode?: Database["public"]["Enums"]["shipment_mode"] | null
+          move_out_manual?: boolean
           notes?: string | null
           origin_city?: string | null
           origin_state?: string | null

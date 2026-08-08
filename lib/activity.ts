@@ -70,6 +70,16 @@ export const SHIPMENT_FIELD_LABELS: Record<string, string> = {
   cost_amount: "cost",
   special_requirements: "special requirements",
   notes: "notes",
+  booth_number: "booth number",
+  pieces: "pieces",
+  consignee_company: "ship-to company",
+  consignee_contact: "ship-to contact",
+  consignee_phone: "ship-to phone",
+  consignee_street1: "ship-to street",
+  consignee_street2: "ship-to street 2",
+  consignee_city: "ship-to city",
+  consignee_state: "ship-to state",
+  consignee_zip: "ship-to ZIP",
 };
 
 /** Human labels used to badge each action on the activity page. */

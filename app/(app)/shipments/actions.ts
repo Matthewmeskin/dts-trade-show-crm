@@ -41,6 +41,25 @@ function enumOrNull<T extends string>(value: string | null, allowed: readonly T[
  * `margin` is a generated column, so it's never written here.
  */
 function operatorFields(fd: FormData) {
+  // Move-out form fields (booth, ship-to/consignee, pieces) are normally
+  // TMS-synced. When an operator fills any of them in, we mark the shipment
+  // `move_out_manual` so the sync stops overwriting them (manual wins).
+  const piecesNum = num(fd, "pieces");
+  const pieces = piecesNum == null ? null : Math.round(piecesNum);
+  const moveOut = {
+    booth_number: str(fd, "booth_number"),
+    pieces,
+    consignee_company: str(fd, "consignee_company"),
+    consignee_contact: str(fd, "consignee_contact"),
+    consignee_phone: str(fd, "consignee_phone"),
+    consignee_street1: str(fd, "consignee_street1"),
+    consignee_street2: str(fd, "consignee_street2"),
+    consignee_city: str(fd, "consignee_city"),
+    consignee_state: str(fd, "consignee_state"),
+    consignee_zip: str(fd, "consignee_zip"),
+  };
+  const move_out_manual = Object.values(moveOut).some((v) => v != null);
+
   return {
     tms_reference_id: str(fd, "tms_reference_id"),
     show_id: str(fd, "show_id"),
@@ -63,6 +82,8 @@ function operatorFields(fd: FormData) {
     cost_amount: num(fd, "cost_amount"),
     special_requirements: str(fd, "special_requirements"),
     notes: str(fd, "notes"),
+    ...moveOut,
+    move_out_manual,
   };
 }
 

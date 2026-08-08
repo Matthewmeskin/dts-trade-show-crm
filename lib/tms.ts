@@ -260,6 +260,26 @@ export type ParsedLoad = {
   fields: Partial<TablesInsert<"shipments">>;
 };
 
+/**
+ * Move-out-form fields (booth, ship-to/consignee, pieces) that become
+ * operator-owned once hand-entered. When a shipment's `move_out_manual` flag is
+ * set, both sync paths drop these from the parsed payload so a manual
+ * correction is never clobbered (see actions.ts operatorFields).
+ */
+export const MOVE_OUT_OWNED_FIELDS: (keyof TablesInsert<"shipments">)[] = [
+  "booth_number",
+  "pieces",
+  "consignee_company",
+  "consignee_contact",
+  "consignee_phone",
+  "consignee_street1",
+  "consignee_street2",
+  "consignee_city",
+  "consignee_state",
+  "consignee_zip",
+  "consignee_country",
+];
+
 /** Sum a numeric field across rows (first matching key per row); undefined if none present. */
 function sumRows(rows: Record<string, unknown>[], keys: string[]): number | undefined {
   let total = 0;

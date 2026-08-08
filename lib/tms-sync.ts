@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { parseLoad } from "@/lib/tms";
+import { parseLoad, MOVE_OUT_OWNED_FIELDS } from "@/lib/tms";
 import { resolveVenueId, resolveShowId, type ShowLite } from "@/lib/tms-link";
 
 const TRACKING_BASE = "https://hyperion.dtsone.com/api/home/tracking";
@@ -44,10 +44,17 @@ export async function syncLoadNumber(loadNumber: string): Promise<boolean> {
   // records that can't be linked to anything.
   const { data: current } = await supabase
     .from("shipments")
-    .select("exhibitor_id, venue_id, show_id, venue_auto_linked, show_auto_linked")
+    .select("exhibitor_id, venue_id, show_id, venue_auto_linked, show_auto_linked, move_out_manual")
     .eq("tms_reference_id", parsed.ref)
     .maybeSingle();
   if (!current) return false;
+
+  // Once an operator has hand-entered the move-out details (booth, ship-to,
+  // pieces), those become manually owned — drop them from the synced payload so
+  // the sync never clobbers a correction (manual wins).
+  if (current.move_out_manual) {
+    for (const k of MOVE_OUT_OWNED_FIELDS) delete parsed.fields[k];
+  }
 
   // Auto-link venue + show only while they're still sync-managed. Once an
   // operator saves the shipment (setting the flag false) we never re-link —

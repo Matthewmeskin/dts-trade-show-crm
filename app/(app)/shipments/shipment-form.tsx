@@ -138,6 +138,42 @@ export function ShipmentForm({
         </FormSection>
 
         <FormSection
+          title="Move-out details"
+          description="Booth, ship-to (return) address, and piece count that print on the move-out form. These normally sync from the TMS — once you edit any of them here, your values are kept and the sync won't overwrite them."
+        >
+          <Field label="Booth #" htmlFor="booth_number">
+            <input id="booth_number" name="booth_number" defaultValue={d?.booth_number ?? ""} className={inputClass} placeholder="e.g. 1425" />
+          </Field>
+          <Field label="Pieces" htmlFor="pieces" hint="Handling units — drives the number of labels (pieces × 4).">
+            <input id="pieces" name="pieces" type="number" min="0" step="1" inputMode="numeric" defaultValue={d?.pieces != null ? String(d.pieces) : ""} className={inputClass} placeholder="0" />
+          </Field>
+          <Field label="Ship-to company" htmlFor="consignee_company" className="sm:col-span-2">
+            <input id="consignee_company" name="consignee_company" defaultValue={d?.consignee_company ?? ""} className={inputClass} placeholder="Return / consignee company" />
+          </Field>
+          <Field label="Ship-to contact" htmlFor="consignee_contact">
+            <input id="consignee_contact" name="consignee_contact" defaultValue={d?.consignee_contact ?? ""} className={inputClass} />
+          </Field>
+          <Field label="Ship-to phone" htmlFor="consignee_phone">
+            <input id="consignee_phone" name="consignee_phone" defaultValue={d?.consignee_phone ?? ""} className={inputClass} />
+          </Field>
+          <Field label="Ship-to street" htmlFor="consignee_street1">
+            <input id="consignee_street1" name="consignee_street1" defaultValue={d?.consignee_street1 ?? ""} className={inputClass} />
+          </Field>
+          <Field label="Ship-to street 2" htmlFor="consignee_street2">
+            <input id="consignee_street2" name="consignee_street2" defaultValue={d?.consignee_street2 ?? ""} className={inputClass} placeholder="Suite, dock, etc." />
+          </Field>
+          <Field label="Ship-to city" htmlFor="consignee_city">
+            <input id="consignee_city" name="consignee_city" defaultValue={d?.consignee_city ?? ""} className={inputClass} />
+          </Field>
+          <Field label="Ship-to state" htmlFor="consignee_state">
+            <input id="consignee_state" name="consignee_state" defaultValue={d?.consignee_state ?? ""} className={inputClass} placeholder="IL" />
+          </Field>
+          <Field label="Ship-to ZIP" htmlFor="consignee_zip">
+            <input id="consignee_zip" name="consignee_zip" defaultValue={d?.consignee_zip ?? ""} className={inputClass} />
+          </Field>
+        </FormSection>
+
+        <FormSection
           title="Financials"
           description="Customer billing and carrier cost for this shipment. Margin is calculated automatically from billed minus cost."
         >
