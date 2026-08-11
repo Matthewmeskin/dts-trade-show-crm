@@ -18,7 +18,7 @@ import {
   effectiveTargetDate,
   deliveryHealth,
 } from "@/lib/shipments";
-import { hyperionShipmentUrl } from "@/lib/tms";
+import { hyperionShipmentUrl, carrierTrackingUrl } from "@/lib/tms";
 import { getShipmentDrawerData } from "./actions";
 import { QuickEditShipment } from "./[id]/quick-edit";
 import { ForcedControl } from "./[id]/forced-control";
@@ -193,6 +193,7 @@ function PanelBody({
   });
   const hm = DELIVERY_HEALTH_META[health];
   const hyperionUrl = hyperionShipmentUrl(s.tms_customer_id, s.tms_reference_id);
+  const trackingUrl = carrierTrackingUrl(s.carrier?.carrier_name, s.pro_number, s.tracking_url);
 
   return (
     <>
@@ -302,8 +303,8 @@ function PanelBody({
             label="PRO #"
             value={
               s.pro_number ? (
-                s.tracking_url ? (
-                  <a href={s.tracking_url} target="_blank" rel="noopener noreferrer" className="text-dts-blue hover:underline">
+                trackingUrl ? (
+                  <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="text-dts-blue hover:underline">
                     {s.pro_number} ↗
                   </a>
                 ) : (

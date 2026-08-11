@@ -251,6 +251,40 @@ export function hyperionShipmentUrl(
   return `https://hyperion.dtsone.com/pages/shipments/shipmentprofile/${encodeURIComponent(c)}/${encodeURIComponent(l)}`;
 }
 
+/**
+ * Per-carrier PRO tracking-URL builders, keyed by a substring of the carrier
+ * name (lowercased). `pro` is already cleaned + URL-encoded. Extend as more
+ * carriers are confirmed — an unverified template is worse than falling back.
+ */
+const CARRIER_PRO_TRACKING: { match: RegExp; url: (pro: string) => string }[] = [
+  { match: /estes/, url: (p) => `https://www.estes-express.com/myestes/shipment-tracking/?type=PRO&query=${p}` },
+];
+
+/**
+ * Build a reliable carrier tracking link for a shipment. Prefers rebuilding the
+ * URL from the carrier + PRO (LTL PROs are numeric, so we strip any stray text
+ * like "example los 118359" → "118359" and URL-encode it) so a malformed value
+ * from the TMS never renders as a broken link. Falls back to the stored
+ * `tracking_url` only when it's a clean absolute http(s) link (no spaces).
+ * Returns null when there's nothing safe to link to.
+ */
+export function carrierTrackingUrl(
+  carrierName: string | null | undefined,
+  pro: string | null | undefined,
+  storedUrl?: string | null,
+): string | null {
+  const proDigits = (pro ?? "").replace(/[^0-9]/g, "");
+  const name = (carrierName ?? "").toLowerCase();
+  const builder = CARRIER_PRO_TRACKING.find((c) => c.match.test(name));
+  if (builder && proDigits) return builder.url(encodeURIComponent(proDigits));
+
+  // Only trust a stored URL when it's a well-formed absolute link with no
+  // whitespace (a space is exactly what breaks the seeded/synced junk URLs).
+  const u = (storedUrl ?? "").trim();
+  if (/^https?:\/\/\S+$/.test(u)) return u;
+  return null;
+}
+
 export type ParsedLoad = {
   ref: string;
   carrierName?: string;

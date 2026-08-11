@@ -15,7 +15,7 @@ import {
   effectiveShowDate,
   deliveryHealth,
 } from "@/lib/shipments";
-import { hyperionShipmentUrl } from "@/lib/tms";
+import { hyperionShipmentUrl, carrierTrackingUrl } from "@/lib/tms";
 import { LocalDateTime } from "@/components/local-time";
 import { formatDate, formatCurrency, formatCountdown, daysUntil } from "@/lib/format";
 import { deleteShipment } from "../actions";
@@ -56,6 +56,7 @@ export default async function ShipmentRecordPage({
   const sm = SHIPMENT_STATUS_META[s.status];
   const tms = TMS_SYNC_META[s.tms_sync_status];
   const hyperionUrl = hyperionShipmentUrl(s.tms_customer_id, s.tms_reference_id);
+  const trackingUrl = carrierTrackingUrl(s.carrier?.carrier_name, s.pro_number, s.tracking_url);
   const dir = effectiveDirection(s);
   const target = effectiveTargetDate(s, s.show);
   const showDate = effectiveShowDate(s, s.show);
@@ -196,9 +197,9 @@ export default async function ShipmentRecordPage({
               <Row
                 label="Tracking"
                 value={
-                  s.tracking_url ? (
+                  trackingUrl ? (
                     <a
-                      href={s.tracking_url}
+                      href={trackingUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-dts-blue hover:underline"
