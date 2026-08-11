@@ -1,5 +1,6 @@
 import { Constants, type TablesInsert } from "@/lib/database.types";
 import { isDts } from "@/lib/mha/dts-identity";
+import { pacificDayKey } from "@/lib/format";
 
 /**
  * TMS ingest mapping for Hyperion TMS (3pl.hyperiontms.com) tracking payloads.
@@ -45,15 +46,23 @@ const str = (v: unknown) => {
   return s === "" ? undefined : s;
 };
 
-/** Normalize a date to YYYY-MM-DD. Accepts ISO or US "M/D/YYYY [time...]". */
+/**
+ * Normalize a date to YYYY-MM-DD. Accepts ISO or US "M/D/YYYY [time...]".
+ * A value carrying a time zone (ISO timestamp) is resolved to its *Pacific*
+ * calendar day — DTS operates on Pacific time — so an 8/26 evening pickup that
+ * lands past midnight UTC isn't stored as 8/27. Bare dates and US M/D/YYYY are
+ * taken as the calendar day they already name (no time-zone shifting).
+ */
 function dateStr(v: unknown): string | undefined {
   const s = str(v);
   if (!s) return undefined;
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  // Bare date, or US M/D/YYYY: use the named day directly (no tz shift).
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
   const datePart = s.split(/[ T]/)[0];
   const m = datePart.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (m) return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
-  return undefined;
+  // ISO timestamp (has a time/zone) → its Pacific calendar day.
+  return pacificDayKey(s) ?? undefined;
 }
 /** Normalize a timestamp (ISO or US date) to an ISO string; undefined if unparseable. */
 function tsStr(v: unknown): string | undefined {

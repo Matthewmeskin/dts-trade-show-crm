@@ -12,7 +12,7 @@ import {
   type ShipmentStatus,
   type ShipmentDirection,
 } from "@/lib/shipments";
-import { parseDate, today as todayDate, formatDateRange, formatDate } from "@/lib/format";
+import { parseDate, today as todayDate, formatDateRange, formatDate, pacificDayKey } from "@/lib/format";
 import { Constants } from "@/lib/database.types";
 
 const STATUSES = Constants.public.Enums.shipment_status;
@@ -296,7 +296,9 @@ async function ShipmentCalendar({
         ? s.pickup_date
         : s.actual_delivery_date ?? s.estimated_delivery_date;
     if (!dateStr) continue;
-    const key = dateStr.slice(0, 10);
+    // Bucket on the Pacific calendar day so a timestamp near midnight UTC lands
+    // on the right day (bare `date` columns pass through unchanged).
+    const key = pacificDayKey(dateStr) ?? dateStr.slice(0, 10);
     const exhibitor = s.exhibitor?.company_name ?? null;
     const label =
       labelMode === "pro"

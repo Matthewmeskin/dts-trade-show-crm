@@ -15,6 +15,29 @@ export function parseDate(value: string | null | undefined): Date | null {
   return new Date(y, m - 1, d);
 }
 
+/**
+ * The Pacific (America/Los_Angeles) calendar day for a date/timestamp, as
+ * "YYYY-MM-DD". A bare date string ("2026-08-26") has no time zone, so it's
+ * already a calendar day and returned verbatim. Anything with a time component
+ * (an ISO timestamp) is resolved to its Pacific day — so a pickup logged at
+ * 8/26 7pm PT (which is 8/27 in UTC) buckets on 8/26, not 8/27. DTS operates on
+ * Pacific time, so this is the canonical day for the calendar and dashboards.
+ */
+export function pacificDayKey(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value.slice(0, 10) || null;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
 /** Today at local midnight. */
 export function today(): Date {
   const now = new Date();
