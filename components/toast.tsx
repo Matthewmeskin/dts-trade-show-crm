@@ -16,6 +16,9 @@ const MESSAGES: Record<string, string> = {
   scan_unconfigured: "Scan webhook isn't configured yet (set N8N_SCAN_WEBHOOK_URL).",
   "user-created": "User added",
   "user-removed": "User removed",
+  "invite-sent": "Invite emailed — they'll get a link to set their password.",
+  "setup-sent": "Setup email sent.",
+  welcome: "Password set — welcome!",
   merged: "Duplicate merged in",
 };
 
@@ -31,14 +34,18 @@ export function FlashToast() {
   const flash = params.get("flash");
   const [msg, setMsg] = useState<string | null>(null);
 
-  // Capture the flash and clean it out of the URL.
+  // Capture the flash and clean it out of the URL. Deferred out of the effect
+  // body (setTimeout 0) so the state update isn't synchronous within the effect.
   useEffect(() => {
     if (!flash) return;
-    setMsg(MESSAGES[flash] ?? "Done");
-    const next = new URLSearchParams(Array.from(params.entries()));
-    next.delete("flash");
-    const qs = next.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    const id = setTimeout(() => {
+      setMsg(MESSAGES[flash] ?? "Done");
+      const next = new URLSearchParams(Array.from(params.entries()));
+      next.delete("flash");
+      const qs = next.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    }, 0);
+    return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flash]);
 

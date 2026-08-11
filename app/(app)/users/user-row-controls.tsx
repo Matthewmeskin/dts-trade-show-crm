@@ -1,20 +1,23 @@
 "use client";
 
-import { setUserRole, deleteUser } from "./actions";
+import { setUserRole, deleteUser, sendSetupEmail } from "./actions";
 
 /**
- * Inline controls for a user row: a role dropdown that submits on change, and a
- * remove button. Disabled for your own account so you can't lock yourself out.
+ * Inline controls for a user row: a role dropdown that submits on change, a
+ * "send setup email" button, and a remove button. Disabled for your own account
+ * so you can't lock yourself out.
  */
 export function UserRowControls({
   id,
   role,
   name,
+  email,
   isSelf,
 }: {
   id: string;
   role: string;
   name: string;
+  email: string | null;
   isSelf: boolean;
 }) {
   return (
@@ -33,6 +36,26 @@ export function UserRowControls({
           <option value="admin">Admin</option>
         </select>
       </form>
+
+      {email ? (
+        <form
+          action={sendSetupEmail}
+          onSubmit={(e) => {
+            if (!confirm(`Email ${email} a link to set up their password?`)) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <input type="hidden" name="email" value={email} />
+          <button
+            type="submit"
+            className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+            title="Send an account-setup email"
+          >
+            Send setup email
+          </button>
+        </form>
+      ) : null}
 
       {isSelf ? (
         <span className="text-xs text-slate-300">You</span>

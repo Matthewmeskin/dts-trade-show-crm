@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSiteUrl } from "@/lib/auth/site-url";
 import type { Enums } from "@/lib/database.types";
 
 type Role = Enums<"user_role">;
@@ -36,7 +37,12 @@ async function requireAdmin(): Promise<{ uid: string } | { error: string }> {
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
-/** Invite/create an internal user with email + password. Admin only. */
+/**
+ * Add an internal user. Admin only. Two modes (the `mode` field):
+ *  - "invite"  → create the account with no password and email them a link to
+ *    set their own (Supabase invite email → /auth/confirm → /set-password).
+ *  - "password" → create with an admin-set temporary password (immediate sign-in).
+ */
 export async function createUser(
   _prev: UserFormState,
   fd: FormData,
@@ -48,34 +54,56 @@ export async function createUser(
   const full_name = str(fd, "full_name");
   const password = String(fd.get("password") ?? "");
   const role = (str(fd, "role") === "admin" ? "admin" : "standard") as Role;
+  const mode = str(fd, "mode") === "password" ? "password" : "invite";
 
   const fieldErrors: Record<string, string> = {};
   if (!email) fieldErrors.email = "Email is required.";
   else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) fieldErrors.email = "Enter a valid email.";
-  if (!password) fieldErrors.password = "Password is required.";
-  else if (password.length < 8) fieldErrors.password = "Use at least 8 characters.";
+  if (mode === "password") {
+    if (!password) fieldErrors.password = "Password is required.";
+    else if (password.length < 8) fieldErrors.password = "Use at least 8 characters.";
+  }
   if (Object.keys(fieldErrors).length) {
     return { error: "Please fix the highlighted fields.", fieldErrors };
   }
 
   const admin = createAdminClient();
-  // email_confirm:true so they can sign in immediately (internal users, no
-  // public sign-up). The on_auth_user_created trigger creates the profile row,
-  // pulling full_name from user_metadata.
-  const { data, error } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { full_name },
-  });
-  if (error) {
-    const msg = /already.*registered|exists/i.test(error.message)
-      ? "A user with that email already exists."
-      : error.message;
-    return { error: msg, fieldErrors: { email: msg } };
+  let userId: string | undefined;
+
+  if (mode === "invite") {
+    // Sends Supabase's invite email; the link lands on /auth/confirm which
+    // verifies it and forwards to /set-password. The on_auth_user_created
+    // trigger creates the profile row from user_metadata.
+    const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+      data: { full_name },
+      redirectTo: `${await getSiteUrl()}/set-password`,
+    });
+    if (error) {
+      const msg = /already.*registered|exists|already been registered/i.test(error.message)
+        ? "A user with that email already exists."
+        : error.message;
+      return { error: msg, fieldErrors: { email: msg } };
+    }
+    userId = data.user?.id;
+  } else {
+    // email_confirm:true so they can sign in immediately (internal users, no
+    // public sign-up).
+    const { data, error } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name },
+    });
+    if (error) {
+      const msg = /already.*registered|exists/i.test(error.message)
+        ? "A user with that email already exists."
+        : error.message;
+      return { error: msg, fieldErrors: { email: msg } };
+    }
+    userId = data.user?.id;
   }
 
-  if (role === "admin" && data.user) {
+  if (role === "admin" && userId) {
     // Set the role through the caller's own session, not the service-role
     // client: the profiles enforce_role_change trigger calls is_admin() (which
     // reads auth.uid()), so a role change must run as the signed-in admin or it
@@ -84,12 +112,33 @@ export async function createUser(
     const { error: roleError } = await userClient
       .from("profiles")
       .update({ role })
-      .eq("id", data.user.id);
+      .eq("id", userId);
     if (roleError) return { error: `User created, but setting admin role failed: ${roleError.message}` };
   }
 
   revalidatePath("/users");
-  redirect("/users?flash=user-created");
+  redirect(`/users?flash=${mode === "invite" ? "invite-sent" : "user-created"}`);
+}
+
+/**
+ * (Re)send an account-setup email to an existing user — a Supabase recovery
+ * email that lands on /set-password so they can choose a password. Admin only.
+ * Used for users who never finished setup or forgot their password.
+ */
+export async function sendSetupEmail(fd: FormData) {
+  const gate = await requireAdmin();
+  if ("error" in gate) return;
+
+  const email = str(fd, "email").toLowerCase();
+  if (!email) return;
+
+  const supabase = await createClient();
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${await getSiteUrl()}/set-password`,
+  });
+
+  revalidatePath("/users");
+  redirect("/users?flash=setup-sent");
 }
 
 /** Save a user's contact details + default-MHA-contact flag. Admin only. */

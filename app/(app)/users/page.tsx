@@ -92,6 +92,7 @@ export default async function UsersPage() {
                           id={u.id}
                           role={u.role}
                           name={u.full_name?.trim() || u.email || ""}
+                          email={u.email}
                           isSelf={u.id === uid}
                         />
                       </td>
