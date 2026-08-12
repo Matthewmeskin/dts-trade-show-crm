@@ -4,6 +4,7 @@ import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { NewUserForm } from "./user-form";
 import { UserRowControls } from "./user-row-controls";
 import { UserContactControls } from "./user-contact-controls";
+import { UserNameControl } from "./user-name-control";
 
 export const dynamic = "force-dynamic";
 
@@ -72,10 +73,11 @@ export default async function UsersPage() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {rows.map((u) => {
-                  const name = u.full_name?.trim() || "—";
                   return (
                     <tr key={u.id} className="hover:bg-slate-50/60">
-                      <td className="px-5 py-3 font-medium text-slate-900">{name}</td>
+                      <td className="px-5 py-3">
+                        <UserNameControl id={u.id} name={u.full_name} />
+                      </td>
                       <td className="px-5 py-3 text-slate-600">{u.email ?? "—"}</td>
                       <td className="px-5 py-3">
                         <UserContactControls

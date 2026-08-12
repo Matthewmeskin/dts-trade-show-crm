@@ -141,6 +141,22 @@ export async function sendSetupEmail(fd: FormData) {
   redirect("/users?flash=setup-sent");
 }
 
+/** Rename a user (their display name). Admin only. */
+export async function setUserName(fd: FormData) {
+  const gate = await requireAdmin();
+  if ("error" in gate) return;
+
+  const id = str(fd, "id");
+  if (!id) return;
+  const full_name = str(fd, "full_name") || null;
+
+  // Runs through the caller's session so the profiles "admin update any" RLS
+  // policy applies; renaming doesn't touch the role-change trigger.
+  const supabase = await createClient();
+  await supabase.from("profiles").update({ full_name }).eq("id", id);
+  revalidatePath("/users");
+}
+
 /** Save a user's contact details + default-MHA-contact flag. Admin only. */
 export async function setUserContact(fd: FormData) {
   const gate = await requireAdmin();
