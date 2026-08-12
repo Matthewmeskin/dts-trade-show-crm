@@ -29,7 +29,12 @@ export default async function UsersPage() {
     .select("id, full_name, email, role, phone, title, is_mha_default_contact, created_at")
     .order("created_at");
 
-  const rows = users ?? [];
+  // A–Z by display name (case-insensitive), falling back to email; unnamed last.
+  const rows = (users ?? []).slice().sort((a, b) => {
+    const an = (a.full_name?.trim() || a.email || "~").toLowerCase();
+    const bn = (b.full_name?.trim() || b.email || "~").toLowerCase();
+    return an.localeCompare(bn);
+  });
 
   return (
     <div>
