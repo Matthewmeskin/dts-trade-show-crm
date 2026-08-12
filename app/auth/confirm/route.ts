@@ -20,7 +20,11 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { error } = await supabase.auth.verifyOtp({ type, token_hash });
     if (!error) return NextResponse.redirect(`${origin}${next}`);
+    // Surface the real reason so an invalid/expired/used link is diagnosable.
+    return NextResponse.redirect(
+      `${origin}/login?reason=link_invalid&detail=${encodeURIComponent(error.message)}`,
+    );
   }
 
-  return NextResponse.redirect(`${origin}/login?reason=link_invalid`);
+  return NextResponse.redirect(`${origin}/login?reason=link_invalid&detail=missing_token`);
 }

@@ -25,12 +25,15 @@ export function LoginForm() {
   const params = useSearchParams();
   const redirect = params.get("redirect") ?? "/";
   const reason = params.get("reason");
+  const detail = params.get("detail");
   const notice =
     reason === "timeout"
       ? "You were signed out due to inactivity. Please sign in again."
       : reason === "expired"
         ? "Your session reached its time limit. Please sign in again."
-        : null;
+        : reason === "link_invalid"
+          ? `That setup link didn't work${detail ? ` (${detail})` : ""}. It may have expired or already been used — ask an admin to resend the invite.`
+          : null;
 
   return (
     <form
