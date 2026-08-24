@@ -16,9 +16,11 @@ function authorized(req: NextRequest): boolean {
 
 /**
  * Returns the load numbers (tms_reference_id) of shipments the CRM wants live
- * tracking for — i.e. every shipment a coordinator has tagged with a Brokerware
- * load number that isn't delivered yet. n8n reads this, then queries Hyperion's
- * Global Tracking endpoint for each and posts the results back to /api/tms/shipments.
+ * tracking for: every load that isn't delivered, plus any load whose pickup is
+ * within the last ~30 days or whose show date is still upcoming — even if the
+ * CRM already marked it delivered — so a status/date reversal in the TMS keeps
+ * syncing instead of freezing. n8n reads this, then queries Hyperion's Global
+ * Tracking endpoint for each and posts the results back to /api/tms/shipments.
  *
  * Auth: `Authorization: Bearer <TMS_WEBHOOK_SECRET>` (same as the ingest).
  */
@@ -34,11 +36,18 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createAdminClient();
+  // Poll everything still active — PLUS any recently- or future-active load even
+  // if the CRM already marked it delivered — so a TMS reversal (a load that
+  // flips back to dispatched, or has its pickup date changed after "delivery")
+  // is caught instead of frozen. Only genuinely old, past-show delivered loads
+  // fall out of the poll set.
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from("shipments")
     .select("tms_reference_id, status")
     .not("tms_reference_id", "is", null)
-    .neq("status", "delivered");
+    .or(`status.neq.delivered,pickup_date.gte.${cutoff},show_date.gte.${today}`);
 
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
