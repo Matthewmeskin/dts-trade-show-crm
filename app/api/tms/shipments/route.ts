@@ -207,9 +207,17 @@ export async function POST(req: NextRequest) {
       tms_last_synced_at: now,
     };
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from("shipments")
       .upsert(row, { onConflict: "tms_reference_id" });
+    // Self-heal if the cancelled_at migration hasn't hit PostgREST's schema
+    // cache yet: retry without the unknown column so the sync keeps working.
+    if (error?.code === "PGRST204" && "cancelled_at" in row) {
+      delete row.cancelled_at;
+      ({ error } = await supabase
+        .from("shipments")
+        .upsert(row, { onConflict: "tms_reference_id" }));
+    }
 
     if (error) {
       results.push({ tms_reference_id: p.ref, action: "error", error: error.message });

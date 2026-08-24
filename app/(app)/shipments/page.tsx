@@ -67,7 +67,7 @@ export default async function ShipmentsPage({
   }
 
   const SELECT =
-    "id, status, mode, destination_type, direction, target_delivery_date, show_date, estimated_delivery_date, actual_delivery_date, pickup_date, pro_number, tms_reference_id, margin, weight, pieces, origin_city, origin_state, destination_address, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(carrier_name), venue:venues(venue_name)";
+    "id, status, cancelled_at, mode, destination_type, direction, target_delivery_date, show_date, estimated_delivery_date, actual_delivery_date, pickup_date, pro_number, tms_reference_id, margin, weight, pieces, origin_city, origin_state, destination_address, tms_sync_status, exhibitor:exhibitors(company_name), show:shows(show_name, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff), carrier:carriers(carrier_name), venue:venues(venue_name)";
 
   // Filtered query with no ordering — the caller adds order + range. Rebuilt
   // fresh each call since PostgREST builders are single-use.
@@ -378,10 +378,16 @@ export default async function ShipmentsPage({
                         </div>
                       </td>
                       <td className="px-5 py-3">
-                        <Badge className={sm.badge}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${sm.dot}`} />
-                          {sm.label}
-                        </Badge>
+                        {s.cancelled_at ? (
+                          <Badge className="bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20">
+                            Cancelled
+                          </Badge>
+                        ) : (
+                          <Badge className={sm.badge}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${sm.dot}`} />
+                            {sm.label}
+                          </Badge>
+                        )}
                       </td>
                       <td className="px-5 py-3 text-slate-600">{s.carrier?.carrier_name ?? "—"}</td>
                       <td className="px-5 py-3 text-slate-600">{s.venue?.venue_name ?? "—"}</td>

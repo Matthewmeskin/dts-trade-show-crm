@@ -384,6 +384,11 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   };
 
   set("status", mapStatus(item));
+  // Cancellation marker: the TMS reports the load Cancelled/Voided. Set it (and
+  // clear it when the load is active again) so active views hide the load
+  // without needing a "cancelled" value added to the shipment_status enum.
+  const rawStatus = String(item.shipmentStatus ?? item.status ?? "").toLowerCase();
+  set("cancelled_at", /cancel|void/.test(rawStatus) ? new Date().toISOString() : null);
   set("mode", mapMode(item.mode ?? item.serviceType ?? item.shipmentMode));
   set("destination_type", mapDest(item.destination_type ?? item.destination));
   set("pickup_date", dateStr(item.pickup_date ?? item.pickupDate ?? item.pickup));

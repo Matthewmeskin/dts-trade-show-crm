@@ -85,6 +85,11 @@ export default async function ShipmentRecordPage({
             <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">
               {title}
             </h1>
+            {s.cancelled_at ? (
+              <Badge className="bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20">
+                Cancelled
+              </Badge>
+            ) : null}
             <Badge className={sm.badge}>
               <span className={`h-1.5 w-1.5 rounded-full ${sm.dot}`} />
               {sm.label}

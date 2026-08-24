@@ -734,6 +734,7 @@ export type Database = {
           actual_delivery_date: string | null
           billed_amount: number | null
           booth_number: string | null
+          cancelled_at: string | null
           carrier_id: string | null
           check_in_number: string | null
           consignee_city: string | null
@@ -799,6 +800,7 @@ export type Database = {
           actual_delivery_date?: string | null
           billed_amount?: number | null
           booth_number?: string | null
+          cancelled_at?: string | null
           carrier_id?: string | null
           check_in_number?: string | null
           consignee_city?: string | null
@@ -864,6 +866,7 @@ export type Database = {
           actual_delivery_date?: string | null
           billed_amount?: number | null
           booth_number?: string | null
+          cancelled_at?: string | null
           carrier_id?: string | null
           check_in_number?: string | null
           consignee_city?: string | null

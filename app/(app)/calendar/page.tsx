@@ -276,6 +276,8 @@ async function ShipmentCalendar({
     .select(
       "id, status, direction, check_in_number, pickup_date, estimated_delivery_date, actual_delivery_date, pro_number, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name), venue:venues(venue_name)",
     );
+  // Cancelled loads keep their record but drop off the calendar.
+  query = query.is("cancelled_at", null);
   if (basis === "pickup") {
     query = query.gte("pickup_date", startISO).lte("pickup_date", endISO);
   } else {
