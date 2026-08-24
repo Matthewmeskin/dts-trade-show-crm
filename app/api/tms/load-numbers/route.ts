@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export const dynamic = "force-dynamic";
 
@@ -36,26 +37,28 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createAdminClient();
-  // Poll everything still active — PLUS any recently- or future-active load even
-  // if the CRM already marked it delivered — so a TMS reversal (a load that
-  // flips back to dispatched, or has its pickup date changed after "delivery")
-  // is caught instead of frozen. Only genuinely old, past-show delivered loads
-  // fall out of the poll set.
-  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  // Poll every non-delivered load, PLUS any delivered load whose show hasn't
+  // happened yet — so a TMS reversal (a load flipped back to dispatched, or
+  // re-dated / cancelled after "delivery", while its show is still upcoming) is
+  // caught instead of frozen. fetchAll pages past PostgREST's 1,000-row cap so
+  // the poll set is never silently truncated.
   const today = new Date().toISOString().slice(0, 10);
-  const { data, error } = await supabase
-    .from("shipments")
-    .select("tms_reference_id, status")
-    .not("tms_reference_id", "is", null)
-    .or(`status.neq.delivered,pickup_date.gte.${cutoff},show_date.gte.${today}`);
-
-  if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  let rows: { tms_reference_id: string | null }[];
+  try {
+    rows = await fetchAll<{ tms_reference_id: string | null }>(() =>
+      supabase
+        .from("shipments")
+        .select("tms_reference_id")
+        .not("tms_reference_id", "is", null)
+        .or(`status.neq.delivered,show_date.gte.${today}`),
+    );
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
   }
 
   const loadNumbers = [
     ...new Set(
-      (data ?? [])
+      rows
         .map((r) => r.tms_reference_id)
         .filter((x): x is string => !!x && x.trim() !== ""),
     ),
