@@ -175,14 +175,16 @@ export async function loadDashboard(weekBasis: WeekBasis = "pickup"): Promise<Da
       .select(
         "id, status, pickup_date, pro_number, exhibitor:exhibitors(company_name), show:shows(show_name)",
       )
+      .is("cancelled_at", null)
       .in("status", ["issue", "quoted"]),
     supabase
       .from("shipments")
       .select(
         "id, status, direction, destination_type, target_delivery_date, estimated_delivery_date, actual_delivery_date, exhibitor:exhibitors(company_name), show:shows(show_name, move_in_start, move_out_start, move_out_end, advance_warehouse_cutoff)",
       )
+      .is("cancelled_at", null)
       .neq("status", "delivered"),
-    supabase.from("shipments").select("status"),
+    supabase.from("shipments").select("status").is("cancelled_at", null),
     supabase
       .from("tasks")
       .select(
@@ -197,7 +199,9 @@ export async function loadDashboard(weekBasis: WeekBasis = "pickup"): Promise<Da
         .from("shipments")
         .select(
           "id, status, direction, check_in_number, pickup_date, estimated_delivery_date, actual_delivery_date, exhibitor:exhibitors(company_name), show:shows(show_name), carrier:carriers(carrier_name)",
-        );
+        )
+        // Cancelled loads keep their record but drop off the dashboard week view.
+        .is("cancelled_at", null);
       const ws = weekDates[0];
       const we = weekDates[6];
       return weekBasis === "delivery"
@@ -290,7 +294,8 @@ export async function loadDashboard(weekBasis: WeekBasis = "pickup"): Promise<Da
       supabase
         .from("shipments")
         .select("status, exhibitor:exhibitors(id, company_name, industry)")
-        .eq("show_id", featuredBase.id),
+        .eq("show_id", featuredBase.id)
+        .is("cancelled_at", null),
     ]);
 
     // Exhibitor traffic-light rollup. Sourced from the show's SHIPMENTS (where
