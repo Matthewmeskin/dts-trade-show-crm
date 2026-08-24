@@ -103,7 +103,28 @@ const KEYWORDS = [
   "showsite", "c/o ", "convention center",
 ];
 
-const MAX_AI = 120;
+// Safety bound on how many *non-definite* plausible loads go to the AI in one
+// scan. Definite trade-show loads (mode / booth # / exhibition accessorials)
+// bypass the AI entirely, so real show freight is never dropped by this cap.
+const MAX_AI = 400;
+
+/**
+ * A definite trade-show signal that makes a load a candidate outright — no
+ * venue-name match or AI needed. Catches loads whose delivery is a plain street
+ * address (e.g. a marshalling yard) that the venue-matching AI would reject,
+ * even though the load is unmistakably show freight.
+ */
+function definiteTradeShowReason(load: RawLoad, n: Normalized): string | null {
+  if (n.mode && /trade\s*show/i.test(n.mode)) return `Trade-show service mode (${n.mode})`;
+  if (n.po_ref && /booth/i.test(n.po_ref)) return `Booth number on reference (${n.po_ref})`;
+  for (const key of ["accessorials", "charges", "additionalCharges"]) {
+    const b = (load as Record<string, unknown>)[key];
+    if (Array.isArray(b) && /trade\s*show|exhibit(?:ion)?|booth/i.test(JSON.stringify(b))) {
+      return "Trade-show / exhibition accessorials";
+    }
+  }
+  return null;
+}
 
 /** Classify loads in parallel chunks, merging verdicts; tolerant of a chunk failing. */
 async function classifyInChunks(
@@ -158,20 +179,40 @@ export async function POST(req: NextRequest) {
     ...(venueRows ?? []).map((v) => v.city?.toLowerCase()).filter(Boolean) as string[],
   ];
 
-  // Normalize + pre-filter to plausible loads (keyword or venue hit). Retail
-  // roadshows are dropped up front — they are never trade-show freight.
-  const normalized = items
+  // Normalize (keeping the raw load for accessorial signals). Retail roadshows
+  // are dropped up front — they are never trade-show freight.
+  const pairs = items
     .filter((it) => !isRoadshow(it))
-    .map(normalize)
-    .filter((n): n is Normalized => !!n);
+    .map((it) => {
+      const n = normalize(it);
+      return n ? { raw: it, n } : null;
+    })
+    .filter((p): p is { raw: RawLoad; n: Normalized } => !!p);
+  const normalized = pairs.map((p) => p.n);
+
+  // Definite trade-show loads (explicit service mode / booth # / exhibition
+  // accessorials) are candidates outright — no venue-name match or AI needed.
+  const definiteReason = new Map<string, string>();
+  for (const { raw, n } of pairs) {
+    const reason = definiteTradeShowReason(raw, n);
+    if (reason) definiteReason.set(n.load_number, reason);
+  }
+
+  // Everything else must look plausible: a trade-show keyword or a known venue
+  // name/city in the pickup/delivery/mode text.
   const plausible = normalized.filter((n) => {
+    if (definiteReason.has(n.load_number)) return true;
     const hay = `${n.pickup_location ?? ""} ${n.delivery_location ?? ""} ${n.mode ?? ""}`.toLowerCase();
     if (!hay.trim()) return false;
     if (KEYWORDS.some((k) => hay.includes(k))) return true;
     return venueHints.some((h) => h.length > 3 && hay.includes(h));
   });
+  const byLoad = new Map(plausible.map((n) => [n.load_number, n]));
 
-  const toClassify = plausible.slice(0, MAX_AI);
+  // Only the non-definite plausible loads need the AI. Classify all of them
+  // (chunked), up to the safety bound.
+  const needAI = plausible.filter((n) => !definiteReason.has(n.load_number));
+  const toClassify = needAI.slice(0, MAX_AI);
   const aiInput: LoadInput[] = toClassify.map((n) => ({
     load_number: n.load_number,
     customer_name: n.customer_name,
@@ -180,18 +221,29 @@ export async function POST(req: NextRequest) {
     delivery_location: n.delivery_location,
   }));
 
-  // Classify in parallel chunks so a large batch doesn't run past the function
-  // budget (one big AI call for 120 loads can take over a minute).
-  const result = await classifyInChunks(aiInput, venueNames, 40);
-  if (result.status === "unconfigured") {
-    return NextResponse.json({ ok: false, error: "AI not configured (set ANTHROPIC_API_KEY)." }, { status: 503 });
-  }
-  if (result.status === "error") {
-    return NextResponse.json({ ok: false, error: result.message }, { status: 502 });
+  const result: ClassifyResult = toClassify.length
+    ? await classifyInChunks(aiInput, venueNames, 40)
+    : { status: "ok", verdicts: [] };
+  // AI trouble must not sink the definite candidates — only bail when there's
+  // nothing storable without it.
+  if (result.status !== "ok" && definiteReason.size === 0) {
+    return result.status === "unconfigured"
+      ? NextResponse.json({ ok: false, error: "AI not configured (set ANTHROPIC_API_KEY)." }, { status: 503 })
+      : NextResponse.json({ ok: false, error: result.message }, { status: 502 });
   }
 
-  const byLoad = new Map(toClassify.map((n) => [n.load_number, n]));
-  const candidates = result.verdicts.filter((v) => v.is_candidate && byLoad.has(v.load_number));
+  // Definite loads become synthetic candidates; merge with the AI's picks.
+  const definiteVerdicts: LoadVerdict[] = plausible
+    .filter((n) => definiteReason.has(n.load_number))
+    .map((n) => ({
+      load_number: n.load_number,
+      is_candidate: true,
+      confidence: "high",
+      reason: definiteReason.get(n.load_number)!,
+      venue: null,
+    }));
+  const aiVerdicts = result.status === "ok" ? result.verdicts.filter((v) => v.is_candidate) : [];
+  const candidates = [...definiteVerdicts, ...aiVerdicts].filter((v) => byLoad.has(v.load_number));
 
   // Preserve existing review_status (don't un-dismiss / re-open).
   const refs = candidates.map((c) => c.load_number);
@@ -248,8 +300,10 @@ export async function POST(req: NextRequest) {
     ok: true,
     received: normalized.length,
     plausible: plausible.length,
+    auto_qualified: definiteReason.size,
     classified: toClassify.length,
-    truncated: plausible.length > MAX_AI,
+    truncated: needAI.length > MAX_AI,
+    ai_status: result.status,
     candidates: candidates.length,
     stored,
   });
