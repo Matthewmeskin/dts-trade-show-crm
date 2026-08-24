@@ -18,7 +18,7 @@ import {
 import { hyperionShipmentUrl, carrierTrackingUrl } from "@/lib/tms";
 import { LocalDateTime } from "@/components/local-time";
 import { formatDate, formatCurrency, formatCountdown, daysUntil } from "@/lib/format";
-import { deleteShipment } from "../actions";
+import { deleteShipment, setShipmentCancelled } from "../actions";
 import { QuickEditShipment } from "./quick-edit";
 import { ForcedControl } from "./forced-control";
 import { ShipmentActivity } from "./shipment-activity";
@@ -120,6 +120,16 @@ export default async function ShipmentRecordPage({
             </a>
           ) : null}
           <QuickEditShipment shipment={s} shows={showOptions} exhibitors={exhibitorOptions} />
+          <form action={setShipmentCancelled}>
+            <input type="hidden" name="id" value={id} />
+            <input type="hidden" name="cancel" value={s.cancelled_at ? "0" : "1"} />
+            <button
+              type="submit"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              {s.cancelled_at ? "Restore" : "Mark cancelled"}
+            </button>
+          </form>
           <ConfirmDelete
             action={deleteShipment}
             id={id}

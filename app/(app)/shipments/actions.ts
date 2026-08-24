@@ -278,6 +278,32 @@ export async function setCheckInNumber(fd: FormData) {
   revalidatePath("/activity");
 }
 
+/**
+ * Manually mark a shipment cancelled (or restore it). Cancelled shipments keep
+ * their record but drop off the calendar. Used when the TMS won't surface the
+ * cancellation through the sync feed.
+ */
+export async function setShipmentCancelled(fd: FormData) {
+  const id = String(fd.get("id") ?? "");
+  if (!id) return;
+  const cancel = String(fd.get("cancel") ?? "") === "1";
+  const cancelled_at = cancel ? new Date().toISOString() : null;
+
+  const supabase = await createClient();
+  await supabase.from("shipments").update({ cancelled_at }).eq("id", id);
+  await logActivity(supabase, {
+    action: cancel ? "status_changed" : "updated",
+    entityType: "shipment",
+    entityId: id,
+    entityLabel: await shipmentLabel(supabase, id),
+    summary: cancel ? "Marked cancelled" : "Restored (un-cancelled)",
+  });
+  revalidatePath("/shipments");
+  revalidatePath(`/shipments/${id}`);
+  revalidatePath("/calendar");
+  revalidatePath("/activity");
+}
+
 /** Documents attached directly to a shipment (newest first). */
 export async function getShipmentDocuments(shipmentId: string) {
   if (!shipmentId) return [];
