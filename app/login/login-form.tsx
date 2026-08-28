@@ -31,7 +31,9 @@ export function LoginForm() {
       ? "You were signed out due to inactivity. Please sign in again."
       : reason === "expired"
         ? "Your session reached its time limit. Please sign in again."
-        : reason === "link_invalid"
+        : reason === "misconfigured"
+        ? "This deployment is missing its Supabase configuration (NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY). Check the environment variables, then redeploy."
+      : reason === "link_invalid"
           ? `That setup link didn't work${detail ? ` (${detail})` : ""}. It may have expired or already been used — ask an admin to resend the invite.`
           : null;
 

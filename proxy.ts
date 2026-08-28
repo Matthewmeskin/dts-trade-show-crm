@@ -17,13 +17,33 @@ import {
  */
 const PUBLIC_PREFIXES = ["/login", "/auth", "/api"];
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+/** Is this a path an unauthenticated visitor may reach? */
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 // Next.js 16 "proxy" convention: a NAMED `proxy` export (not a default export).
 export async function proxy(request: NextRequest) {
+  // Without Supabase credentials we can't evaluate a session. Fail open to the
+  // login page (which explains the misconfiguration) instead of constructing a
+  // client with undefined values — that throws, and because this proxy matches
+  // every route it would turn one missing env var into an opaque 500 sitewide.
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    if (isPublicPath(request.nextUrl.pathname)) return NextResponse.next({ request });
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "reason=misconfigured";
+    return NextResponse.redirect(url);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll() {
@@ -48,9 +68,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PREFIXES.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
-  );
+  const isPublic = isPublicPath(pathname);
 
   // Build a redirect that preserves any auth cookies Supabase set/cleared
   // during getUser() above. Returning a bare NextResponse.redirect would drop
