@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
+import { dbSchema } from "@/lib/supabase/schema";
 
 /**
  * Service-role Supabase client. SERVER-ONLY — bypasses RLS, never expose to the
@@ -10,6 +11,6 @@ export function createAdminClient() {
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
+    { auth: { persistSession: false, autoRefreshToken: false }, db: { schema: dbSchema() } },
   );
 }
