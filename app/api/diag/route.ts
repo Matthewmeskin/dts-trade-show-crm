@@ -25,6 +25,11 @@ export async function GET() {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     NEXT_PUBLIC_SUPABASE_SCHEMA: process.env.NEXT_PUBLIC_SUPABASE_SCHEMA ?? "(unset)",
+    // Integration config — absent on a sandbox deployment by design, but the
+    // TMS ingest 503s without the secret, so surface it here too.
+    TMS_WEBHOOK_SECRET: !!process.env.TMS_WEBHOOK_SECRET,
+    ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
+    N8N_SCAN_WEBHOOK_URL: !!process.env.N8N_SCAN_WEBHOOK_URL,
   };
 
   let query: { ok: boolean; exhibitors?: number; error?: string } = { ok: false };
