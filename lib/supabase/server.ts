@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@/lib/database.types";
+import { dbSchema } from "@/lib/supabase/schema";
 
 /**
  * Supabase client for Server Components, Route Handlers, and Server Actions.
@@ -13,6 +14,7 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      db: { schema: dbSchema() },
       cookies: {
         getAll() {
           return cookieStore.getAll();
