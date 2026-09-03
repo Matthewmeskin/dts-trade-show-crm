@@ -50,7 +50,13 @@ function Th({ children, right }: { children: React.ReactNode; right?: boolean })
  * individual loads behind its total (customer and load number), so a figure
  * can be traced to the shipments that produced it.
  */
-export function FinancialsTable({ shows, grand }: { shows: FinShow[]; grand: { billed: number; cost: number } }) {
+export function FinancialsTable({
+  shows,
+  grand,
+}: {
+  shows: FinShow[];
+  grand: { count: number; billed: number; cost: number };
+}) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const toggle = (key: string) => setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
 
@@ -173,7 +179,7 @@ export function FinancialsTable({ shows, grand }: { shows: FinShow[]; grand: { b
           <tfoot>
             <tr className="border-t border-slate-200 bg-slate-50">
               <td className="px-5 py-3 font-semibold text-slate-900">Total</td>
-              <td />
+              <td className="px-5 py-3 text-right font-semibold text-slate-900">{grand.count}</td>
               <td className="px-5 py-3 text-right font-semibold text-slate-900">{money(grand.billed)}</td>
               <td className="px-5 py-3 text-right font-semibold text-slate-900">{money(grand.cost)}</td>
               <td className="px-5 py-3 text-right font-semibold">

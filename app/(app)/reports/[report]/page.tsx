@@ -200,8 +200,8 @@ async function Financials({ from, to }: { from?: string; to?: string }) {
     for (const c of s.carriers) c.loads.sort((a, b) => b.billed - a.billed);
   }
   const grand = showList.reduce(
-    (acc, s) => ({ billed: acc.billed + s.billed, cost: acc.cost + s.cost }),
-    { billed: 0, cost: 0 },
+    (acc, s) => ({ count: acc.count + s.count, billed: acc.billed + s.billed, cost: acc.cost + s.cost }),
+    { count: 0, billed: 0, cost: 0 },
   );
 
   return <FinancialsTable shows={showList} grand={grand} />;
