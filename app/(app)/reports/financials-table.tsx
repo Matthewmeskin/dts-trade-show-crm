@@ -5,10 +5,12 @@ import Link from "next/link";
 import { Card } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { formatCurrency } from "@/lib/format";
+import { hyperionShipmentUrl } from "@/lib/tms";
 
 export type FinLoad = {
   id: string;
   ref: string | null;
+  tmsCustomerId: string | null;
   customerId: string | null;
   customer: string;
   billed: number;
@@ -122,6 +124,7 @@ export function FinancialsTable({ shows, grand }: { shows: FinShow[]; grand: { b
                         {isOpen
                           ? c.loads.map((l) => {
                               const lm = l.billed - l.cost;
+                              const tmsUrl = hyperionShipmentUrl(l.tmsCustomerId, l.ref);
                               return (
                                 <tr key={l.id} className="bg-slate-50/30 text-xs">
                                   <td className="py-2 pl-[4.5rem] pr-5">
@@ -129,6 +132,17 @@ export function FinancialsTable({ shows, grand }: { shows: FinShow[]; grand: { b
                                       <Link href={`/shipments/${l.id}`} className="font-medium text-slate-600 hover:text-dts-maroon">
                                         {l.ref ? `#${l.ref}` : "No load #"}
                                       </Link>
+                                      {tmsUrl ? (
+                                        <a
+                                          href={tmsUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          title="Open in Hyperion TMS"
+                                          className="inline-flex items-center text-dts-maroon transition hover:underline"
+                                        >
+                                          <Icon name="external" className="h-3 w-3" />
+                                        </a>
+                                      ) : null}
                                       <span className="text-slate-300">·</span>
                                       {l.customerId ? (
                                         <Link href={`/exhibitors/${l.customerId}`} className="text-slate-500 hover:text-dts-maroon">

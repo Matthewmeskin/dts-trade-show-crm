@@ -111,6 +111,7 @@ async function Financials({ from, to }: { from?: string; to?: string }) {
     show_id: string | null;
     carrier_id: string | null;
     tms_reference_id: string | null;
+    tms_customer_id: string | null;
     billed_amount: number | null;
     cost_amount: number | null;
     show: { show_name: string; edition_year: number | null } | null;
@@ -120,7 +121,7 @@ async function Financials({ from, to }: { from?: string; to?: string }) {
     const q = supabase
       .from("shipments")
       .select(
-        "id, show_id, carrier_id, tms_reference_id, billed_amount, cost_amount, show:shows(show_name, edition_year), carrier:carriers(carrier_name), exhibitor:exhibitors(id, company_name)",
+        "id, show_id, carrier_id, tms_reference_id, tms_customer_id, billed_amount, cost_amount, show:shows(show_name, edition_year), carrier:carriers(carrier_name), exhibitor:exhibitors(id, company_name)",
       )
       // Quotes aren't real revenue yet — count only booked and above, and a
       // load cancelled in the TMS was never earned however far it had got.
@@ -169,6 +170,7 @@ async function Financials({ from, to }: { from?: string; to?: string }) {
     car.loads.push({
       id: s.id,
       ref: s.tms_reference_id,
+      tmsCustomerId: s.tms_customer_id,
       customerId: s.exhibitor?.id ?? null,
       customer: s.exhibitor?.company_name ?? "No customer",
       billed,
