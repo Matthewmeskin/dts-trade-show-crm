@@ -14,6 +14,8 @@ import {
 } from "@/lib/shipments";
 import { formatCurrency, formatDateRange } from "@/lib/format";
 import { ShowSelect } from "../show-select";
+import { DateRangeFilter } from "../date-range-filter";
+import { FinancialsTable, type FinShow } from "../financials-table";
 import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export const dynamic = "force-dynamic";
@@ -23,13 +25,13 @@ export default async function ReportPage({
   searchParams,
 }: {
   params: Promise<{ report: string }>;
-  searchParams: Promise<{ show?: string }>;
+  searchParams: Promise<{ show?: string; from?: string; to?: string }>;
 }) {
   const { report } = await params;
   const def = getReport(report);
   if (!def) notFound();
 
-  const { show } = await searchParams;
+  const { show, from, to } = await searchParams;
   const supabase = await createClient();
 
   let showOptions: { id: string; label: string }[] = [];
@@ -61,6 +63,9 @@ export default async function ReportPage({
         {def.scoped ? (
           <ShowSelect shows={showOptions} value={show ?? ""} basePath={`/reports/${def.slug}`} />
         ) : null}
+        {def.slug === "financials" ? (
+          <DateRangeFilter from={from ?? ""} to={to ?? ""} basePath={`/reports/${def.slug}`} />
+        ) : null}
       </div>
 
       {def.scoped && !show ? (
@@ -74,7 +79,7 @@ export default async function ReportPage({
           {def.slug === "show-summary" && <ShowSummary showId={show!} />}
           {def.slug === "exhibitor-history" && <ExhibitorHistory />}
           {def.slug === "carrier-usage" && <CarrierUsage />}
-          {def.slug === "financials" && <Financials />}
+          {def.slug === "financials" && <Financials from={from} to={to} />}
         </>
       )}
     </div>
@@ -98,38 +103,36 @@ const STATUS_ORDER = Constants.public.Enums.shipment_status;
 
 /* ---- Financials by show & carrier (global) ------------------------------ */
 
-async function Financials() {
+async function Financials({ from, to }: { from?: string; to?: string }) {
   const supabase = await createClient();
   // Page past the 1,000-row cap so revenue totals span every shipment.
   const ships = await fetchAll<{
+    id: string;
     show_id: string | null;
     carrier_id: string | null;
+    tms_reference_id: string | null;
     billed_amount: number | null;
     cost_amount: number | null;
     show: { show_name: string; edition_year: number | null } | null;
     carrier: { carrier_name: string } | null;
-  }>(() =>
-    supabase
+    exhibitor: { id: string; company_name: string } | null;
+  }>(() => {
+    const q = supabase
       .from("shipments")
       .select(
-        "show_id, carrier_id, billed_amount, cost_amount, show:shows(show_name, edition_year), carrier:carriers(carrier_name)",
+        "id, show_id, carrier_id, tms_reference_id, billed_amount, cost_amount, show:shows(show_name, edition_year), carrier:carriers(carrier_name), exhibitor:exhibitors(id, company_name)",
       )
-      // Quotes aren't real revenue yet — count only booked and above.
-      .neq("status", "quoted"),
-  );
+      // Quotes aren't real revenue yet — count only booked and above, and a
+      // load cancelled in the TMS was never earned however far it had got.
+      .neq("status", "quoted")
+      .is("cancelled_at", null);
+    // Ranged on pickup date: the only date populated across the whole book
+    // (show_date and actual_delivery_date are empty on TMS-sourced loads).
+    const withFrom = from ? q.gte("pickup_date", from) : q;
+    return to ? withFrom.lte("pickup_date", to) : withFrom;
+  });
 
-  type Car = { id: string | null; name: string; count: number; billed: number; cost: number };
-  type Sh = {
-    id: string | null;
-    name: string;
-    edition: number | null;
-    count: number;
-    billed: number;
-    cost: number;
-    carriers: Map<string, Car>;
-  };
-
-  const shows = new Map<string, Sh>();
+  const shows = new Map<string, FinShow>();
   for (const s of ships) {
     // Only shipments that carry a billed or cost figure contribute.
     if (s.billed_amount == null && s.cost_amount == null) continue;
@@ -146,7 +149,7 @@ async function Financials() {
         count: 0,
         billed: 0,
         cost: 0,
-        carriers: new Map(),
+        carriers: [],
       };
       shows.set(showKey, sh);
     }
@@ -155,103 +158,53 @@ async function Financials() {
     sh.cost += cost;
 
     const carKey = s.carrier_id ?? "__none__";
-    let car = sh.carriers.get(carKey);
+    let car = sh.carriers.find((c) => (c.id ?? "__none__") === carKey);
     if (!car) {
-      car = { id: s.carrier_id ?? null, name: s.carrier?.carrier_name ?? "No carrier", count: 0, billed: 0, cost: 0 };
-      sh.carriers.set(carKey, car);
+      car = { id: s.carrier_id ?? null, name: s.carrier?.carrier_name ?? "No carrier", count: 0, billed: 0, cost: 0, loads: [] };
+      sh.carriers.push(car);
     }
     car.count += 1;
     car.billed += billed;
     car.cost += cost;
+    car.loads.push({
+      id: s.id,
+      ref: s.tms_reference_id,
+      customerId: s.exhibitor?.id ?? null,
+      customer: s.exhibitor?.company_name ?? "No customer",
+      billed,
+      cost,
+    });
   }
 
   if (shows.size === 0)
-    return <EmptyCard icon="reports" label="No billed or cost figures on any shipment yet." />;
+    return (
+      <EmptyCard
+        icon="reports"
+        label={
+          from || to
+            ? "No billed or cost figures in this date range."
+            : "No billed or cost figures on any shipment yet."
+        }
+      />
+    );
 
-  // Unassigned (no show) sorts last; everything else alphabetical.
+  // Unassigned (no show / carrier) sorts last; everything else alphabetical.
   const byName = <T extends { id: string | null; name: string }>(a: T, b: T) =>
     a.id === null ? 1 : b.id === null ? -1 : a.name.localeCompare(b.name);
   const showList = [...shows.values()].sort(byName);
+  for (const s of showList) {
+    s.carriers.sort(byName);
+    // Biggest load first, so an outsized figure is the first thing revealed.
+    for (const c of s.carriers) c.loads.sort((a, b) => b.billed - a.billed);
+  }
   const grand = showList.reduce(
     (acc, s) => ({ billed: acc.billed + s.billed, cost: acc.cost + s.cost }),
     { billed: 0, cost: 0 },
   );
 
-  const money = (n: number) => formatCurrency(n, { cents: true });
-  const marginClass = (n: number) => (n < 0 ? "text-dts-maroon" : "text-emerald-600");
-
-  return (
-    <Card>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100">
-              <Th>Show / Carrier</Th><Th right>Shipments</Th><Th right>Billed</Th><Th right>Cost</Th><Th right>Margin</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {showList.map((s) => {
-              const carriers = [...s.carriers.values()].sort(byName);
-              const showMargin = s.billed - s.cost;
-              return (
-                <Fragment key={s.id ?? "__none__"}>
-                  <tr className="bg-slate-50/50">
-                    <td className="px-5 py-3 font-semibold text-slate-900">
-                      {s.id ? (
-                        <Link href={`/shows/${s.id}`} className="hover:text-dts-maroon">
-                          {s.name}{s.edition ? <span className="ml-1 text-slate-400">{s.edition}</span> : null}
-                        </Link>
-                      ) : (
-                        <span className="text-slate-500">{s.name}</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3 text-right font-medium text-slate-700">{s.count}</td>
-                    <td className="px-5 py-3 text-right font-medium text-slate-700">{money(s.billed)}</td>
-                    <td className="px-5 py-3 text-right font-medium text-slate-700">{money(s.cost)}</td>
-                    <td className="px-5 py-3 text-right font-semibold">
-                      <span className={marginClass(showMargin)}>{money(showMargin)}</span>
-                    </td>
-                  </tr>
-                  {carriers.map((c) => {
-                    const cm = c.billed - c.cost;
-                    return (
-                      <tr key={`${s.id ?? "__none__"}-${c.id ?? "__none__"}`} className="hover:bg-slate-50/60">
-                        <td className="py-2.5 pl-10 pr-5 text-slate-600">
-                          {c.id ? (
-                            <Link href={`/carriers/${c.id}`} className="hover:text-dts-maroon">{c.name}</Link>
-                          ) : (
-                            <span className="text-slate-400">{c.name}</span>
-                          )}
-                        </td>
-                        <Td right>{c.count}</Td>
-                        <Td right>{money(c.billed)}</Td>
-                        <Td right>{money(c.cost)}</Td>
-                        <td className="px-5 py-2.5 text-right">
-                          <span className={cm < 0 ? "text-dts-maroon" : "text-slate-700"}>{money(cm)}</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </Fragment>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <tr className="border-t border-slate-200 font-semibold text-slate-900">
-              <td className="px-5 py-3">Total</td>
-              <td className="px-5 py-3" />
-              <td className="px-5 py-3 text-right">{money(grand.billed)}</td>
-              <td className="px-5 py-3 text-right">{money(grand.cost)}</td>
-              <td className="px-5 py-3 text-right">
-                <span className={marginClass(grand.billed - grand.cost)}>{money(grand.billed - grand.cost)}</span>
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </Card>
-  );
+  return <FinancialsTable shows={showList} grand={grand} />;
 }
+
 
 /* ---- Exhibitor history (global) ----------------------------------------- */
 
@@ -262,7 +215,7 @@ async function ExhibitorHistory() {
     supabase.from("show_exhibitors").select("exhibitor_id"),
     // Page past the 1,000-row cap so per-exhibitor counts span every shipment.
     fetchAll<{ exhibitor_id: string | null; status: ShipmentStatus }>(
-      () => supabase.from("shipments").select("exhibitor_id, status"),
+      () => supabase.from("shipments").select("exhibitor_id, status").is("cancelled_at", null),
     ),
   ]);
   const exhibitors = exhRes.data ?? [];
@@ -322,7 +275,7 @@ async function CarrierUsage() {
     supabase.from("carriers").select("id, carrier_name").order("carrier_name"),
     // Page past the 1,000-row cap so per-carrier counts span every shipment.
     fetchAll<{ carrier_id: string | null; show_id: string | null }>(
-      () => supabase.from("shipments").select("carrier_id, show_id"),
+      () => supabase.from("shipments").select("carrier_id, show_id").is("cancelled_at", null),
     ),
     supabase.from("carrier_venues").select("carrier_id, venue_id"),
   ]);
@@ -382,7 +335,8 @@ async function ExhibitorsPerShow({ showId }: { showId: string }) {
     supabase
       .from("shipments")
       .select("status, exhibitor:exhibitors(id, company_name, industry)")
-      .eq("show_id", showId),
+      .eq("show_id", showId)
+      .is("cancelled_at", null),
   ]);
 
   // Source exhibitors from the show's SHIPMENTS (where the link actually lives
@@ -447,7 +401,7 @@ async function ExhibitorsPerShow({ showId }: { showId: string }) {
 
 async function ShipmentsByStatus({ showId }: { showId: string }) {
   const supabase = await createClient();
-  const { data } = await supabase.from("shipments").select("status").eq("show_id", showId);
+  const { data } = await supabase.from("shipments").select("status").eq("show_id", showId).is("cancelled_at", null);
   const ships = data ?? [];
   const total = ships.length;
   if (total === 0) return <EmptyCard icon="shipments" label="No shipments on this show." />;
@@ -508,7 +462,7 @@ async function ShowSummary({ showId }: { showId: string }) {
 
   const [exhRes, shipRes, debriefRes] = await Promise.all([
     supabase.from("show_exhibitors").select("exhibitor_id", { count: "exact" }).eq("show_id", showId),
-    supabase.from("shipments").select("status, carrier:carriers(id, carrier_name)").eq("show_id", showId),
+    supabase.from("shipments").select("status, carrier:carriers(id, carrier_name)").eq("show_id", showId).is("cancelled_at", null),
     supabase.from("show_debriefs").select("*").eq("show_id", showId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
