@@ -1,3 +1,4 @@
+import { pacificDayKey } from "@/lib/format";
 import type { IconName } from "@/components/icons";
 
 export type ReportDef = {
@@ -55,4 +56,37 @@ export const REPORTS: ReportDef[] = [
 
 export function getReport(slug: string): ReportDef | undefined {
   return REPORTS.find((r) => r.slug === slug);
+}
+
+export type DatePreset = { label: string; from: string; to: string };
+
+const QUARTER_END = ["03-31", "06-30", "09-30", "12-31"];
+
+/**
+ * Quick ranges for the financials filter: year-to-date plus each quarter of
+ * this year and last, newest first.
+ *
+ * Built from the Pacific date rather than the server's UTC clock — the servers
+ * run UTC, so on the evening of a quarter's last day "this quarter" would
+ * otherwise roll forward while it's still that quarter in the office.
+ */
+export function datePresets(): DatePreset[] {
+  const today = pacificDayKey(new Date().toISOString()) ?? "";
+  const year = Number(today.slice(0, 4));
+  const thisQuarter = Math.ceil(Number(today.slice(5, 7)) / 3);
+
+  const out: DatePreset[] = [
+    { label: `${year} year to date`, from: `${year}-01-01`, to: today },
+  ];
+  for (const y of [year, year - 1]) {
+    // Only quarters that have started; a future quarter is always empty.
+    for (let q = y === year ? thisQuarter : 4; q >= 1; q--) {
+      out.push({
+        label: `Q${q} ${y}`,
+        from: `${y}-${String(q * 3 - 2).padStart(2, "0")}-01`,
+        to: `${y}-${QUARTER_END[q - 1]}`,
+      });
+    }
+  }
+  return out;
 }

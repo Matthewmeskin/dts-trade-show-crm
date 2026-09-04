@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
-import { getReport } from "@/lib/reports";
+import { getReport, datePresets } from "@/lib/reports";
 import { Constants } from "@/lib/database.types";
 import { SHOW_STATUS_META } from "@/lib/shows";
 import {
@@ -64,7 +64,12 @@ export default async function ReportPage({
           <ShowSelect shows={showOptions} value={show ?? ""} basePath={`/reports/${def.slug}`} />
         ) : null}
         {def.slug === "financials" ? (
-          <DateRangeFilter from={from ?? ""} to={to ?? ""} basePath={`/reports/${def.slug}`} />
+          <DateRangeFilter
+            from={from ?? ""}
+            to={to ?? ""}
+            basePath={`/reports/${def.slug}`}
+            presets={datePresets()}
+          />
         ) : null}
       </div>
 

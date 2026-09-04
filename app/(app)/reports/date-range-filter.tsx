@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import type { DatePreset } from "@/lib/reports";
 
 /**
  * From/to range for a report, held in the URL so a filtered view is shareable
@@ -10,10 +11,12 @@ export function DateRangeFilter({
   from,
   to,
   basePath,
+  presets,
 }: {
   from: string;
   to: string;
   basePath: string;
+  presets: DatePreset[];
 }) {
   const router = useRouter();
 
@@ -28,8 +31,28 @@ export function DateRangeFilter({
   const field =
     "rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon";
 
+  // A preset is "active" only on an exact match, so nudging either date by
+  // hand drops the picker back to Custom rather than mislabelling the range.
+  const active = presets.find((p) => p.from === from && p.to === to)?.label ?? "";
+
   return (
     <div className="flex flex-wrap items-end gap-2">
+      <label className="flex flex-col gap-1">
+        <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Period</span>
+        <select
+          value={active}
+          onChange={(e) => {
+            const preset = presets.find((p) => p.label === e.target.value);
+            push(preset?.from ?? "", preset?.to ?? "");
+          }}
+          className={field}
+        >
+          <option value="">{from || to ? "Custom" : "All dates"}</option>
+          {presets.map((p) => (
+            <option key={p.label} value={p.label}>{p.label}</option>
+          ))}
+        </select>
+      </label>
       <label className="flex flex-col gap-1">
         <span className="text-xs font-medium uppercase tracking-wide text-slate-400">From</span>
         <input
