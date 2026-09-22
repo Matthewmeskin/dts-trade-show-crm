@@ -28,6 +28,9 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Shows & Freight",
     items: [
       { label: "Shows", href: "/shows", icon: "shows" },
+      // The public show pages on dtsone.com: what still needs a person's eyes
+      // before they can publish, and what has gone stale since.
+      { label: "Show pages", href: "/show-pages", icon: "external" },
       // Quotes lives as a tab on Shipments, so light Shipments up there too.
       { label: "Shipments", href: "/shipments", icon: "shipments", match: ["/quotes"] },
       { label: "MHA Check", href: "/mha-check", icon: "truck" },

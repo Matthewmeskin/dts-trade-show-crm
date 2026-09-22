@@ -30,6 +30,15 @@ import { documentDownload } from "@/app/(app)/documents/actions";
 import { DeleteDocButton } from "@/app/(app)/documents/delete-doc-button";
 import { DOCUMENT_TYPE_META } from "@/lib/documents";
 import { DebriefForm } from "./debrief-form";
+import { LogisticsForm } from "./logistics-form";
+import { SeriesPanel } from "./series-panel";
+import {
+  STATUS_META,
+  effectiveStatus,
+  goesStaleOn,
+  publishBlockers,
+} from "@/lib/logistics";
+import { revertToDraft } from "../logistics-actions";
 import { DeleteShowButton } from "./delete-show-button";
 import { QuickEditShow } from "./quick-edit";
 import { ShipmentsTable } from "./shipments-table";
@@ -47,6 +56,7 @@ const TABS = [
   { key: "documents", label: "Documents" },
   { key: "tasks", label: "Tasks" },
   { key: "debrief", label: "Debrief" },
+  { key: "logistics", label: "Show page" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -176,6 +186,7 @@ export default async function ShowRecordPage({
       {active === "documents" && <DocumentsTab showId={id} />}
       {active === "tasks" && <TasksTab showId={id} />}
       {active === "debrief" && <DebriefTab showId={id} />}
+      {active === "logistics" && <LogisticsTab showId={id} />}
     </div>
   );
 }
@@ -1064,5 +1075,135 @@ async function DebriefTab({ showId }: { showId: string }) {
         <DebriefForm showId={showId} debrief={debrief ?? null} />
       </div>
     </Card>
+  );
+}
+
+/**
+ * The public show page tab: what the website will publish for this edition, and
+ * whether it is published at all.
+ *
+ * Two separate things live here because they are two separate decisions. The
+ * series panel answers "does this show have a page, at this URL" - a property of
+ * the show, not of one year. The form answers "are this year's freight details
+ * checked and publishable". A page needs both.
+ */
+async function LogisticsTab({ showId }: { showId: string }) {
+  const supabase = await createClient();
+
+  const { data: show } = await supabase
+    .from("shows")
+    .select(
+      "show_name, edition_year, show_start_date, show_end_date, series_id, venue_id, advance_warehouse_name, advance_warehouse_street1, direct_to_show_street1, advance_warehouse_address, direct_to_show_address",
+    )
+    .eq("id", showId)
+    .single();
+
+  if (!show) notFound();
+
+  const [{ data: logistics }, { data: series }, { data: candidates }, { data: venue }] =
+    await Promise.all([
+      supabase
+        .from("show_public_logistics")
+        .select("*")
+        .eq("show_id", showId)
+        .maybeSingle(),
+      show.series_id
+        ? supabase.from("show_series").select("*").eq("id", show.series_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      supabase.from("show_series").select("id, name, slug, is_public").order("name"),
+      show.venue_id
+        ? supabase
+            .from("venues")
+            .select("id, venue_name, public_slug")
+            .eq("id", show.venue_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
+  const status = effectiveStatus(logistics ?? null, show.show_end_date);
+  const meta = STATUS_META[status];
+  const staleOn = goesStaleOn(logistics ?? null);
+  const pageBlockers = publishBlockers(show, series ?? null);
+  const live = status !== "none" && status !== "draft" && pageBlockers.length === 0;
+
+  return (
+    <div className="space-y-5">
+      <Card>
+        <CardHeader title="What the website is doing with this edition" icon="external" />
+        <div className="space-y-3 p-5">
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge className={meta.badge}>{meta.label}</Badge>
+            <Badge
+              className={
+                live ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
+              }
+            >
+              {live ? "Page is live" : "Page is not live"}
+            </Badge>
+            {staleOn && status === "verified" ? (
+              <span className="text-xs text-slate-400">
+                Goes stale on {formatDate(staleOn.toISOString().slice(0, 10))}
+              </span>
+            ) : null}
+            {logistics?.last_verified_at ? (
+              <span className="text-xs text-slate-400">
+                Last verified {formatDate(logistics.last_verified_at.slice(0, 10))}
+                {logistics.verified_by ? ` by ${logistics.verified_by}` : ""}
+              </span>
+            ) : null}
+          </div>
+
+          <p className="text-sm text-slate-500">{meta.blurb}</p>
+
+          {pageBlockers.length ? (
+            <ul className="space-y-1.5">
+              {pageBlockers.map((b) => (
+                <li key={b.field} className="flex gap-2 text-xs text-slate-600">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-slate-400" />
+                  {b.message}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {status === "verified" || status === "stale" ? (
+            <form action={revertToDraft} className="pt-1">
+              <input type="hidden" name="show_id" value={showId} />
+              <button
+                type="submit"
+                className="text-xs font-medium text-dts-maroon underline-offset-2 hover:underline"
+              >
+                Pull back to draft — takes the page down
+              </button>
+            </form>
+          ) : null}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="Which show is this a year of?" icon="shows" />
+        <div className="p-5">
+          <SeriesPanel
+            showId={showId}
+            showName={show.show_name}
+            editionYear={show.edition_year}
+            series={series ?? null}
+            candidates={candidates ?? []}
+            venue={venue ?? null}
+          />
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="This year's freight details" icon="truck" />
+        <div className="p-5">
+          <LogisticsForm
+            showId={showId}
+            show={show}
+            logistics={logistics ?? null}
+          />
+        </div>
+      </Card>
+    </div>
   );
 }

@@ -908,6 +908,122 @@ export type Database = {
           },
         ]
       }
+      show_public_logistics: {
+        Row: {
+          advance_cutoff_local: string | null
+          advance_late_surcharge_note: string | null
+          carrier_check_in_cutoff_local: string | null
+          created_at: string
+          direct_cutoff_local: string | null
+          dts_public_notes: string | null
+          dts_public_notes_updated_at: string | null
+          gsc_url: string | null
+          label_requirements_note: string | null
+          last_verified_at: string | null
+          marshalling_yard_note: string | null
+          show_id: string
+          source_type: string | null
+          source_url: string | null
+          targeted_move_in: boolean
+          targeted_move_in_note: string | null
+          timezone: string | null
+          updated_at: string
+          verification_status: string
+          verified_by: string | null
+        }
+        Insert: {
+          advance_cutoff_local?: string | null
+          advance_late_surcharge_note?: string | null
+          carrier_check_in_cutoff_local?: string | null
+          created_at?: string
+          direct_cutoff_local?: string | null
+          dts_public_notes?: string | null
+          dts_public_notes_updated_at?: string | null
+          gsc_url?: string | null
+          label_requirements_note?: string | null
+          last_verified_at?: string | null
+          marshalling_yard_note?: string | null
+          show_id: string
+          source_type?: string | null
+          source_url?: string | null
+          targeted_move_in?: boolean
+          targeted_move_in_note?: string | null
+          timezone?: string | null
+          updated_at?: string
+          verification_status?: string
+          verified_by?: string | null
+        }
+        Update: {
+          advance_cutoff_local?: string | null
+          advance_late_surcharge_note?: string | null
+          carrier_check_in_cutoff_local?: string | null
+          created_at?: string
+          direct_cutoff_local?: string | null
+          dts_public_notes?: string | null
+          dts_public_notes_updated_at?: string | null
+          gsc_url?: string | null
+          label_requirements_note?: string | null
+          last_verified_at?: string | null
+          marshalling_yard_note?: string | null
+          show_id?: string
+          source_type?: string | null
+          source_url?: string | null
+          targeted_move_in?: boolean
+          targeted_move_in_note?: string | null
+          timezone?: string | null
+          updated_at?: string
+          verification_status?: string
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_public_logistics_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: true
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      show_series: {
+        Row: {
+          created_at: string
+          description_short: string | null
+          id: string
+          industry: string | null
+          is_public: boolean
+          name: string
+          slug: string
+          typical_city: string | null
+          typical_month: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description_short?: string | null
+          id?: string
+          industry?: string | null
+          is_public?: boolean
+          name: string
+          slug: string
+          typical_city?: string | null
+          typical_month?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description_short?: string | null
+          id?: string
+          industry?: string | null
+          is_public?: boolean
+          name?: string
+          slug?: string
+          typical_city?: string | null
+          typical_month?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shows: {
         Row: {
           actual_revenue: number | null
@@ -970,6 +1086,7 @@ export type Database = {
           move_out_end: string | null
           move_out_start: string | null
           sales_people: string | null
+          series_id: string | null
           show_end_date: string | null
           show_management_company: string | null
           show_name: string
@@ -1039,6 +1156,7 @@ export type Database = {
           move_out_end?: string | null
           move_out_start?: string | null
           sales_people?: string | null
+          series_id?: string | null
           show_end_date?: string | null
           show_management_company?: string | null
           show_name: string
@@ -1108,6 +1226,7 @@ export type Database = {
           move_out_end?: string | null
           move_out_start?: string | null
           sales_people?: string | null
+          series_id?: string | null
           show_end_date?: string | null
           show_management_company?: string | null
           show_name?: string
@@ -1329,6 +1448,7 @@ export type Database = {
           general_notes: string | null
           id: string
           parking_and_staging_notes: string | null
+          public_slug: string | null
           state: string | null
           union_rules: string | null
           updated_at: string
@@ -1343,6 +1463,7 @@ export type Database = {
           general_notes?: string | null
           id?: string
           parking_and_staging_notes?: string | null
+          public_slug?: string | null
           state?: string | null
           union_rules?: string | null
           updated_at?: string
@@ -1357,6 +1478,7 @@ export type Database = {
           general_notes?: string | null
           id?: string
           parking_and_staging_notes?: string | null
+          public_slug?: string | null
           state?: string | null
           union_rules?: string | null
           updated_at?: string
