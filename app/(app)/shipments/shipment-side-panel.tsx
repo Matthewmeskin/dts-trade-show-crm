@@ -19,6 +19,8 @@ import {
   deliveryHealth,
 } from "@/lib/shipments";
 import { hyperionShipmentUrl } from "@/lib/tms";
+import { quoteRef, type ShipmentReferences } from "@/lib/quote-ref";
+import { CopyRef } from "@/components/copy-ref";
 import { getShipmentDrawerData } from "./actions";
 import { QuickEditShipment } from "./[id]/quick-edit";
 import { ForcedControl } from "./[id]/forced-control";
@@ -184,6 +186,7 @@ function PanelBody({
   const sm = SHIPMENT_STATUS_META[s.status];
   const tms = TMS_SYNC_META[s.tms_sync_status];
   const dir = effectiveDirection(s);
+  const ref = quoteRef(s as ShipmentReferences);
   const target = effectiveTargetDate(s, s.show);
   const health = deliveryHealth({
     status: s.status,
@@ -216,6 +219,13 @@ function PanelBody({
           </Badge>
           <Badge className={tms.badge}>TMS: {tms.label}</Badge>
         </div>
+
+        {ref ? (
+          <div className="mb-3 flex items-center gap-1.5 text-sm text-slate-500">
+            <span className="font-medium text-slate-700">{ref.label}</span>
+            <CopyRef value={ref.value} />
+          </div>
+        ) : null}
 
         <div className="mb-4 flex items-center justify-end gap-2">
           {dir === "move_out" ? (

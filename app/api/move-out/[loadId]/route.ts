@@ -16,6 +16,7 @@ import {
   type MoveOutShipment,
   type Party,
 } from "@/lib/move-out/MoveOutForm";
+import { quoteRef, type ShipmentReferences } from "@/lib/quote-ref";
 
 type Joined = {
   exhibitor: {
@@ -127,6 +128,8 @@ function mapShipmentToMoveOut(
 
   return {
     showName: show?.show_name ?? "",
+    // The number the exhibitor and the GSC will read back to us off this sheet.
+    quoteRef: quoteRef(shipment as ShipmentReferences) ?? undefined,
     booth: s("booth_number"),
     exhibitorCompany: exhibitor?.company_name ?? "",
     contactName: exhibitor?.primary_contact_name ?? undefined,

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { quoteRef, type ShipmentReferences } from "@/lib/quote-ref";
+import { CopyRef } from "@/components/copy-ref";
 import { Card, CardHeader, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { ConfirmDelete } from "@/components/confirm-delete";
@@ -67,6 +69,9 @@ export default async function ShipmentRecordPage({
   });
   const hm = DELIVERY_HEALTH_META[health];
   const title = s.exhibitor?.company_name ?? "Shipment";
+  // The number a customer would quote back at us — printed on the move-out form,
+  // and what MHA lookup searches, so it belongs where someone can read it out.
+  const ref = quoteRef(s as ShipmentReferences);
   const origin = [s.origin_street, s.origin_city, s.origin_state, s.origin_zip]
     .filter(Boolean)
     .join(", ");
@@ -97,9 +102,18 @@ export default async function ShipmentRecordPage({
               </Badge>
             ) : null}
           </div>
-          <p className="mt-1 text-sm text-slate-500">
-            {s.show?.show_name ?? "No show"}
-            {s.pro_number ? ` · PRO ${s.pro_number}` : ""}
+          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm text-slate-500">
+            <span>{s.show?.show_name ?? "No show"}</span>
+            {ref ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="font-medium text-slate-700">{ref.label}</span>
+                <CopyRef value={ref.value} />
+              </>
+            ) : null}
+            {s.pro_number && ref?.source !== "pro_number"
+              ? ` · PRO ${s.pro_number}`
+              : ""}
           </p>
         </div>
         <div className="flex items-center gap-2">
