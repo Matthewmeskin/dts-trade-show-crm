@@ -46,9 +46,38 @@ const str = (v: unknown) => {
 };
 
 /** Normalize a date to YYYY-MM-DD. Accepts ISO or US "M/D/YYYY [time...]". */
+/**
+ * The timezone Hyperion renders its dates in.
+ *
+ * Hyperion sends instants, not dates: a load picked up at 11pm on the 22nd
+ * arrives as "2026-09-23T06:00:46.856Z", and Hyperion's own shipment profile
+ * displays that same instant as "09-22-2026, 11:00 pm". So the calendar date a
+ * coordinator sees in the TMS is the LOCAL date, and anything reading the UTC
+ * date runs a day ahead for every pickup after 5pm.
+ */
+const TMS_TIME_ZONE = "America/Los_Angeles";
+
+// en-CA formats as YYYY-MM-DD, which is the shape the date columns want.
+const tmsDayFormat = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TMS_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 function dateStr(v: unknown): string | undefined {
   const s = str(v);
   if (!s) return undefined;
+  // A bare calendar date carries no time to misread — take it as written.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // An instant with an explicit UTC marker or offset: render it in the TMS's
+  // own timezone so the date matches what Hyperion shows. Slicing the string
+  // here is what put an 11pm pickup on the following day.
+  if (/^\d{4}-\d{2}-\d{2}[T ].*(Z|[+-]\d{2}:?\d{2})$/.test(s)) {
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime())) return tmsDayFormat.format(d);
+  }
+  // A timestamp with no zone is ambiguous; its date part is the best we have.
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
   const datePart = s.split(/[ T]/)[0];
   const m = datePart.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
