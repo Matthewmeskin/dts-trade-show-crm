@@ -138,7 +138,11 @@ function mapShipmentToMoveOut(
     shipTo,
     // Per-carrier bill-to when set, otherwise the default DTS bill-to.
     billTo: carrierBillTo(carrier) ?? DTS_BILL_TO,
-    carrier: { name: carrier?.carrier_name ?? "" },
+    carrier: {
+      name: carrier?.carrier_name ?? "",
+      // Typed in by us; Hyperion does not send it. Omitted from the form when blank.
+      quoteNumber: s("carrier_quote_number"),
+    },
     levelOfService: "ground", // always ground for move-outs
     accessorials,
     extraInstructions,

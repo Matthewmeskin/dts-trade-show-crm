@@ -322,12 +322,13 @@ export default async function ShipmentRecordPage({
             </dl>
           </Card>
 
-          {(s.po_ref || s.shipper_number) && (
+          {(s.po_ref || s.shipper_number || s.carrier_quote_number) && (
             <Card>
               <CardHeader title="References" icon="documents" />
               <dl className="divide-y divide-slate-100 text-sm">
                 <Row label="PO reference" value={s.po_ref} />
                 <Row label="Shipper number" value={s.shipper_number} />
+                <Row label="Carrier quote #" value={s.carrier_quote_number} />
               </dl>
             </Card>
           )}

@@ -534,6 +534,7 @@ export type Database = {
           booth_number: string | null
           carrier_id: string | null
           check_in_number: string | null
+          carrier_quote_number: string | null
           consignee_city: string | null
           consignee_company: string | null
           consignee_contact: string | null
@@ -598,6 +599,7 @@ export type Database = {
           booth_number?: string | null
           carrier_id?: string | null
           check_in_number?: string | null
+          carrier_quote_number?: string | null
           consignee_city?: string | null
           consignee_company?: string | null
           consignee_contact?: string | null
@@ -662,6 +664,7 @@ export type Database = {
           booth_number?: string | null
           carrier_id?: string | null
           check_in_number?: string | null
+          carrier_quote_number?: string | null
           consignee_city?: string | null
           consignee_company?: string | null
           consignee_contact?: string | null

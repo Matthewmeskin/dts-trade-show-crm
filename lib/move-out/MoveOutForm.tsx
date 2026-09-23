@@ -76,7 +76,16 @@ export interface MoveOutShipment {
   billTo?: Party;
 
   // Carrier (prints under "Other Carrier")
-  carrier: { name: string; phone?: string };
+  /**
+   * The carrier's own quote number, and their name and phone.
+   *
+   * quoteNumber is NOT quoteRef above: that one is the DTS reference an
+   * exhibitor quotes back to us. This is the number the carrier gave us when
+   * they quoted the freight, so the GSC and the carrier can tie this MHA to the
+   * rate it was booked at. Typed in by us - Hyperion does not send it - so it is
+   * optional and the row is omitted entirely when nobody has entered one.
+   */
+  carrier: { name: string; phone?: string; quoteNumber?: string };
 
   levelOfService?: "ground" | "1day" | "2day" | "deferred" | "specialized";
 
@@ -326,6 +335,12 @@ export function MoveOutFormDoc({ shipment }: { shipment: MoveOutShipment }) {
               <Text style={s.label}>CARRIER PHONE</Text>
               <Fill value={shipment.carrier.phone} />
             </View>
+            {shipment.carrier.quoteNumber ? (
+              <View style={s.row}>
+                <Text style={s.label}>CARRIER QUOTE #</Text>
+                <Fill value={shipment.carrier.quoteNumber} />
+              </View>
+            ) : null}
           </View>
           <View style={{ width: 16 }} />
           <View style={s.col}>

@@ -328,6 +328,7 @@ function PanelBody({
           <Fact label="Cost" value={s.cost_amount != null ? formatCurrency(s.cost_amount, { cents: true }) : null} />
           <Fact label="PO reference" value={s.po_ref} />
           <Fact label="Shipper number" value={s.shipper_number} />
+          <Fact label="Carrier quote #" value={s.carrier_quote_number} />
           <Fact label="Show date" value={s.show_date ? formatDate(s.show_date) : null} />
           <Fact
             label="Origin"
