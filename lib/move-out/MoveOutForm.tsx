@@ -82,8 +82,13 @@ export interface MoveOutShipment {
    * quoteNumber is NOT quoteRef above: that one is the DTS reference an
    * exhibitor quotes back to us. This is the number the carrier gave us when
    * they quoted the freight, so the GSC and the carrier can tie this MHA to the
-   * rate it was booked at. Typed in by us - Hyperion does not send it - so it is
-   * optional and the row is omitted entirely when nobody has entered one.
+   * rate it was booked at. Typed in by us - Hyperion does not send it.
+   *
+   * The row prints whether or not we have one. Every other unknown on this
+   * sheet - contact name, phone, email, carrier phone - prints as a labelled
+   * blank line for someone to write on at the service desk, and this is the
+   * same kind of field. Hiding it when empty made the form silently change
+   * shape and left nowhere to write the number down.
    */
   carrier: { name: string; phone?: string; quoteNumber?: string };
 
@@ -335,12 +340,10 @@ export function MoveOutFormDoc({ shipment }: { shipment: MoveOutShipment }) {
               <Text style={s.label}>CARRIER PHONE</Text>
               <Fill value={shipment.carrier.phone} />
             </View>
-            {shipment.carrier.quoteNumber ? (
-              <View style={s.row}>
-                <Text style={s.label}>CARRIER QUOTE #</Text>
-                <Fill value={shipment.carrier.quoteNumber} />
-              </View>
-            ) : null}
+            <View style={s.row}>
+              <Text style={s.label}>CARRIER QUOTE #</Text>
+              <Fill value={shipment.carrier.quoteNumber} />
+            </View>
           </View>
           <View style={{ width: 16 }} />
           <View style={s.col}>
