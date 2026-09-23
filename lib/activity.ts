@@ -65,6 +65,7 @@ export const SHIPMENT_FIELD_LABELS: Record<string, string> = {
   check_in_number: "check-in number",
   po_ref: "PO reference",
   shipper_number: "shipper number",
+  carrier_quote_number: "carrier quote #",
   billed_amount: "billed",
   cost_amount: "cost",
   special_requirements: "special requirements",

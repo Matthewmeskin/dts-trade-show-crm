@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ShipmentRow } from "./shipment-side-panel";
 import { HoverPreview } from "@/components/hover-preview";
 import { createClient } from "@/lib/supabase/server";
+import { quoteRef, type ShipmentReferences } from "@/lib/quote-ref";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { Constants } from "@/lib/database.types";
@@ -361,9 +362,24 @@ export default async function ShipmentsPage({
                             </dl>
                           </div>
                         </HoverPreview>
-                        {s.pro_number ? (
-                          <div className="text-xs text-slate-400">PRO {s.pro_number}</div>
-                        ) : null}
+                        {(() => {
+                          // The number a customer quotes back at us. Same priority
+                          // order MHA lookup uses, so the list, the printed form
+                          // and the lookup all agree.
+                          const ref = quoteRef(s as ShipmentReferences);
+                          return (
+                            <div className="text-xs text-slate-400">
+                              {ref ? (
+                                <span className="font-mono text-slate-500">
+                                  {ref.label} {ref.value}
+                                </span>
+                              ) : null}
+                              {s.pro_number && ref?.source !== "pro_number"
+                                ? `${ref ? " · " : ""}PRO ${s.pro_number}`
+                                : ""}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-5 py-3 text-slate-600">{s.show?.show_name ?? "—"}</td>
                       <td className="px-5 py-3">

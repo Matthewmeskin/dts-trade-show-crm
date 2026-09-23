@@ -107,9 +107,13 @@ export function MhaCheckForm() {
             </div>
           </FormSection>
 
-          <FormSection title="The form" description="Load number is optional — we can still check the MHA itself without it.">
-            <Field label="Load number" htmlFor="load_number" hint="If you have it. We can still check the form without it.">
-              <input id="load_number" name="load_number" className={inputClass} placeholder="e.g. TMS reference / PRO number" />
+          <FormSection title="The form" description="The quote number is optional — we can still check the MHA itself without it.">
+            <Field
+              label="DTS quote or reference #"
+              htmlFor="load_number"
+              hint="The number printed at the top of the outbound shipping form we sent you. Any DTS reference works — quote #, PRO or check-in number."
+            >
+              <input id="load_number" name="load_number" className={inputClass} placeholder="e.g. 100139" />
             </Field>
             <Field label="MHA photo or PDF" htmlFor="file" required>
               <input

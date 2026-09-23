@@ -112,6 +112,13 @@ export function ShipmentForm({
           <Field label="Shipper number" htmlFor="shipper_number" hint="Shipper's own reference number.">
             <input id="shipper_number" name="shipper_number" defaultValue={d?.shipper_number ?? ""} className={inputClass} />
           </Field>
+          <Field
+            label="Carrier quote #"
+            htmlFor="carrier_quote_number"
+            hint="The carrier's own quote number. Typed in — Hyperion does not send it. Prints on the move-out form."
+          >
+            <input id="carrier_quote_number" name="carrier_quote_number" defaultValue={d?.carrier_quote_number ?? ""} className={inputClass} />
+          </Field>
         </FormSection>
 
         <FormSection

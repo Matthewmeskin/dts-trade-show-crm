@@ -19,6 +19,8 @@ import {
   deliveryHealth,
 } from "@/lib/shipments";
 import { hyperionShipmentUrl } from "@/lib/tms";
+import { quoteRef, type ShipmentReferences } from "@/lib/quote-ref";
+import { CopyRef } from "@/components/copy-ref";
 import { getShipmentDrawerData } from "./actions";
 import { QuickEditShipment } from "./[id]/quick-edit";
 import { ForcedControl } from "./[id]/forced-control";
@@ -184,6 +186,7 @@ function PanelBody({
   const sm = SHIPMENT_STATUS_META[s.status];
   const tms = TMS_SYNC_META[s.tms_sync_status];
   const dir = effectiveDirection(s);
+  const ref = quoteRef(s as ShipmentReferences);
   const target = effectiveTargetDate(s, s.show);
   const health = deliveryHealth({
     status: s.status,
@@ -276,13 +279,18 @@ function PanelBody({
             />
           ) : null}
           <Fact
-            label="Load #"
+            // "Quote #" while it is still a quote, "Load #" once booked — the
+            // same number, called what the customer would call it today.
+            label={ref?.label ?? "Load #"}
             value={
               s.tms_reference_id ? (
                 hyperionUrl ? (
-                  <a href={hyperionUrl} target="_blank" rel="noopener noreferrer" className="text-dts-blue hover:underline">
-                    {s.tms_reference_id} ↗
-                  </a>
+                  <span className="inline-flex items-center gap-1">
+                    <a href={hyperionUrl} target="_blank" rel="noopener noreferrer" className="text-dts-blue hover:underline">
+                      {s.tms_reference_id} ↗
+                    </a>
+                    <CopyRef value={s.tms_reference_id} iconOnly />
+                  </span>
                 ) : (
                   s.tms_reference_id
                 )
@@ -320,6 +328,7 @@ function PanelBody({
           <Fact label="Cost" value={s.cost_amount != null ? formatCurrency(s.cost_amount, { cents: true }) : null} />
           <Fact label="PO reference" value={s.po_ref} />
           <Fact label="Shipper number" value={s.shipper_number} />
+          <Fact label="Carrier quote #" value={s.carrier_quote_number} />
           <Fact label="Show date" value={s.show_date ? formatDate(s.show_date) : null} />
           <Fact
             label="Origin"

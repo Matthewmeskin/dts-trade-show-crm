@@ -16,6 +16,7 @@ import {
   type MoveOutShipment,
   type Party,
 } from "@/lib/move-out/MoveOutForm";
+import { quoteRef, type ShipmentReferences } from "@/lib/quote-ref";
 
 type Joined = {
   exhibitor: {
@@ -127,6 +128,8 @@ function mapShipmentToMoveOut(
 
   return {
     showName: show?.show_name ?? "",
+    // The number the exhibitor and the GSC will read back to us off this sheet.
+    quoteRef: quoteRef(shipment as ShipmentReferences) ?? undefined,
     booth: s("booth_number"),
     exhibitorCompany: exhibitor?.company_name ?? "",
     contactName: exhibitor?.primary_contact_name ?? undefined,
@@ -135,7 +138,11 @@ function mapShipmentToMoveOut(
     shipTo,
     // Per-carrier bill-to when set, otherwise the default DTS bill-to.
     billTo: carrierBillTo(carrier) ?? DTS_BILL_TO,
-    carrier: { name: carrier?.carrier_name ?? "" },
+    carrier: {
+      name: carrier?.carrier_name ?? "",
+      // Typed in by us; Hyperion does not send it. Omitted from the form when blank.
+      quoteNumber: s("carrier_quote_number"),
+    },
     levelOfService: "ground", // always ground for move-outs
     accessorials,
     extraInstructions,

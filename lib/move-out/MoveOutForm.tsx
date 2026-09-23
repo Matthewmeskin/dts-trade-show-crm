@@ -51,6 +51,18 @@ export interface Party {
 
 export interface MoveOutShipment {
   showName: string;
+
+  /**
+   * The reference DTS gave the customer, and what to call it.
+   *
+   * Printed large in the top corner and repeated in the callout, because this
+   * sheet leaves our hands: the exhibitor carries it to the GSC's service desk,
+   * and anything they or the GSC later ring us about, they will read off this
+   * page. Drawn from lib/quote-ref.ts so the number printed here is one that MHA
+   * lookup can find again.
+   */
+  quoteRef?: { label: string; value: string };
+
   booth?: string;
   exhibitorCompany: string;
   contactName?: string;
@@ -64,7 +76,16 @@ export interface MoveOutShipment {
   billTo?: Party;
 
   // Carrier (prints under "Other Carrier")
-  carrier: { name: string; phone?: string };
+  /**
+   * The carrier's own quote number, and their name and phone.
+   *
+   * quoteNumber is NOT quoteRef above: that one is the DTS reference an
+   * exhibitor quotes back to us. This is the number the carrier gave us when
+   * they quoted the freight, so the GSC and the carrier can tie this MHA to the
+   * rate it was booked at. Typed in by us - Hyperion does not send it - so it is
+   * optional and the row is omitted entirely when nobody has entered one.
+   */
+  carrier: { name: string; phone?: string; quoteNumber?: string };
 
   levelOfService?: "ground" | "1day" | "2day" | "deferred" | "specialized";
 
@@ -112,6 +133,24 @@ const s = StyleSheet.create({
     paddingHorizontal: 8,
   },
   calloutText: { fontSize: 8, color: "#222", lineHeight: 1.45 },
+  titleRow: { flexDirection: "row", alignItems: "center" },
+  refBox: {
+    borderWidth: 1.2,
+    borderColor: DTS.maroon,
+    borderRadius: 3,
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+    alignItems: "center",
+    minWidth: 96,
+  },
+  refLabel: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 7,
+    color: DTS.maroon,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  refValue: { fontFamily: "Helvetica-Bold", fontSize: 14, color: "#111" },
   band: {
     backgroundColor: DTS.blue,
     color: "#fff",
@@ -227,7 +266,17 @@ export function MoveOutFormDoc({ shipment }: { shipment: MoveOutShipment }) {
       author="Diversified Transportation Services"
     >
       <Page size="LETTER" style={s.page}>
-        <Text style={s.title}>Outbound Shipping Form - Action Required</Text>
+        <View style={s.titleRow}>
+          <Text style={[s.title, { flexGrow: 1 }]}>
+            Outbound Shipping Form - Action Required
+          </Text>
+          {shipment.quoteRef ? (
+            <View style={s.refBox}>
+              <Text style={s.refLabel}>{shipment.quoteRef.label}</Text>
+              <Text style={s.refValue}>{shipment.quoteRef.value}</Text>
+            </View>
+          ) : null}
+        </View>
         <View style={s.callout}>
           <Text style={s.calloutText}>
             Bring this form to the general contractor&apos;s exhibitor services desk (i.e. GES, Freeman,
@@ -236,6 +285,12 @@ export function MoveOutFormDoc({ shipment }: { shipment: MoveOutShipment }) {
             back to you. Make sure that the carrier is listed on the MHA exactly as we have displayed
             below, and that the billing points to Diversified Transportation Services.
           </Text>
+          {shipment.quoteRef ? (
+            <Text style={[s.calloutText, { marginTop: 4, fontFamily: "Helvetica-Bold" }]}>
+              Questions, or sending us the MHA afterwards? Quote {shipment.quoteRef.label}{" "}
+              {shipment.quoteRef.value} so we can pull your shipment up straight away.
+            </Text>
+          ) : null}
         </View>
 
         <View style={s.row}>
@@ -280,6 +335,12 @@ export function MoveOutFormDoc({ shipment }: { shipment: MoveOutShipment }) {
               <Text style={s.label}>CARRIER PHONE</Text>
               <Fill value={shipment.carrier.phone} />
             </View>
+            {shipment.carrier.quoteNumber ? (
+              <View style={s.row}>
+                <Text style={s.label}>CARRIER QUOTE #</Text>
+                <Fill value={shipment.carrier.quoteNumber} />
+              </View>
+            ) : null}
           </View>
           <View style={{ width: 16 }} />
           <View style={s.col}>

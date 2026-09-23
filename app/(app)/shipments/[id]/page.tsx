@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { quoteRef, type ShipmentReferences } from "@/lib/quote-ref";
+import { CopyRef } from "@/components/copy-ref";
 import { Card, CardHeader, Badge } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { ConfirmDelete } from "@/components/confirm-delete";
@@ -67,6 +69,9 @@ export default async function ShipmentRecordPage({
   });
   const hm = DELIVERY_HEALTH_META[health];
   const title = s.exhibitor?.company_name ?? "Shipment";
+  // The number a customer would quote back at us — printed on the move-out form,
+  // and what MHA lookup searches, so it belongs where someone can read it out.
+  const ref = quoteRef(s as ShipmentReferences);
   const origin = [s.origin_street, s.origin_city, s.origin_state, s.origin_zip]
     .filter(Boolean)
     .join(", ");
@@ -317,12 +322,13 @@ export default async function ShipmentRecordPage({
             </dl>
           </Card>
 
-          {(s.po_ref || s.shipper_number) && (
+          {(s.po_ref || s.shipper_number || s.carrier_quote_number) && (
             <Card>
               <CardHeader title="References" icon="documents" />
               <dl className="divide-y divide-slate-100 text-sm">
                 <Row label="PO reference" value={s.po_ref} />
                 <Row label="Shipper number" value={s.shipper_number} />
+                <Row label="Carrier quote #" value={s.carrier_quote_number} />
               </dl>
             </Card>
           )}
@@ -332,18 +338,21 @@ export default async function ShipmentRecordPage({
             <dl className="divide-y divide-slate-100 text-sm">
               <Row label="Sync status" value={<Badge className={tms.badge}>{tms.label}</Badge>} />
               <Row
-                label="Load number"
+                label={ref ? `${ref.label.replace(/ #$/, "")} number` : "Load number"}
                 value={
                   s.tms_reference_id ? (
                     hyperionUrl ? (
-                      <a
-                        href={hyperionUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-dts-blue hover:underline"
-                      >
-                        {s.tms_reference_id} ↗
-                      </a>
+                      <span className="inline-flex items-center gap-1">
+                        <a
+                          href={hyperionUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-dts-blue hover:underline"
+                        >
+                          {s.tms_reference_id} ↗
+                        </a>
+                        <CopyRef value={s.tms_reference_id} iconOnly />
+                      </span>
                     ) : (
                       s.tms_reference_id
                     )

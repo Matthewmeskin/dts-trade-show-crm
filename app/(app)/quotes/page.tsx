@@ -2,6 +2,7 @@ import { ShipmentRow } from "../shipments/shipment-side-panel";
 import { ShipmentsTabs } from "../shipments/shipments-tabs";
 import { HoverPreview } from "@/components/hover-preview";
 import { createClient } from "@/lib/supabase/server";
+import { quoteRef, type ShipmentReferences } from "@/lib/quote-ref";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { DIRECTION_META, effectiveDirection } from "@/lib/shipments";
 import { formatDate, formatCurrency } from "@/lib/format";
@@ -97,6 +98,14 @@ export default async function QuotesPage({
                             </dl>
                           </div>
                         </HoverPreview>
+                        {(() => {
+                          const ref = quoteRef(s as ShipmentReferences);
+                          return ref ? (
+                            <div className="font-mono text-xs text-slate-500">
+                              {ref.label} {ref.value}
+                            </div>
+                          ) : null;
+                        })()}
                         {s.tms_reference_id ? (
                           <div className="text-xs text-slate-400">Load {s.tms_reference_id}</div>
                         ) : null}

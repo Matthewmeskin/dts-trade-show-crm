@@ -19,8 +19,16 @@ export type LoadMatch = {
   matchMethod: MatchMethod;
 };
 
-/** The shipment columns, in priority order, that a customer might quote. */
-const REFERENCE_COLUMNS = [
+/**
+ * The shipment columns, in priority order, that a customer might quote.
+ *
+ * Exported because the quote number printed on the outbound form has to be drawn
+ * from this same list, in this same order. If the form prints one reference and
+ * this lookup searches a different one, an exhibitor quoting back exactly what we
+ * gave them would come up "not found" - which is the one outcome worth engineering
+ * against, because it looks like our mistake and it is.
+ */
+export const REFERENCE_COLUMNS = [
   "tms_reference_id",
   "pro_number",
   "shipper_number",
