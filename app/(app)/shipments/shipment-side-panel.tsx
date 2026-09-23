@@ -220,13 +220,6 @@ function PanelBody({
           <Badge className={tms.badge}>TMS: {tms.label}</Badge>
         </div>
 
-        {ref ? (
-          <div className="mb-3 flex items-center gap-1.5 text-sm text-slate-500">
-            <span className="font-medium text-slate-700">{ref.label}</span>
-            <CopyRef value={ref.value} />
-          </div>
-        ) : null}
-
         <div className="mb-4 flex items-center justify-end gap-2">
           {dir === "move_out" ? (
             <a
@@ -286,13 +279,18 @@ function PanelBody({
             />
           ) : null}
           <Fact
-            label="Load #"
+            // "Quote #" while it is still a quote, "Load #" once booked — the
+            // same number, called what the customer would call it today.
+            label={ref?.label ?? "Load #"}
             value={
               s.tms_reference_id ? (
                 hyperionUrl ? (
-                  <a href={hyperionUrl} target="_blank" rel="noopener noreferrer" className="text-dts-blue hover:underline">
-                    {s.tms_reference_id} ↗
-                  </a>
+                  <span className="inline-flex items-center gap-1">
+                    <a href={hyperionUrl} target="_blank" rel="noopener noreferrer" className="text-dts-blue hover:underline">
+                      {s.tms_reference_id} ↗
+                    </a>
+                    <CopyRef value={s.tms_reference_id} iconOnly />
+                  </span>
                 ) : (
                   s.tms_reference_id
                 )

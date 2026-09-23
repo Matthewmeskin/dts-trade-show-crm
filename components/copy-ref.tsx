@@ -10,7 +10,14 @@ import { Icon } from "@/components/icons";
  * email, into the MHA lookup — so it is set in a monospace face at a size that
  * survives being read off a screen, and copies without selecting it by hand.
  */
-export function CopyRef({ value }: { value: string }) {
+export function CopyRef({
+  value,
+  iconOnly = false,
+}: {
+  value: string;
+  /** Next to a number that is already on screen: show just the copy control. */
+  iconOnly?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
 
   return (
@@ -27,9 +34,14 @@ export function CopyRef({ value }: { value: string }) {
         }
       }}
       title={copied ? "Copied" : `Copy ${value}`}
-      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-sm font-semibold tracking-tight text-slate-900 transition hover:bg-slate-100"
+      aria-label={`Copy ${value}`}
+      className={`inline-flex items-center gap-1 rounded-md transition hover:bg-slate-100 ${
+        iconOnly
+          ? "px-1 py-0.5"
+          : "px-1.5 py-0.5 font-mono text-sm font-semibold tracking-tight text-slate-900"
+      }`}
     >
-      {value}
+      {iconOnly ? null : value}
       <Icon
         name={copied ? "check" : "documents"}
         className={`h-3 w-3 ${copied ? "text-emerald-600" : "text-slate-400"}`}

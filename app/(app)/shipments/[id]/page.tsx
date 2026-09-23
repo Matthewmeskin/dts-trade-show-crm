@@ -102,18 +102,9 @@ export default async function ShipmentRecordPage({
               </Badge>
             ) : null}
           </div>
-          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm text-slate-500">
-            <span>{s.show?.show_name ?? "No show"}</span>
-            {ref ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="font-medium text-slate-700">{ref.label}</span>
-                <CopyRef value={ref.value} />
-              </>
-            ) : null}
-            {s.pro_number && ref?.source !== "pro_number"
-              ? ` · PRO ${s.pro_number}`
-              : ""}
+          <p className="mt-1 text-sm text-slate-500">
+            {s.show?.show_name ?? "No show"}
+            {s.pro_number ? ` · PRO ${s.pro_number}` : ""}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -346,18 +337,21 @@ export default async function ShipmentRecordPage({
             <dl className="divide-y divide-slate-100 text-sm">
               <Row label="Sync status" value={<Badge className={tms.badge}>{tms.label}</Badge>} />
               <Row
-                label="Load number"
+                label={ref ? `${ref.label.replace(/ #$/, "")} number` : "Load number"}
                 value={
                   s.tms_reference_id ? (
                     hyperionUrl ? (
-                      <a
-                        href={hyperionUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-dts-blue hover:underline"
-                      >
-                        {s.tms_reference_id} ↗
-                      </a>
+                      <span className="inline-flex items-center gap-1">
+                        <a
+                          href={hyperionUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-dts-blue hover:underline"
+                        >
+                          {s.tms_reference_id} ↗
+                        </a>
+                        <CopyRef value={s.tms_reference_id} iconOnly />
+                      </span>
                     ) : (
                       s.tms_reference_id
                     )
