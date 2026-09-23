@@ -343,6 +343,62 @@ async function ShipmentCalendar({
           const inMonth = view === "week" || cell.getMonth() === anchor.getMonth();
           const isToday = sameDay(cell, today);
           const cap = view === "week" ? 12 : 4;
+
+          // One row, used for both the visible events and the ones behind
+          // "+N more" — same markup either way, so an expanded day looks
+          // exactly like a short one.
+          const renderEvent = (e: (typeof events)[number]) => {
+            const statusMeta = SHIPMENT_STATUS_META[e.status];
+            const meta =
+              colorMode === "direction"
+                ? e.direction
+                  ? DIRECTION_META[e.direction]
+                  : NEUTRAL_META
+                : statusMeta;
+            return (
+              <HoverPreview
+                key={e.id}
+                className="block"
+                label={
+                  <ShipmentSidePanel
+                    id={e.id}
+                    className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left hover:bg-slate-50"
+                  >
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${meta.dot}`} />
+                    <span className={`min-w-0 flex-1 truncate text-xs font-medium ${meta.text}`}>{e.label}</span>
+                    {e.direction === "move_out" ? (
+                      e.checkIn ? (
+                        <Icon name="check" className="h-3 w-3 shrink-0 text-emerald-600" aria-label={`Checked in: ${e.checkIn}`} />
+                      ) : (
+                        <span
+                          className="h-2.5 w-2.5 shrink-0 rounded-full border border-amber-400 bg-amber-50"
+                          title="Move-out — no check-in number yet"
+                        />
+                      )
+                    ) : null}
+                  </ShipmentSidePanel>
+                }
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-slate-900">{e.exhibitor ?? e.label}</span>
+                    <Badge className={statusMeta.badge}>{statusMeta.label}</Badge>
+                  </div>
+                  <dl className="space-y-1 text-xs">
+                    {e.show ? <CalRow label="Show" value={e.show} /> : null}
+                    {e.direction ? <CalRow label="Direction" value={DIRECTION_META[e.direction].label} /> : null}
+                    {e.direction === "move_out" ? (
+                      <CalRow label="Check-in #" value={e.checkIn ?? "Not added"} />
+                    ) : null}
+                    {e.venue ? <CalRow label="Venue" value={e.venue} /> : null}
+                    {e.carrier ? <CalRow label="Carrier" value={e.carrier} /> : null}
+                    <CalRow label="Pickup" value={formatDate(e.pickup)} />
+                    <CalRow label="Delivery" value={formatDate(e.delivery)} />
+                  </dl>
+                </div>
+              </HoverPreview>
+            );
+          };
           return (
             <div
               key={key}
@@ -368,62 +424,15 @@ async function ShipmentCalendar({
                 ) : null}
               </div>
               <div className="space-y-0.5">
-                {events.slice(0, cap).map((e) => {
-                  const statusMeta = SHIPMENT_STATUS_META[e.status];
-                  const meta =
-                    colorMode === "direction"
-                      ? e.direction
-                        ? DIRECTION_META[e.direction]
-                        : NEUTRAL_META
-                      : statusMeta;
-                  return (
-                    <HoverPreview
-                      key={e.id}
-                      className="block"
-                      label={
-                        <ShipmentSidePanel
-                          id={e.id}
-                          className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left hover:bg-slate-50"
-                        >
-                          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${meta.dot}`} />
-                          <span className={`min-w-0 flex-1 truncate text-xs font-medium ${meta.text}`}>{e.label}</span>
-                          {e.direction === "move_out" ? (
-                            e.checkIn ? (
-                              <Icon name="check" className="h-3 w-3 shrink-0 text-emerald-600" aria-label={`Checked in: ${e.checkIn}`} />
-                            ) : (
-                              <span
-                                className="h-2.5 w-2.5 shrink-0 rounded-full border border-amber-400 bg-amber-50"
-                                title="Move-out — no check-in number yet"
-                              />
-                            )
-                          ) : null}
-                        </ShipmentSidePanel>
-                      }
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-slate-900">{e.exhibitor ?? e.label}</span>
-                          <Badge className={statusMeta.badge}>{statusMeta.label}</Badge>
-                        </div>
-                        <dl className="space-y-1 text-xs">
-                          {e.show ? <CalRow label="Show" value={e.show} /> : null}
-                          {e.direction ? <CalRow label="Direction" value={DIRECTION_META[e.direction].label} /> : null}
-                          {e.direction === "move_out" ? (
-                            <CalRow label="Check-in #" value={e.checkIn ?? "Not added"} />
-                          ) : null}
-                          {e.venue ? <CalRow label="Venue" value={e.venue} /> : null}
-                          {e.carrier ? <CalRow label="Carrier" value={e.carrier} /> : null}
-                          <CalRow label="Pickup" value={formatDate(e.pickup)} />
-                          <CalRow label="Delivery" value={formatDate(e.delivery)} />
-                        </dl>
-                      </div>
-                    </HoverPreview>
-                  );
-                })}
+                {events.slice(0, cap).map(renderEvent)}
                 {events.length > cap ? (
-                  <div className="px-1 text-[11px] font-medium text-slate-400">
-                    +{events.length - cap} more
-                  </div>
+                  <details className="group">
+                    <summary className="cursor-pointer list-none px-1 text-[11px] font-medium text-slate-400 hover:text-slate-600">
+                      <span className="group-open:hidden">+{events.length - cap} more</span>
+                      <span className="hidden group-open:inline">Show less</span>
+                    </summary>
+                    <div className="mt-0.5 space-y-0.5">{events.slice(cap).map(renderEvent)}</div>
+                  </details>
                 ) : null}
               </div>
             </div>
