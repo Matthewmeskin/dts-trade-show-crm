@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Constants, type TablesInsert, type TablesUpdate } from "@/lib/database.types";
@@ -153,8 +154,25 @@ export async function updateShipment(
     });
   }
 
-  // Refresh live tracking when a load number is present.
-  if (payload.tms_reference_id) await syncLoadNumber(payload.tms_reference_id);
+  // Refresh live tracking only when the LOAD NUMBER itself changed, and never
+  // on the request's critical path.
+  //
+  // This used to run on every save that had a load number at all, awaited before
+  // the redirect. So editing a note, a booth, or the carrier quote number fired a
+  // live Hyperion tracking call plus half a dozen follow-up queries, and the
+  // Saving… button sat there for all of it. Nothing about those edits can change
+  // what the TMS knows, so the sync was pure latency.
+  //
+  // `changed` is already the diff we computed for the activity log, so reuse it:
+  // a new load number is the only edit that makes the old freight data wrong.
+  // after() lets it run once the response has been sent, so even that case
+  // returns immediately.
+  const ref = payload.tms_reference_id;
+  if (ref && changed.includes("tms_reference_id")) {
+    after(async () => {
+      await syncLoadNumber(ref);
+    });
+  }
 
   revalidatePath("/shipments");
   revalidatePath(`/shipments/${id}`);
