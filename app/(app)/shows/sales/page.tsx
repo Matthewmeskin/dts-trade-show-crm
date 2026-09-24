@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { DateRangeFields } from "@/components/date-range-fields";
 import { formatShortDate, formatDateRange, todayYMD } from "@/lib/format";
-import { startCallDate, emailTeamDate, weekBeforeDate, nextAction } from "@/lib/sales";
+import { startCallDate, emailTeamDate, weekBeforeDate, nextAction, parseReps } from "@/lib/sales";
 import { SalesGrid, type SalesGridRow } from "./sales-grid";
 
 export const dynamic = "force-dynamic";
@@ -16,17 +16,23 @@ const stripYear = (s: string) => s.replace(/,\s*\d{4}$/, "");
 export default async function SalesCalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string; past?: string; owner?: string; sort?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; past?: string; owner?: string; rep?: string; sort?: string }>;
 }) {
-  const { from = "", to = "", past = "", owner = "", sort = "" } = await searchParams;
+  const { from = "", to = "", past = "", owner = "", rep = "", sort = "" } = await searchParams;
   const supabase = await createClient();
 
   const { data: shows } = await supabase
     .from("shows")
     .select(
-      "id, show_name, edition_year, show_start_date, show_end_date, exhibitor_count, industry_vertical, show_management_company, advance_warehouse_open, advance_warehouse_cutoff, direct_to_show_start, direct_to_show_end, sales_people, lead_gen_owner, lead_gen_start_date, lead_gen_completion_date, move_in_schedule_url, emailed_two_weeks, instantly_created, archived",
+      "id, show_name, edition_year, show_start_date, show_end_date, exhibitor_count, industry_vertical, show_management_company, advance_warehouse_open, advance_warehouse_cutoff, direct_to_show_start, direct_to_show_end, sales_people, lead_gen_owner, lead_gen_start_date, lead_gen_completion_date, move_in_schedule_url, emailed_two_weeks, week_before_sent, instantly_created, archived",
     )
     .eq("archived", false);
+
+  // Exhibitors linked to each show in the CRM: a second opinion next to the
+  // typed count, and the only number most rows have.
+  const { data: rosterRows } = await supabase.from("show_exhibitors").select("show_id");
+  const roster = new Map<string, number>();
+  for (const r of rosterRows ?? []) roster.set(r.show_id, (roster.get(r.show_id) ?? 0) + 1);
 
   const today = todayYMD();
   const hasRange = !!(from || to);
@@ -35,6 +41,7 @@ export default async function SalesCalendarPage({
 
   const dated = (shows ?? []).filter((s) => s.show_start_date);
   const owners = [...new Set(dated.map((s) => s.lead_gen_owner?.trim()).filter((x): x is string => !!x))].sort();
+  const reps = [...new Set(dated.flatMap((s) => parseReps(s.sales_people)))].sort((a, b) => a.localeCompare(b));
 
   // Past shows are clutter on a worklist: 29 of 51 rows the day this was
   // written. They stay one click away rather than in the way.
@@ -44,6 +51,7 @@ export default async function SalesCalendarPage({
   const listed = pool
     .filter((s) => !hasRange || ((!from || s.show_start_date! >= from) && (!to || s.show_start_date! <= to)))
     .filter((s) => !owner || (s.lead_gen_owner ?? "").trim() === owner)
+    .filter((s) => !rep || parseReps(s.sales_people).some((n) => n.toLowerCase() === rep.toLowerCase()))
     .map((s) => ({ s, next: nextAction(s, today) }));
 
   // Default order is "what needs doing first": overdue, then due this week,
@@ -63,7 +71,7 @@ export default async function SalesCalendarPage({
     upcoming: upcoming.length,
     overdue: upcoming.map((s) => nextAction(s, today)).filter((n) => n?.state === "overdue").length,
     dueSoon: upcoming.map((s) => nextAction(s, today)).filter((n) => n?.state === "due_soon").length,
-    noRep: upcoming.filter((s) => !s.sales_people?.trim() || /no sales rep/i.test(s.sales_people)).length,
+    noRep: upcoming.filter((s) => parseReps(s.sales_people).length === 0).length,
   };
 
   const rows: SalesGridRow[] = listed
@@ -73,8 +81,9 @@ export default async function SalesCalendarPage({
       editionYear: s.edition_year,
       showDates: formatDateRange(s.show_start_date, s.show_end_date),
       next: next
-        ? { label: next.label, date: formatShortDate(next.date), state: next.state, daysOut: next.daysOut }
+        ? { kind: next.kind, label: next.label, date: formatShortDate(next.date), state: next.state, daysOut: next.daysOut }
         : null,
+      rosterCount: roster.get(s.id) ?? 0,
       startCall: formatShortDate(startCallDate(s.show_start_date)),
       emailTeam: formatShortDate(emailTeamDate(s.show_start_date)),
       weekBefore: formatShortDate(weekBeforeDate(s.show_start_date)),
@@ -94,6 +103,7 @@ export default async function SalesCalendarPage({
       lead_gen_start_date: s.lead_gen_start_date,
       lead_gen_completion_date: s.lead_gen_completion_date,
       emailed_two_weeks: !!s.emailed_two_weeks,
+      week_before_sent: !!s.week_before_sent,
       instantly_created: !!s.instantly_created,
     }));
 
@@ -129,31 +139,50 @@ export default async function SalesCalendarPage({
         <DateRangeFields from={from} to={to} label="Show date" />
         {showPast ? <input type="hidden" name="past" value="1" /> : null}
         {owner ? <input type="hidden" name="owner" value={owner} /> : null}
+        {rep ? <input type="hidden" name="rep" value={rep} /> : null}
         {bySalesDate ? <input type="hidden" name="sort" value="show" /> : null}
         <button type="submit" className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100">
           Filter
         </button>
         {from || to ? (
-          <Link href={qs({ past, owner, sort })} className="text-sm font-medium text-slate-400 hover:text-slate-700">
+          <Link href={qs({ past, owner, rep, sort })} className="text-sm font-medium text-slate-400 hover:text-slate-700">
             Clear
           </Link>
         ) : null}
 
-        <span className="mx-1 h-5 w-px bg-slate-200" />
-        <Chip href={qs({ from, to, past, sort })} active={!owner}>All owners</Chip>
+      </form>
+
+      <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-2 text-xs">
+        <span className="text-slate-400">Lead gen</span>
+        <Chip href={qs({ from, to, past, rep, sort })} active={!owner}>All</Chip>
         {owners.map((o) => (
-          <Chip key={o} href={qs({ from, to, past, sort, owner: o })} active={owner === o}>
+          <Chip key={o} href={qs({ from, to, past, rep, sort, owner: o })} active={owner === o}>
             {o}
           </Chip>
         ))}
         <span className="mx-1 h-5 w-px bg-slate-200" />
-        <Chip href={qs({ from, to, owner, sort, past: showPast ? "" : "1" })} active={showPast}>
+        <span className="text-slate-400">Sales rep</span>
+        <Chip href={qs({ from, to, past, owner, sort })} active={!rep}>All</Chip>
+        {reps.map((o) => (
+          <Chip key={o} href={qs({ from, to, past, owner, sort, rep: o })} active={rep.toLowerCase() === o.toLowerCase()}>
+            {o}
+          </Chip>
+        ))}
+        <span className="mx-1 h-5 w-px bg-slate-200" />
+        <Chip href={qs({ from, to, owner, rep, sort, past: showPast ? "" : "1" })} active={showPast}>
           {showPast ? "Hiding past shows" : "Show past shows"}
         </Chip>
-        <Chip href={qs({ from, to, owner, past, sort: bySalesDate ? "" : "show" })} active={bySalesDate}>
+        <Chip href={qs({ from, to, owner, rep, past, sort: bySalesDate ? "" : "show" })} active={bySalesDate}>
           {bySalesDate ? "Sorted by show date" : "Sort by show date"}
         </Chip>
-      </form>
+      </div>
+
+      <p className="mb-3 text-xs text-slate-400">
+        <span className="mr-3 inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-rose-500" /> overdue</span>
+        <span className="mr-3 inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-400" /> due within 7 days</span>
+        <span className="mr-3 inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-slate-300" /> later</span>
+        <span>✓ Done marks the step with the same fields you would edit by hand — calling sets LG start to today, the two emails tick their boxes.</span>
+      </p>
 
       <Card className="p-4">
         {rows.length === 0 ? (
@@ -163,7 +192,7 @@ export default async function SalesCalendarPage({
             description="Add show start dates on your shows to populate the sales calendar."
           />
         ) : (
-          <SalesGrid rows={rows} />
+          <SalesGrid rows={rows} grouped={!bySalesDate} repOptions={reps} ownerOptions={owners} />
         )}
       </Card>
     </div>

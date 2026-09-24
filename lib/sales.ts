@@ -54,6 +54,7 @@ export type ShowForMilestones = {
   lead_gen_start_date: string | null;
   lead_gen_completion_date: string | null;
   emailed_two_weeks: boolean | null;
+  week_before_sent?: boolean | null;
   instantly_created: boolean | null;
 };
 
@@ -100,14 +101,15 @@ export function actionState(date: string, today: string): Exclude<ActionState, "
 /**
  * The one thing to do next on a show, so the calendar reads as a worklist.
  *
- * Steps, in order, with what marks each done: start calling (lead gen start
- * date set), email the team at two weeks (the "sent" box), then the show
- * itself. The week-before cutoff has no done-mark of its own — it is the last
- * day the two-week email is still worth sending — so it only shows once the
- * email is overdue. A show that has opened has nothing left to do here.
+ * Steps in order, each with its own done-mark: start calling (the lead-gen
+ * start date is set), email the team at two weeks (the "sent" box), the
+ * week-before outreach (its "sent" box), then the show itself. A step stays
+ * on the list until it is marked, so an unsent email shows as overdue rather
+ * than quietly rolling to the next step. A show that has opened has nothing
+ * left to do here.
  */
 export function nextAction(
-  s: Pick<ShowForMilestones, "show_start_date" | "lead_gen_start_date" | "emailed_two_weeks">,
+  s: Pick<ShowForMilestones, "show_start_date" | "lead_gen_start_date" | "emailed_two_weeks" | "week_before_sent">,
   today: string,
 ): NextAction | null {
   if (!s.show_start_date) return null;
@@ -117,16 +119,39 @@ export function nextAction(
   const steps: { kind: SalesMilestoneKind; date: string; done: boolean }[] = [
     { kind: "start_call", date: startCallDate(showDay)!, done: !!s.lead_gen_start_date },
     { kind: "email_team", date: emailTeamDate(showDay)!, done: !!s.emailed_two_weeks },
+    { kind: "week_before", date: weekBeforeDate(showDay)!, done: !!s.week_before_sent },
   ];
   for (const step of steps) {
     if (step.done) continue;
-    const date = step.date;
-    // Past the two-week mark with the email unsent: the deadline that matters
-    // now is the week-before cutoff.
-    if (step.kind === "email_team" && date < today && weekBeforeDate(showDay)! >= today) {
-      return { kind: "week_before", label: MILESTONE_META.week_before.label, date: weekBeforeDate(showDay)!, state: actionState(weekBeforeDate(showDay)!, today), daysOut: daysBetween(today, weekBeforeDate(showDay)!) };
-    }
-    return { kind: step.kind, label: MILESTONE_META[step.kind].label, date, state: actionState(date, today), daysOut: daysBetween(today, date) };
+    return { kind: step.kind, label: MILESTONE_META[step.kind].label, date: step.date, state: actionState(step.date, today), daysOut: daysBetween(today, step.date) };
   }
   return { kind: "show", label: MILESTONE_META.show.label, date: showDay, state: actionState(showDay, today), daysOut: daysBetween(today, showDay) };
+}
+
+/** The steps a person can mark done from the calendar, and what marking does. */
+export const COMPLETABLE_STEPS = ["start_call", "email_team", "week_before"] as const;
+export type CompletableStep = (typeof COMPLETABLE_STEPS)[number];
+
+const NO_REP = /^\s*(no|none|tbd|n\/a)\b.*rep/i;
+
+/**
+ * Sales reps are stored as one free-text field ("Kevin, Yves, Jean") that the
+ * old sheet carried over. Parse it into names so the calendar can offer a
+ * pick-list, filter by rep, and count shows with nobody on them, without a
+ * schema change the Overview form would also have to learn.
+ */
+export function parseReps(value: string | null | undefined): string[] {
+  if (!value || NO_REP.test(value)) return [];
+  const out: string[] = [];
+  for (const raw of value.split(/[,;/&]|\band\b/i)) {
+    const name = raw.trim().replace(/\s+/g, " ");
+    if (!name) continue;
+    if (!out.some((n) => n.toLowerCase() === name.toLowerCase())) out.push(name);
+  }
+  return out;
+}
+
+export function joinReps(names: string[]): string | null {
+  const clean = parseReps(names.join(", "));
+  return clean.length ? clean.join(", ") : null;
 }

@@ -1,6 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { COMPLETABLE_STEPS, MILESTONE_META, type CompletableStep } from "@/lib/sales";
+import { todayYMD } from "@/lib/format";
+import { logActivity } from "@/lib/activity";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { TablesInsert } from "@/lib/database.types";
@@ -216,9 +219,40 @@ export async function updateShowSales(fd: FormData) {
       lead_gen_start_date: str(fd, "lead_gen_start_date"),
       lead_gen_completion_date: str(fd, "lead_gen_completion_date"),
       emailed_two_weeks: fd.get("emailed_two_weeks") === "on",
+      week_before_sent: fd.get("week_before_sent") === "on",
       instantly_created: fd.get("instantly_created") === "on",
     })
     .eq("id", id);
+  revalidatePath("/shows/sales");
+  revalidatePath(`/shows/${id}`);
+}
+
+/**
+ * One click on the calendar's "Mark done": completes the show's next sales
+ * step with the same fields the row edits by hand — the lead-gen start date
+ * for calling (today), the two flags for the emails — so there is no second
+ * way of saying "done".
+ */
+export async function completeSalesStep(fd: FormData) {
+  const id = String(fd.get("id") ?? "");
+  const step = String(fd.get("step") ?? "");
+  if (!id || !(COMPLETABLE_STEPS as readonly string[]).includes(step)) return;
+  const patch =
+    step === "start_call"
+      ? { lead_gen_start_date: todayYMD() }
+      : step === "email_team"
+        ? { emailed_two_weeks: true }
+        : { week_before_sent: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("shows").update(patch).eq("id", id);
+  if (!error) {
+    await logActivity(supabase, {
+      action: "updated",
+      entityType: "show",
+      entityId: id,
+      summary: `Sales calendar: marked "${MILESTONE_META[step as CompletableStep].label}" done`,
+    });
+  }
   revalidatePath("/shows/sales");
   revalidatePath(`/shows/${id}`);
 }

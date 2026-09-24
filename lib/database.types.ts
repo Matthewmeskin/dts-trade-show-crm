@@ -1060,6 +1060,7 @@ export type Database = {
           direct_to_show_zip: string | null
           edition_year: number | null
           emailed_two_weeks: boolean
+          week_before_sent: boolean
           estimated_revenue: number | null
           exhibitor_count: number | null
           exhibitor_list_url: string | null
@@ -1130,6 +1131,7 @@ export type Database = {
           direct_to_show_zip?: string | null
           edition_year?: number | null
           emailed_two_weeks?: boolean
+          week_before_sent?: boolean
           estimated_revenue?: number | null
           exhibitor_count?: number | null
           exhibitor_list_url?: string | null
@@ -1200,6 +1202,7 @@ export type Database = {
           direct_to_show_zip?: string | null
           edition_year?: number | null
           emailed_two_weeks?: boolean
+          week_before_sent?: boolean
           estimated_revenue?: number | null
           exhibitor_count?: number | null
           exhibitor_list_url?: string | null
