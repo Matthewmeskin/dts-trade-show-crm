@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/icons";
 
 const MESSAGES: Record<string, string> = {
+  rolled: "Next year's edition is a draft. Last year's details are beside the form for reference.",
   created: "Created successfully",
   updated: "Changes saved",
   saved: "Saved",

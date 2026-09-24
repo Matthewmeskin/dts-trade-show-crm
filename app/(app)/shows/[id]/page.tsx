@@ -38,6 +38,7 @@ import {
   effectiveStatus,
   goesStaleOn,
   publishBlockers,
+  type Logistics,
 } from "@/lib/logistics";
 import { revertToDraft } from "../logistics-actions";
 import { DeleteShowButton } from "./delete-show-button";
@@ -1101,7 +1102,7 @@ async function LogisticsTab({ showId }: { showId: string }) {
 
   if (!show) notFound();
 
-  const [{ data: logistics }, { data: series }, { data: candidates }, { data: venue }] =
+  const [{ data: logistics }, { data: series }, { data: candidates }, { data: venue }, previous] =
     await Promise.all([
       supabase
         .from("show_public_logistics")
@@ -1119,6 +1120,7 @@ async function LogisticsTab({ showId }: { showId: string }) {
             .eq("id", show.venue_id)
             .maybeSingle()
         : Promise.resolve({ data: null }),
+      loadPreviousEdition(supabase, show.series_id, show.edition_year),
     ]);
 
   const status = effectiveStatus(logistics ?? null, show.show_end_date);
@@ -1195,6 +1197,8 @@ async function LogisticsTab({ showId }: { showId: string }) {
         </div>
       </Card>
 
+      {previous ? <PreviousEditionReference previous={previous} /> : null}
+
       <Card>
         <CardHeader title="This year's freight details" icon="truck" />
         <div className="p-5">
@@ -1206,5 +1210,122 @@ async function LogisticsTab({ showId }: { showId: string }) {
         </div>
       </Card>
     </div>
+  );
+}
+
+type PreviousEdition = {
+  id: string;
+  show_name: string;
+  edition_year: number | null;
+  show_start_date: string | null;
+  show_end_date: string | null;
+  advance_warehouse_name: string | null;
+  advance_warehouse_street1: string | null;
+  advance_warehouse_city: string | null;
+  advance_warehouse_state: string | null;
+  advance_warehouse_open: string | null;
+  advance_warehouse_cutoff: string | null;
+  direct_to_show_name: string | null;
+  direct_to_show_street1: string | null;
+  direct_to_show_start: string | null;
+  direct_to_show_end: string | null;
+  move_in_start: string | null;
+  move_in_end: string | null;
+  move_out_start: string | null;
+  move_out_end: string | null;
+  marshalling_yard_name: string | null;
+  exhibitor_manual_url: string | null;
+  logistics: Pick<
+    Logistics,
+    | "timezone" | "advance_cutoff_local" | "direct_cutoff_local" | "carrier_check_in_cutoff_local"
+    | "advance_late_surcharge_note" | "targeted_move_in" | "targeted_move_in_note"
+    | "marshalling_yard_note" | "label_requirements_note" | "dts_public_notes"
+    | "gsc_url" | "source_url" | "source_type" | "verification_status"
+  > | null;
+};
+
+/**
+ * The most recent earlier edition of the same show, for the reference panel.
+ * Read-only by design: spec §6 says last year's values are shown beside the
+ * form and never copied into live fields, because the whole point of a verified
+ * page is that someone checked THIS year's kit.
+ */
+async function loadPreviousEdition(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  seriesId: string | null,
+  editionYear: number | null,
+): Promise<PreviousEdition | null> {
+  if (!seriesId || !editionYear) return null;
+  const { data: prev } = await supabase
+    .from("shows")
+    .select(
+      "id, show_name, edition_year, show_start_date, show_end_date, advance_warehouse_name, advance_warehouse_street1, advance_warehouse_city, advance_warehouse_state, advance_warehouse_open, advance_warehouse_cutoff, direct_to_show_name, direct_to_show_street1, direct_to_show_start, direct_to_show_end, move_in_start, move_in_end, move_out_start, move_out_end, marshalling_yard_name, exhibitor_manual_url",
+    )
+    .eq("series_id", seriesId)
+    .lt("edition_year", editionYear)
+    .eq("archived", false)
+    .order("edition_year", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!prev) return null;
+  const { data: logistics } = await supabase
+    .from("show_public_logistics")
+    .select(
+      "timezone, advance_cutoff_local, direct_cutoff_local, carrier_check_in_cutoff_local, advance_late_surcharge_note, targeted_move_in, targeted_move_in_note, marshalling_yard_note, label_requirements_note, dts_public_notes, gsc_url, source_url, source_type, verification_status",
+    )
+    .eq("show_id", prev.id)
+    .maybeSingle();
+  return { ...prev, logistics: logistics ?? null };
+}
+
+function PreviousEditionReference({ previous: p }: { previous: PreviousEdition }) {
+  const l = p.logistics;
+  const range = (a: string | null, b: string | null) =>
+    a || b ? formatDateRange(a, b) : "—";
+  const rows: [string, string][] = [
+    ["Show dates", range(p.show_start_date, p.show_end_date)],
+    [
+      "Advance warehouse",
+      [p.advance_warehouse_name, p.advance_warehouse_street1, [p.advance_warehouse_city, p.advance_warehouse_state].filter(Boolean).join(", ")]
+        .filter(Boolean)
+        .join(" · ") || "—",
+    ],
+    ["Advance receiving", `${range(p.advance_warehouse_open, p.advance_warehouse_cutoff)}${l?.advance_cutoff_local ? ` by ${l.advance_cutoff_local.slice(0, 5)}` : ""}`],
+    ["Direct to show", `${[p.direct_to_show_name, p.direct_to_show_street1].filter(Boolean).join(" · ") || "—"} · ${range(p.direct_to_show_start, p.direct_to_show_end)}${l?.direct_cutoff_local ? ` by ${l.direct_cutoff_local.slice(0, 5)}` : ""}`],
+    ["Move-in / move-out", `${range(p.move_in_start, p.move_in_end)} / ${range(p.move_out_start, p.move_out_end)}`],
+    ["Marshalling yard", [p.marshalling_yard_name, l?.marshalling_yard_note].filter(Boolean).join(" — ") || "—"],
+    ["Timezone", l?.timezone ?? "—"],
+    ["Targeted move-in", l ? (l.targeted_move_in ? `Yes${l.targeted_move_in_note ? ` — ${l.targeted_move_in_note}` : ""}` : "No") : "—"],
+    ["Late surcharge note", l?.advance_late_surcharge_note ?? "—"],
+    ["Label rules", l?.label_requirements_note ?? "—"],
+    ["What went wrong (public notes)", l?.dts_public_notes ?? "—"],
+    ["Source", l?.source_url ? `${l.source_url}${l.source_type ? ` (${l.source_type})` : ""}` : p.exhibitor_manual_url ?? "—"],
+  ];
+  return (
+    <Card>
+      <CardHeader
+        title={`Last year, for reference — ${p.show_name} ${p.edition_year ?? ""}`}
+        icon="clock"
+      />
+      <div className="space-y-3 p-5">
+        <p className="text-xs text-slate-500">
+          Read-only. Nothing here is copied into this year&apos;s fields: every date and
+          address below has to be checked against this year&apos;s kit before it goes on
+          the page.{" "}
+          <Link href={`/shows/${p.id}?tab=logistics`} className="text-dts-maroon hover:underline">
+            Open the {p.edition_year ?? "previous"} edition
+          </Link>
+          .
+        </p>
+        <dl className="grid gap-x-6 gap-y-1.5 text-xs sm:grid-cols-[12rem_1fr]">
+          {rows.map(([k, v]) => (
+            <div key={k} className="contents">
+              <dt className="text-slate-500">{k}</dt>
+              <dd className="whitespace-pre-line text-slate-800">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </Card>
   );
 }

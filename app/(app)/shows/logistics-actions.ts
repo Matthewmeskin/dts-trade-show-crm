@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity";
 import { isValidSlug, verifyBlockers } from "@/lib/logistics";
@@ -378,4 +379,80 @@ export async function setVenueSlug(
   });
   if (show_id) revalidatePath(`/shows/${show_id}`);
   return { error: null, ok: true };
+}
+
+/**
+ * "Roll to next year" (spec §6): the next edition as a draft. Only the
+ * evergreen facts come across — name, series, venue, organizer, GSC, industry,
+ * website, sales owner. Dates, addresses, windows, kit URLs, revenue and notes
+ * change every year, so they start empty; last year's are shown beside the form
+ * for reference and never copied into live fields. If next year already exists
+ * this simply opens it — two live editions of one show cannot share a year.
+ */
+export async function rollToNextYear(
+  _prev: LogisticsState,
+  fd: FormData,
+): Promise<LogisticsState> {
+  const show_id = String(fd.get("show_id") ?? "");
+  if (!show_id) return { error: "Missing show id." };
+
+  const supabase = await createClient();
+  const { data: show } = await supabase
+    .from("shows")
+    .select(
+      "id, show_name, edition_year, show_start_date, series_id, venue_id, show_management_company, decorator, gsc_contact_id, industry_vertical, website_url, sales_people, lead_gen_owner",
+    )
+    .eq("id", show_id)
+    .single();
+  if (!show) return { error: "Show not found." };
+  if (!show.series_id) {
+    return { error: "Attach this edition to a show first, so next year lands under the same page." };
+  }
+
+  const year =
+    show.edition_year ??
+    (show.show_start_date ? Number(show.show_start_date.slice(0, 4)) : null);
+  if (!year) return { error: "This edition has no year yet — set its show dates or edition year first." };
+  const nextYear = year + 1;
+
+  const { data: existing } = await supabase
+    .from("shows")
+    .select("id")
+    .eq("series_id", show.series_id)
+    .eq("edition_year", nextYear)
+    .eq("archived", false)
+    .maybeSingle();
+  if (existing) redirect(`/shows/${existing.id}?tab=logistics`);
+
+  const { data: row, error } = await supabase
+    .from("shows")
+    .insert({
+      show_name: show.show_name,
+      edition_year: nextYear,
+      series_id: show.series_id,
+      venue_id: show.venue_id,
+      show_management_company: show.show_management_company,
+      decorator: show.decorator,
+      gsc_contact_id: show.gsc_contact_id,
+      industry_vertical: show.industry_vertical,
+      website_url: show.website_url,
+      sales_people: show.sales_people,
+      lead_gen_owner: show.lead_gen_owner,
+    })
+    .select("id")
+    .single();
+  if (error) return { error: error.message };
+
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "show",
+    entityId: row.id,
+    entityLabel: `${show.show_name} ${nextYear}`,
+    summary: `Rolled ${show.show_name} ${year} to ${nextYear} as a draft`,
+    details: { rolled_from: show_id },
+  });
+  revalidatePath("/shows");
+  revalidatePath("/show-pages");
+  revalidatePath(`/shows/${show_id}`);
+  redirect(`/shows/${row.id}?tab=logistics&flash=rolled`);
 }

@@ -8,6 +8,7 @@ import { slugify, type Series } from "@/lib/logistics";
 import {
   assignSeries,
   createSeries,
+  rollToNextYear,
   setSeriesPublic,
   setVenueSlug,
   type LogisticsState,
@@ -43,6 +44,7 @@ export function SeriesPanel({
   const [assignState, assignAction] = useActionState(assignSeries, empty);
   const [createState, createAction] = useActionState(createSeries, empty);
   const [venueState, venueAction] = useActionState(setVenueSlug, empty);
+  const [rollState, rollAction] = useActionState(rollToNextYear, empty);
   const [slug, setSlug] = useState(slugify(showName));
 
   if (series) {
@@ -101,6 +103,21 @@ export function SeriesPanel({
           refuses to rename a slug that has ever been live, because a ranked page is
           the whole point of the exercise.
         </p>
+
+        <form action={rollAction} className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+          <input type="hidden" name="show_id" value={showId} />
+          <SubmitButton pendingLabel="Creating…">
+            Roll to {editionYear ? editionYear + 1 : "next year"}
+          </SubmitButton>
+          <span className="text-xs text-slate-400">
+            Creates next year&apos;s edition as a draft under this same page. Name,
+            venue and organizer carry over; dates and addresses start empty, with this
+            year&apos;s shown for reference.
+          </span>
+          {rollState.error ? (
+            <p className="basis-full text-xs text-dts-maroon">{rollState.error}</p>
+          ) : null}
+        </form>
 
         {venue && !venue.public_slug ? (
           <form action={venueAction} className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
