@@ -38,7 +38,7 @@ export default async function MoveOutsPage() {
             <div className="text-3xl font-semibold text-emerald-600">{rows.length}</div>
             <div className="text-xs text-slate-500">
               since {formatDate(resetDate)}
-              {lastForcedAt ? ` · last forced ${formatDate(lastForcedAt.slice(0, 10))}` : ""}
+              {lastForcedAt ? ` · last forced ${formatDate(lastForcedAt)}` : ""}
             </div>
           </div>
         </div>

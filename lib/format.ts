@@ -6,14 +6,25 @@
  * shift the calendar day) so date math stays in the user's calendar.
  */
 
-/** Parse a "YYYY-MM-DD" (or ISO) string into a local-midnight Date. */
+/**
+ * Parse a "YYYY-MM-DD" (or ISO) string into a local-midnight Date.
+ *
+ * A `timestamptz` arrives as an instant with a zone marker; its calendar day
+ * is taken in the company zone, never by slicing the UTC string, which puts
+ * anything after 5pm Pacific on the next day.
+ */
 export function parseDate(value: string | null | undefined): Date | null {
   if (!value) return null;
-  const datePart = value.slice(0, 10);
+  const datePart = ZONED_INSTANT.test(value) ? dayOf(value) : value.slice(0, 10);
+  if (!datePart) return null;
   const [y, m, d] = datePart.split("-").map(Number);
   if (!y || !m || !d) return null;
   return new Date(y, m - 1, d);
 }
+
+// An ISO timestamp that carries a zone ("Z" or an offset), as Postgres and
+// toISOString() produce. A bare date or a zoneless timestamp is not one.
+const ZONED_INSTANT = /^\d{4}-\d{2}-\d{2}[T ].*(Z|[+-]\d{2}:?\d{2})$/;
 
 /**
  * The company's calendar zone. The server runs in UTC, so after 5pm Pacific
@@ -30,9 +41,17 @@ const appDayFormat = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 });
 
+/** The calendar day ("YYYY-MM-DD") an instant falls on in the company zone. */
+export function dayOf(instant: string | Date | null | undefined): string | null {
+  if (!instant) return null;
+  const d = instant instanceof Date ? instant : new Date(instant);
+  if (Number.isNaN(d.getTime())) return null;
+  return appDayFormat.format(d);
+}
+
 /** Today's calendar date in the company zone, as "YYYY-MM-DD". */
 export function todayYMD(now: Date = new Date()): string {
-  return appDayFormat.format(now);
+  return dayOf(now) as string;
 }
 
 /** Today (the company zone's calendar day) at local midnight. */

@@ -14,6 +14,7 @@ import {
   formatDateRange,
   formatCurrency,
   formatCountdown,
+  dayOf,
 } from "@/lib/format";
 import { composeFreightAddress } from "@/lib/freight";
 import { startCallDate, emailTeamDate, weekBeforeDate } from "@/lib/sales";
@@ -975,7 +976,7 @@ async function DocumentsTab({ showId }: { showId: string }) {
                   {meta ? <div className="text-xs text-slate-400">{meta.label}</div> : null}
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  <span className="text-xs text-slate-400">{formatDate(doc.uploaded_at.slice(0, 10))}</span>
+                  <span className="text-xs text-slate-400">{formatDate(doc.uploaded_at)}</span>
                   <DeleteDocButton id={doc.id} path={doc.file_url} showId={showId} name={doc.document_name} />
                 </div>
               </li>
@@ -1142,12 +1143,12 @@ async function LogisticsTab({ showId }: { showId: string }) {
             </Badge>
             {staleOn && status === "verified" ? (
               <span className="text-xs text-slate-400">
-                Goes stale on {formatDate(staleOn.toISOString().slice(0, 10))}
+                Goes stale on {formatDate(dayOf(staleOn))}
               </span>
             ) : null}
             {logistics?.last_verified_at ? (
               <span className="text-xs text-slate-400">
-                Last verified {formatDate(logistics.last_verified_at.slice(0, 10))}
+                Last verified {formatDate(logistics.last_verified_at)}
                 {logistics.verified_by ? ` by ${logistics.verified_by}` : ""}
               </span>
             ) : null}

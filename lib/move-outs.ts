@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { MOVE_OUT_COUNTER_EPOCH } from "@/lib/forced";
+import { dayOf } from "@/lib/format";
 import { fetchAll } from "@/lib/supabase/fetch-all";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -37,9 +38,10 @@ export async function resolveMoveOutReset(
     .limit(1)
     .maybeSingle();
   const lastForcedAt = lastForcedRow?.forced_at ?? null;
+  const lastForcedOn = dayOf(lastForcedAt);
   const resetDate =
-    lastForcedAt && lastForcedAt.slice(0, 10) > MOVE_OUT_COUNTER_EPOCH
-      ? lastForcedAt.slice(0, 10)
+    lastForcedOn && lastForcedOn > MOVE_OUT_COUNTER_EPOCH
+      ? lastForcedOn
       : MOVE_OUT_COUNTER_EPOCH;
   return { resetDate, lastForcedAt };
 }
@@ -86,7 +88,7 @@ export async function loadSuccessfulMoveOuts(
         r.actual_delivery_date ??
         r.target_delivery_date ??
         r.show_date ??
-        (r.created_at ? r.created_at.slice(0, 10) : null),
+        dayOf(r.created_at),
       pickupDate: r.pickup_date,
     }))
     .filter((r) => r.deliveredOn != null && r.deliveredOn >= resetDate)

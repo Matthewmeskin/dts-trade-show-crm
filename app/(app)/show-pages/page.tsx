@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, PageHeader, Badge, EmptyState } from "@/components/ui";
-import { formatDate, todayYMD } from "@/lib/format";
+import { dayOf, formatDate, todayYMD } from "@/lib/format";
 import {
   STALE_AFTER_DAYS,
   effectiveStatus,
@@ -111,7 +111,7 @@ export default async function PublishingQueuePage() {
                     <span className="flex items-center gap-3 text-xs text-slate-500">
                       {x.row.last_verified_at ? (
                         <span>
-                          verified {formatDate(x.row.last_verified_at.slice(0, 10))}
+                          verified {formatDate(x.row.last_verified_at)}
                           {x.row.verified_by ? ` by ${x.row.verified_by}` : ""}
                         </span>
                       ) : (
@@ -149,7 +149,7 @@ export default async function PublishingQueuePage() {
                       {label(x.row)}
                     </span>
                     <span className="text-xs text-slate-500">
-                      goes stale {formatDate(x.staleOn!.toISOString().slice(0, 10))}
+                      goes stale {formatDate(dayOf(x.staleOn))}
                     </span>
                   </Link>
                 </li>

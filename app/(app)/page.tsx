@@ -376,7 +376,7 @@ function MoveOutStreakCard({ streak }: { streak: MoveOutStreak }) {
                   Last forced
                 </div>
                 <div className="text-sm text-slate-600">
-                  {formatDate(streak.lastForcedAt.slice(0, 10))}
+                  {formatDate(streak.lastForcedAt)}
                 </div>
               </div>
             ) : null}

@@ -122,7 +122,7 @@ export default async function DocumentsPage({
                           <span className="text-slate-300">—</span>
                         )}
                       </td>
-                      <td className="px-5 py-3 text-slate-600">{formatDate(doc.uploaded_at.slice(0, 10))}</td>
+                      <td className="px-5 py-3 text-slate-600">{formatDate(doc.uploaded_at)}</td>
                       <td className="px-5 py-3 text-slate-600">
                         {doc.uploader?.full_name?.trim() || doc.uploader?.email || (
                           <span className="text-slate-300">—</span>
