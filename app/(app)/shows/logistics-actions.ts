@@ -1,9 +1,29 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity";
 import { isValidSlug, verifyBlockers } from "@/lib/logistics";
+
+/**
+ * Nudge the public-site sync (n8n "DTS Trade Show Public Sync") so a verify,
+ * revert or publish is live in seconds instead of on the quarter hour. Fire
+ * and forget after the response: the webhook carries no data, the sync reads
+ * the export view itself, and the 15-minute schedule is the fallback if this
+ * never arrives. Unset in an environment means no nudge, not an error.
+ */
+function nudgePublicSync() {
+  const url = process.env.N8N_TRADE_SHOW_SYNC_WEBHOOK_URL;
+  if (!url) return;
+  after(async () => {
+    try {
+      await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    } catch {
+      /* the schedule covers it */
+    }
+  });
+}
 
 export type LogisticsState = {
   error: string | null;
@@ -155,6 +175,7 @@ export async function verifyLogistics(
     summary: `Verified public logistics against ${draft.source_type ?? "a source"}`,
     details: { source_url: draft.source_url, verified_by },
   });
+  nudgePublicSync();
   revalidatePath(`/shows/${show_id}`);
   revalidatePath("/show-pages");
   return { error: null, ok: true };
@@ -178,6 +199,7 @@ export async function revertToDraft(fd: FormData) {
     entityId: show_id,
     summary: "Pulled public logistics back to draft — the page comes down",
   });
+  nudgePublicSync();
   revalidatePath(`/shows/${show_id}`);
   revalidatePath("/show-pages");
 }
@@ -209,6 +231,7 @@ export async function setSeriesPublic(fd: FormData) {
       ? `Published /trade-show/shipping/${series?.slug ?? ""}`
       : `Unpublished /trade-show/shipping/${series?.slug ?? ""} — the page comes down`,
   });
+  nudgePublicSync();
   if (show_id) revalidatePath(`/shows/${show_id}`);
   revalidatePath("/show-pages");
 }
