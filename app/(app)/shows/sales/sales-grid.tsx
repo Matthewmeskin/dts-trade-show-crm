@@ -9,6 +9,7 @@ export type SalesGridRow = {
   showName: string;
   editionYear: number | null;
   showDates: string;
+  next: { label: string; date: string; state: "overdue" | "due_soon" | "later" | "done" | "none"; daysOut: number } | null;
   startCall: string;
   emailTeam: string;
   weekBefore: string;
@@ -27,7 +28,7 @@ export type SalesGridRow = {
 };
 
 const COLS =
-  "minmax(180px,1.4fr) 148px 68px minmax(120px,1fr) minmax(118px,1fr) 118px 118px 82px 118px 82px minmax(120px,1fr) 110px 120px 120px 46px 58px";
+  "minmax(180px,1.4fr) 148px 168px 68px minmax(120px,1fr) minmax(118px,1fr) 118px 118px 82px 118px 82px minmax(120px,1fr) 110px 120px 120px 46px 58px";
 
 // Ghost inputs: look like plain text until you focus them.
 const inp =
@@ -39,6 +40,35 @@ const head =
   "flex items-center px-2 pb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400";
 // Every row cell shares one height so rows line up cleanly.
 const cellBase = "flex min-h-[44px] items-center border-t border-slate-100 px-1";
+
+const STATE_STYLE: Record<NonNullable<SalesGridRow["next"]>["state"], string> = {
+  overdue: "bg-rose-50 text-rose-700 ring-1 ring-rose-200",
+  due_soon: "bg-amber-50 text-amber-800 ring-1 ring-amber-200",
+  later: "bg-slate-100 text-slate-600",
+  done: "text-slate-400",
+  none: "text-slate-400",
+};
+
+function NextActionBadge({ next }: { next: SalesGridRow["next"] }) {
+  if (!next) return <span className={ro}>—</span>;
+  const when =
+    next.state === "done"
+      ? ""
+      : next.daysOut === 0
+        ? "today"
+        : next.daysOut < 0
+          ? `${-next.daysOut}d overdue`
+          : `in ${next.daysOut}d`;
+  return (
+    <span
+      title={`${next.label} · ${next.date}`}
+      className={`inline-flex min-w-0 max-w-full items-baseline gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium leading-4 ${STATE_STYLE[next.state]}`}
+    >
+      <span className="truncate">{next.label}</span>
+      {when ? <span className="shrink-0 font-normal opacity-80">{when}</span> : null}
+    </span>
+  );
+}
 
 function SavingDot() {
   const { pending } = useFormStatus();
@@ -54,9 +84,10 @@ export function SalesGrid({ rows }: { rows: SalesGridRow[] }) {
 
   return (
     <div className="overflow-x-auto">
-      <div className="grid min-w-[1456px]" style={{ gridTemplateColumns: COLS }}>
+      <div className="grid min-w-[1624px]" style={{ gridTemplateColumns: COLS }}>
         <div className={head}>Show</div>
         <div className={head}>Show dates</div>
+        <div className={head}>Next action</div>
         <div className={head}># Exh</div>
         <div className={head}>Industry</div>
         <div className={head}>Decorator</div>
@@ -77,13 +108,16 @@ export function SalesGrid({ rows }: { rows: SalesGridRow[] }) {
           // display:contents form can't carry a background or opacity).
           const band = i % 2 === 1 ? "bg-slate-50/70" : "bg-white";
           const cell = `${cellBase} ${band} ${r.past ? "opacity-55" : ""}`;
+          // An overdue row gets a red edge so it reads from across the room.
+          const edge = r.next?.state === "overdue" ? "border-l-2 border-l-rose-500" : "border-l-2 border-l-transparent";
           return (
             <form key={r.id} action={updateShowSales} onBlur={autosave} className="contents">
               <input type="hidden" name="id" value={r.id} />
 
-              <div className={`${cell} pl-3`}>
+              <div className={`${cell} ${edge} pl-3`}>
                 <Link
                   href={`/shows/${r.id}`}
+                  title={r.showName}
                   className="min-w-0 truncate text-sm font-medium text-slate-900 hover:text-dts-maroon"
                 >
                   {r.showName}
@@ -91,9 +125,10 @@ export function SalesGrid({ rows }: { rows: SalesGridRow[] }) {
                 </Link>
               </div>
               <div className={cell}><span className={ro}>{r.showDates}</span></div>
+              <div className={cell}><NextActionBadge next={r.next} /></div>
               <div className={cell}><input name="exhibitor_count" type="number" inputMode="numeric" defaultValue={r.exhibitor_count ?? ""} className={numInp} /></div>
-              <div className={cell}><input name="industry_vertical" defaultValue={r.industry_vertical ?? ""} className={inp} /></div>
-              <div className={cell}><input name="show_management_company" defaultValue={r.show_management_company ?? ""} className={inp} /></div>
+              <div className={cell}><input name="industry_vertical" defaultValue={r.industry_vertical ?? ""} title={r.industry_vertical ?? ""} className={inp} /></div>
+              <div className={cell}><input name="show_management_company" defaultValue={r.show_management_company ?? ""} title={r.show_management_company ?? ""} className={inp} /></div>
               <div className={cell}><span className={ro}>{r.advWhse}</span></div>
               <div className={cell}><span className={ro}>{r.direct}</span></div>
               <div className={cell}><span className={ro}>{r.startCall}</span></div>
@@ -105,7 +140,7 @@ export function SalesGrid({ rows }: { rows: SalesGridRow[] }) {
                 </label>
               </div>
               <div className={cell}><span className={ro}>{r.weekBefore}</span></div>
-              <div className={cell}><input name="sales_people" defaultValue={r.sales_people ?? ""} className={inp} /></div>
+              <div className={cell}><input name="sales_people" defaultValue={r.sales_people ?? ""} title={r.sales_people ?? ""} className={inp} /></div>
               <div className={cell}><input name="lead_gen_owner" defaultValue={r.lead_gen_owner ?? ""} className={inp} /></div>
               <div className={cell}><input name="lead_gen_start_date" type="date" defaultValue={r.lead_gen_start_date ?? ""} className={inp} /></div>
               <div className={cell}><input name="lead_gen_completion_date" type="date" defaultValue={r.lead_gen_completion_date ?? ""} className={inp} /></div>

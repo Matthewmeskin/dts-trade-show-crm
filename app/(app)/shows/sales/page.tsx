@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { DateRangeFields } from "@/components/date-range-fields";
 import { formatShortDate, formatDateRange, todayYMD } from "@/lib/format";
-import { startCallDate, emailTeamDate, weekBeforeDate } from "@/lib/sales";
+import { startCallDate, emailTeamDate, weekBeforeDate, nextAction } from "@/lib/sales";
 import { SalesGrid, type SalesGridRow } from "./sales-grid";
 
 export const dynamic = "force-dynamic";
@@ -16,9 +16,9 @@ const stripYear = (s: string) => s.replace(/,\s*\d{4}$/, "");
 export default async function SalesCalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; past?: string; owner?: string; sort?: string }>;
 }) {
-  const { from = "", to = "" } = await searchParams;
+  const { from = "", to = "", past = "", owner = "", sort = "" } = await searchParams;
   const supabase = await createClient();
 
   const { data: shows } = await supabase
@@ -30,16 +30,51 @@ export default async function SalesCalendarPage({
 
   const today = todayYMD();
   const hasRange = !!(from || to);
+  const showPast = past === "1";
+  const bySalesDate = sort === "show";
 
-  const rows: SalesGridRow[] = (shows ?? [])
-    .filter((s) => s.show_start_date)
+  const dated = (shows ?? []).filter((s) => s.show_start_date);
+  const owners = [...new Set(dated.map((s) => s.lead_gen_owner?.trim()).filter((x): x is string => !!x))].sort();
+
+  // Past shows are clutter on a worklist: 29 of 51 rows the day this was
+  // written. They stay one click away rather than in the way.
+  const upcoming = dated.filter((s) => (s.show_end_date ?? s.show_start_date)! >= today);
+  const pool = showPast || hasRange ? dated : upcoming;
+
+  const listed = pool
     .filter((s) => !hasRange || ((!from || s.show_start_date! >= from) && (!to || s.show_start_date! <= to)))
-    .sort((a, b) => (a.show_start_date ?? "").localeCompare(b.show_start_date ?? ""))
-    .map((s) => ({
+    .filter((s) => !owner || (s.lead_gen_owner ?? "").trim() === owner)
+    .map((s) => ({ s, next: nextAction(s, today) }));
+
+  // Default order is "what needs doing first": overdue, then due this week,
+  // then by the action date; shows that have opened sink to the bottom.
+  const rank: Record<string, number> = { overdue: 0, due_soon: 1, later: 2, none: 3, done: 4 };
+  listed.sort((a, b) => {
+    if (bySalesDate) return (a.s.show_start_date ?? "").localeCompare(b.s.show_start_date ?? "");
+    const ra = rank[a.next?.state ?? "none"];
+    const rb = rank[b.next?.state ?? "none"];
+    if (ra !== rb) return ra - rb;
+    const da = a.next?.date ?? a.s.show_start_date ?? "";
+    const db = b.next?.date ?? b.s.show_start_date ?? "";
+    return da.localeCompare(db) || (a.s.show_start_date ?? "").localeCompare(b.s.show_start_date ?? "");
+  });
+
+  const stats = {
+    upcoming: upcoming.length,
+    overdue: upcoming.map((s) => nextAction(s, today)).filter((n) => n?.state === "overdue").length,
+    dueSoon: upcoming.map((s) => nextAction(s, today)).filter((n) => n?.state === "due_soon").length,
+    noRep: upcoming.filter((s) => !s.sales_people?.trim() || /no sales rep/i.test(s.sales_people)).length,
+  };
+
+  const rows: SalesGridRow[] = listed
+    .map(({ s, next }) => ({
       id: s.id,
       showName: s.show_name,
       editionYear: s.edition_year,
       showDates: formatDateRange(s.show_start_date, s.show_end_date),
+      next: next
+        ? { label: next.label, date: formatShortDate(next.date), state: next.state, daysOut: next.daysOut }
+        : null,
       startCall: formatShortDate(startCallDate(s.show_start_date)),
       emailTeam: formatShortDate(emailTeamDate(s.show_start_date)),
       weekBefore: formatShortDate(weekBeforeDate(s.show_start_date)),
@@ -66,8 +101,22 @@ export default async function SalesCalendarPage({
     <div>
       <PageHeader
         title="Sales calendar"
-        description="Lead-gen and outreach per show — edit any field inline and Save. Start-call (−60d), email-team (−14d) and week-before (−7d) are computed from the show start."
+        description="Lead-gen and outreach per show, ordered by what needs doing first. Edit any field inline; it saves when you leave the row. Start-call (−60d), email-team (−14d) and week-before (−7d) count back from the show start."
       />
+
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { label: "Upcoming shows", value: stats.upcoming, tone: "text-slate-900" },
+          { label: "Overdue actions", value: stats.overdue, tone: stats.overdue ? "text-rose-700" : "text-slate-900" },
+          { label: "Due this week", value: stats.dueSoon, tone: stats.dueSoon ? "text-amber-700" : "text-slate-900" },
+          { label: "No sales rep yet", value: stats.noRep, tone: stats.noRep ? "text-amber-700" : "text-slate-900" },
+        ].map((t) => (
+          <div key={t.label} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t.label}</div>
+            <div className={`mt-0.5 text-2xl font-semibold ${t.tone}`}>{t.value}</div>
+          </div>
+        ))}
+      </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-1">
         <Link href="/shows" className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100">
@@ -78,14 +127,32 @@ export default async function SalesCalendarPage({
 
       <form className="mb-4 flex flex-wrap items-center gap-2">
         <DateRangeFields from={from} to={to} label="Show date" />
+        {showPast ? <input type="hidden" name="past" value="1" /> : null}
+        {owner ? <input type="hidden" name="owner" value={owner} /> : null}
+        {bySalesDate ? <input type="hidden" name="sort" value="show" /> : null}
         <button type="submit" className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100">
           Filter
         </button>
         {from || to ? (
-          <Link href="/shows/sales" className="text-sm font-medium text-slate-400 hover:text-slate-700">
+          <Link href={qs({ past, owner, sort })} className="text-sm font-medium text-slate-400 hover:text-slate-700">
             Clear
           </Link>
         ) : null}
+
+        <span className="mx-1 h-5 w-px bg-slate-200" />
+        <Chip href={qs({ from, to, past, sort })} active={!owner}>All owners</Chip>
+        {owners.map((o) => (
+          <Chip key={o} href={qs({ from, to, past, sort, owner: o })} active={owner === o}>
+            {o}
+          </Chip>
+        ))}
+        <span className="mx-1 h-5 w-px bg-slate-200" />
+        <Chip href={qs({ from, to, owner, sort, past: showPast ? "" : "1" })} active={showPast}>
+          {showPast ? "Hiding past shows" : "Show past shows"}
+        </Chip>
+        <Chip href={qs({ from, to, owner, past, sort: bySalesDate ? "" : "show" })} active={bySalesDate}>
+          {bySalesDate ? "Sorted by show date" : "Sort by show date"}
+        </Chip>
       </form>
 
       <Card className="p-4">
@@ -100,5 +167,28 @@ export default async function SalesCalendarPage({
         )}
       </Card>
     </div>
+  );
+}
+
+/** /shows/sales with only the non-empty params, so links stay short. */
+function qs(params: Record<string, string>): string {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v) p.set(k, v);
+  const q = p.toString();
+  return q ? `/shows/sales?${q}` : "/shows/sales";
+}
+
+function Chip({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+        active
+          ? "border-dts-maroon bg-dts-maroon/10 text-dts-maroon"
+          : "border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-800"
+      }`}
+    >
+      {children}
+    </Link>
   );
 }
