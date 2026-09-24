@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { DateRangeFields } from "@/components/date-range-fields";
-import { formatShortDate, formatDateRange } from "@/lib/format";
+import { formatShortDate, formatDateRange, todayYMD } from "@/lib/format";
 import { startCallDate, emailTeamDate, weekBeforeDate } from "@/lib/sales";
 import { SalesGrid, type SalesGridRow } from "./sales-grid";
 
@@ -28,7 +28,7 @@ export default async function SalesCalendarPage({
     )
     .eq("archived", false);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayYMD();
   const hasRange = !!(from || to);
 
   const rows: SalesGridRow[] = (shows ?? [])

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, PageHeader, Badge, EmptyState } from "@/components/ui";
-import { formatDate } from "@/lib/format";
+import { formatDate, todayYMD } from "@/lib/format";
 import {
   STALE_AFTER_DAYS,
   effectiveStatus,
@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function PublishingQueuePage() {
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayYMD();
 
   const [{ data: rows }, { data: bare }] = await Promise.all([
     supabase

@@ -15,10 +15,29 @@ export function parseDate(value: string | null | undefined): Date | null {
   return new Date(y, m - 1, d);
 }
 
-/** Today at local midnight. */
-export function today(): Date {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+/**
+ * The company's calendar zone. The server runs in UTC, so after 5pm Pacific
+ * "today" by the server clock is already tomorrow — every "what day is it"
+ * must be pinned here or the calendar rings the wrong day each evening.
+ */
+export const APP_TIME_ZONE = "America/Los_Angeles";
+
+// en-CA renders as YYYY-MM-DD, which is exactly the shape parseDate takes.
+const appDayFormat = new Intl.DateTimeFormat("en-CA", {
+  timeZone: APP_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** Today's calendar date in the company zone, as "YYYY-MM-DD". */
+export function todayYMD(now: Date = new Date()): string {
+  return appDayFormat.format(now);
+}
+
+/** Today (the company zone's calendar day) at local midnight. */
+export function today(now: Date = new Date()): Date {
+  return parseDate(todayYMD(now)) as Date;
 }
 
 /** Whole calendar days from today until `value` (negative = in the past). */

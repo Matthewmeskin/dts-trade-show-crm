@@ -1,4 +1,5 @@
 import type { Tables } from "@/lib/database.types";
+import { todayYMD } from "@/lib/format";
 
 /**
  * Publishing rules for the public show pages, kept in one place.
@@ -102,7 +103,7 @@ export function goesStaleOn(
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayYMD();
 }
 
 function cutoffIso(): string {
