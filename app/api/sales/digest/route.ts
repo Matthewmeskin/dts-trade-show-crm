@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await supabase
     .from("shows")
     .select(
-      "id, show_name, edition_year, show_start_date, show_end_date, sales_people, lead_gen_owner, lead_gen_start_date, lead_gen_completion_date, emailed_two_weeks, week_before_sent, instantly_created",
+      "id, show_name, edition_year, show_start_date, show_end_date, sales_people, lead_gen_owner, lead_gen_start_date, lead_gen_completion_date, emailed_two_weeks, week_before_sent, start_call_done, instantly_created",
     )
     .eq("archived", false);
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });

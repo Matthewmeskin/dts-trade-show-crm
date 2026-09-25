@@ -5,6 +5,7 @@ import { DateRangeFields } from "@/components/date-range-fields";
 import { formatShortDate, formatDateRange, todayYMD } from "@/lib/format";
 import { startCallDate, emailTeamDate, weekBeforeDate, nextAction, parseReps } from "@/lib/sales";
 import { SalesGrid, type SalesGridRow } from "./sales-grid";
+import { QuickAddShow } from "./quick-add-show";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export default async function SalesCalendarPage({
   const { data: shows } = await supabase
     .from("shows")
     .select(
-      "id, show_name, edition_year, show_start_date, show_end_date, exhibitor_count, industry_vertical, show_management_company, advance_warehouse_open, advance_warehouse_cutoff, direct_to_show_start, direct_to_show_end, sales_people, lead_gen_owner, lead_gen_start_date, lead_gen_completion_date, move_in_schedule_url, emailed_two_weeks, week_before_sent, instantly_created, archived",
+      "id, show_name, edition_year, show_start_date, show_end_date, exhibitor_count, industry_vertical, show_management_company, advance_warehouse_open, advance_warehouse_cutoff, direct_to_show_start, direct_to_show_end, sales_people, lead_gen_owner, lead_gen_start_date, lead_gen_completion_date, move_in_schedule_url, emailed_two_weeks, week_before_sent, start_call_done, instantly_created, archived",
     )
     .eq("archived", false);
 
@@ -98,12 +99,19 @@ export default async function SalesCalendarPage({
       direct: s.direct_to_show_start || s.direct_to_show_end
         ? stripYear(formatDateRange(s.direct_to_show_start, s.direct_to_show_end))
         : "—",
+      show_start_date: s.show_start_date,
+      show_end_date: s.show_end_date,
+      advance_warehouse_open: s.advance_warehouse_open,
+      advance_warehouse_cutoff: s.advance_warehouse_cutoff,
+      direct_to_show_start: s.direct_to_show_start,
+      direct_to_show_end: s.direct_to_show_end,
       sales_people: s.sales_people,
       lead_gen_owner: s.lead_gen_owner,
       lead_gen_start_date: s.lead_gen_start_date,
       lead_gen_completion_date: s.lead_gen_completion_date,
       emailed_two_weeks: !!s.emailed_two_weeks,
       week_before_sent: !!s.week_before_sent,
+      start_call_done: !!s.start_call_done,
       instantly_created: !!s.instantly_created,
     }));
 
@@ -111,7 +119,7 @@ export default async function SalesCalendarPage({
     <div>
       <PageHeader
         title="Sales calendar"
-        description="Lead-gen and outreach per show, ordered by what needs doing first. Edit any field inline; it saves when you leave the row. Start-call (−60d), email-team (−14d) and week-before (−7d) count back from the show start."
+        description="Lead-gen and outreach per show, ordered by what needs doing first. Edit any field inline, dates included; it saves when you leave the row. Start-call (−60d), email-team (−14d) and week-before (−7d) count back from the show start, so change the show start and they follow."
       />
 
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -133,6 +141,8 @@ export default async function SalesCalendarPage({
           Shows
         </Link>
         <span className="rounded-lg bg-dts-maroon px-3 py-1.5 text-sm font-medium text-white">Sales calendar</span>
+        <span className="ml-auto" />
+        <QuickAddShow ownerOptions={owners} />
       </div>
 
       <form className="mb-4 flex flex-wrap items-center gap-2">
@@ -181,7 +191,7 @@ export default async function SalesCalendarPage({
         <span className="mr-3 inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-rose-500" /> overdue</span>
         <span className="mr-3 inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-400" /> due within 7 days</span>
         <span className="mr-3 inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-slate-300" /> later</span>
-        <span>✓ Done marks the step with the same fields you would edit by hand — calling sets LG start to today, the two emails tick their boxes.</span>
+        <span>✓ Done marks the step with the same fields you would edit by hand: lead gen sets LG done to today; calling and the two emails tick their boxes.</span>
       </p>
 
       <Card className="p-4">

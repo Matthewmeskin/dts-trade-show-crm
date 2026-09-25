@@ -40,7 +40,7 @@ export const MILESTONE_META: Record<
 > = {
   start_call: { label: "Start calling", badge: "bg-dts-blue/10 text-dts-blue", dot: "bg-dts-blue" },
   lead_gen_start: { label: "Lead gen starts", badge: "bg-amber-50 text-amber-700", dot: "bg-amber-500" },
-  lead_gen_done: { label: "Lead gen done", badge: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" },
+  lead_gen_done: { label: "Finish lead gen", badge: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" },
   email_team: { label: "Email team (2 wks)", badge: "bg-purple-50 text-purple-700", dot: "bg-purple-500" },
   week_before: { label: "Week-before cutoff", badge: "bg-rose-50 text-rose-700", dot: "bg-rose-500" },
   show: { label: "Show opens", badge: "bg-dts-maroon/10 text-dts-maroon", dot: "bg-dts-maroon" },
@@ -55,6 +55,7 @@ export type ShowForMilestones = {
   lead_gen_completion_date: string | null;
   emailed_two_weeks: boolean | null;
   week_before_sent?: boolean | null;
+  start_call_done?: boolean | null;
   instantly_created: boolean | null;
 };
 
@@ -64,7 +65,7 @@ export function showMilestones(s: ShowForMilestones): SalesMilestone[] {
   const out: (SalesMilestone | null)[] = [
     s.show_start_date ? { ...base, date: startCallDate(s.show_start_date)!, kind: "start_call", label: MILESTONE_META.start_call.label, done: false } : null,
     s.lead_gen_start_date ? { ...base, date: s.lead_gen_start_date.slice(0, 10), kind: "lead_gen_start", label: MILESTONE_META.lead_gen_start.label, done: !!s.lead_gen_completion_date } : null,
-    s.lead_gen_completion_date ? { ...base, date: s.lead_gen_completion_date.slice(0, 10), kind: "lead_gen_done", label: MILESTONE_META.lead_gen_done.label, done: true } : null,
+    s.lead_gen_completion_date ? { ...base, date: s.lead_gen_completion_date.slice(0, 10), kind: "lead_gen_done", label: "Lead gen done", done: true } : null,
     s.show_start_date ? { ...base, date: emailTeamDate(s.show_start_date)!, kind: "email_team", label: MILESTONE_META.email_team.label, done: !!s.emailed_two_weeks } : null,
     s.show_start_date ? { ...base, date: weekBeforeDate(s.show_start_date)!, kind: "week_before", label: MILESTONE_META.week_before.label, done: false } : null,
     s.show_start_date ? { ...base, date: s.show_start_date.slice(0, 10), kind: "show", label: MILESTONE_META.show.label, done: false } : null,
@@ -101,15 +102,23 @@ export function actionState(date: string, today: string): Exclude<ActionState, "
 /**
  * The one thing to do next on a show, so the calendar reads as a worklist.
  *
- * Steps in order, each with its own done-mark: start calling (the lead-gen
- * start date is set), email the team at two weeks (the "sent" box), the
- * week-before outreach (its "sent" box), then the show itself. A step stays
- * on the list until it is marked, so an unsent email shows as overdue rather
- * than quietly rolling to the next step. A show that has opened has nothing
- * left to do here.
+ * Steps in order, each with its own done-mark:
+ *   lead gen      the exhibitor list is built (LG done date set); due by the
+ *                 time calling starts, since there is nothing to call without it
+ *   start calling 60 days out (its own "done" box)
+ *   email team    14 days out (its "sent" box)
+ *   week before   7 days out (its "sent" box)
+ * then the show itself. Lead gen is NOT calling: it is the list-building step
+ * that usually happens months earlier, so its dates never mark calling done.
+ * A step stays on the list until it is marked, so an unsent email shows as
+ * overdue rather than quietly rolling to the next step. A show that has
+ * opened has nothing left to do here.
  */
 export function nextAction(
-  s: Pick<ShowForMilestones, "show_start_date" | "lead_gen_start_date" | "emailed_two_weeks" | "week_before_sent">,
+  s: Pick<
+    ShowForMilestones,
+    "show_start_date" | "lead_gen_completion_date" | "start_call_done" | "emailed_two_weeks" | "week_before_sent"
+  >,
   today: string,
 ): NextAction | null {
   if (!s.show_start_date) return null;
@@ -117,7 +126,8 @@ export function nextAction(
   if (showDay < today) return { kind: "show", label: "Show has opened", date: showDay, state: "done", daysOut: daysBetween(today, showDay) };
 
   const steps: { kind: SalesMilestoneKind; date: string; done: boolean }[] = [
-    { kind: "start_call", date: startCallDate(showDay)!, done: !!s.lead_gen_start_date },
+    { kind: "lead_gen_done", date: startCallDate(showDay)!, done: !!s.lead_gen_completion_date },
+    { kind: "start_call", date: startCallDate(showDay)!, done: !!s.start_call_done },
     { kind: "email_team", date: emailTeamDate(showDay)!, done: !!s.emailed_two_weeks },
     { kind: "week_before", date: weekBeforeDate(showDay)!, done: !!s.week_before_sent },
   ];
@@ -129,7 +139,7 @@ export function nextAction(
 }
 
 /** The steps a person can mark done from the calendar, and what marking does. */
-export const COMPLETABLE_STEPS = ["start_call", "email_team", "week_before"] as const;
+export const COMPLETABLE_STEPS = ["lead_gen_done", "start_call", "email_team", "week_before"] as const;
 export type CompletableStep = (typeof COMPLETABLE_STEPS)[number];
 
 const NO_REP = /^\s*(no|none|tbd|n\/a)\b.*rep/i;

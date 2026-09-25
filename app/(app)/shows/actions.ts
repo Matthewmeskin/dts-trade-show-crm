@@ -6,7 +6,7 @@ import { todayYMD } from "@/lib/format";
 import { logActivity } from "@/lib/activity";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { TablesInsert } from "@/lib/database.types";
+import type { TablesInsert, TablesUpdate } from "@/lib/database.types";
 import {
   composeFreightAddress,
   FREIGHT_ADDRESS_KEYS,
@@ -204,6 +204,19 @@ export async function updateShow(
 }
 
 /** Inline-save just the sales/lead-gen fields from the sales calendar grid. */
+/**
+ * A date pair from the sales grid, saved only when it is coherent: both ends
+ * present means the end is not before the start. A reversed pair is left as
+ * it was rather than half-saved; the end picker's min stops that in practice.
+ */
+function datePair(fd: FormData, startKey: string, endKey: string): Record<string, string | null> {
+  if (!fd.has(startKey) && !fd.has(endKey)) return {};
+  const start = str(fd, startKey);
+  const end = str(fd, endKey);
+  if (start && end && end < start) return {};
+  return { [startKey]: start, [endKey]: end };
+}
+
 export async function updateShowSales(fd: FormData) {
   const id = String(fd.get("id") ?? "");
   if (!id) return;
@@ -211,6 +224,9 @@ export async function updateShowSales(fd: FormData) {
   await supabase
     .from("shows")
     .update({
+      ...datePair(fd, "show_start_date", "show_end_date"),
+      ...datePair(fd, "advance_warehouse_open", "advance_warehouse_cutoff"),
+      ...datePair(fd, "direct_to_show_start", "direct_to_show_end"),
       exhibitor_count: int(fd, "exhibitor_count"),
       industry_vertical: str(fd, "industry_vertical"),
       show_management_company: str(fd, "show_management_company"),
@@ -220,30 +236,34 @@ export async function updateShowSales(fd: FormData) {
       lead_gen_completion_date: str(fd, "lead_gen_completion_date"),
       emailed_two_weeks: fd.get("emailed_two_weeks") === "on",
       week_before_sent: fd.get("week_before_sent") === "on",
+      start_call_done: fd.get("start_call_done") === "on",
       instantly_created: fd.get("instantly_created") === "on",
     })
     .eq("id", id);
   revalidatePath("/shows/sales");
   revalidatePath(`/shows/${id}`);
+  revalidatePath("/calendar");
 }
 
 /**
- * One click on the calendar's "Mark done": completes the show's next sales
- * step with the same fields the row edits by hand — the lead-gen start date
- * for calling (today), the two flags for the emails — so there is no second
- * way of saying "done".
+ * One click on the calendar's "Done": completes the show's next sales step
+ * with the same fields the row edits by hand — the LG done date for lead gen,
+ * the three boxes for calling and the two emails — so there is no second way
+ * of saying "done".
  */
 export async function completeSalesStep(fd: FormData) {
   const id = String(fd.get("id") ?? "");
   const step = String(fd.get("step") ?? "");
   if (!id || !(COMPLETABLE_STEPS as readonly string[]).includes(step)) return;
-  const patch =
-    step === "start_call"
-      ? { lead_gen_start_date: todayYMD() }
-      : step === "email_team"
-        ? { emailed_two_weeks: true }
-        : { week_before_sent: true };
   const supabase = await createClient();
+  let patch: TablesUpdate<"shows">;
+  if (step === "lead_gen_done") {
+    // Finishing lead gen stamps today, and fills the start too if nobody did.
+    const { data: cur } = await supabase.from("shows").select("lead_gen_start_date").eq("id", id).single();
+    patch = { lead_gen_completion_date: todayYMD(), ...(cur?.lead_gen_start_date ? {} : { lead_gen_start_date: todayYMD() }) };
+  } else if (step === "start_call") patch = { start_call_done: true };
+  else if (step === "email_team") patch = { emailed_two_weeks: true };
+  else patch = { week_before_sent: true };
   const { error } = await supabase.from("shows").update(patch).eq("id", id);
   if (!error) {
     await logActivity(supabase, {
@@ -390,4 +410,47 @@ export async function saveDebrief(
 
   revalidatePath(`/shows/${show_id}`);
   return { error: null, ok: true };
+}
+
+export type QuickShowState = { error: string | null; ok?: string };
+
+/**
+ * "+ Add show" on the sales calendar: the few fields the calendar needs to
+ * start working a show — name and dates, plus industry and lead-gen owner if
+ * known. Everything else is filled in on the show's own page as usual.
+ */
+export async function quickAddShow(_prev: QuickShowState, fd: FormData): Promise<QuickShowState> {
+  const show_name = str(fd, "show_name");
+  const show_start_date = str(fd, "show_start_date");
+  const show_end_date = str(fd, "show_end_date") ?? show_start_date;
+  if (!show_name) return { error: "Give the show a name." };
+  if (!show_start_date) return { error: "Add the show's start date — the calendar counts back from it." };
+  if (show_end_date && show_end_date < show_start_date) return { error: "The end date is before the start date." };
+
+  const supabase = await createClient();
+  const { data: row, error } = await supabase
+    .from("shows")
+    .insert({
+      show_name,
+      show_start_date,
+      show_end_date,
+      edition_year: Number(show_start_date.slice(0, 4)),
+      industry_vertical: str(fd, "industry_vertical"),
+      lead_gen_owner: str(fd, "lead_gen_owner"),
+    })
+    .select("id")
+    .single();
+  if (error) return { error: error.message };
+
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "show",
+    entityId: row.id,
+    entityLabel: show_name,
+    summary: "Added from the sales calendar",
+  });
+  revalidatePath("/shows");
+  revalidatePath("/shows/sales");
+  revalidatePath("/calendar");
+  return { error: null, ok: `${show_name} added.` };
 }

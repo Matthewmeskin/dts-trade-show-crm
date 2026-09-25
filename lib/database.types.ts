@@ -1061,6 +1061,7 @@ export type Database = {
           edition_year: number | null
           emailed_two_weeks: boolean
           week_before_sent: boolean
+          start_call_done: boolean
           estimated_revenue: number | null
           exhibitor_count: number | null
           exhibitor_list_url: string | null
@@ -1132,6 +1133,7 @@ export type Database = {
           edition_year?: number | null
           emailed_two_weeks?: boolean
           week_before_sent?: boolean
+          start_call_done?: boolean
           estimated_revenue?: number | null
           exhibitor_count?: number | null
           exhibitor_list_url?: string | null
@@ -1203,6 +1205,7 @@ export type Database = {
           edition_year?: number | null
           emailed_two_weeks?: boolean
           week_before_sent?: boolean
+          start_call_done?: boolean
           estimated_revenue?: number | null
           exhibitor_count?: number | null
           exhibitor_list_url?: string | null

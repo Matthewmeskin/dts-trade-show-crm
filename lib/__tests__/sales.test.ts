@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { nextAction, actionState, startCallDate, emailTeamDate, weekBeforeDate, parseReps, joinReps } from "../sales";
 
 const today = "2026-09-24";
-const base = { lead_gen_start_date: null, emailed_two_weeks: false, week_before_sent: false };
+const base = { lead_gen_completion_date: "2026-05-01", start_call_done: false, emailed_two_weeks: false, week_before_sent: false };
 
 test("milestone dates count back from the show start", () => {
   assert.equal(startCallDate("2026-11-23"), "2026-09-24");
@@ -21,7 +21,7 @@ test("state: overdue before today, due soon within a week, later after", () => {
 test("next action walks the steps: call, email, week-before, then the show", () => {
   const show = { ...base, show_start_date: "2026-11-23" };
   assert.deepEqual(nextAction(show, today), { kind: "start_call", label: "Start calling", date: "2026-09-24", state: "due_soon", daysOut: 0 });
-  const calling = { ...show, lead_gen_start_date: "2026-09-24" };
+  const calling = { ...show, start_call_done: true };
   assert.equal(nextAction(calling, today)?.kind, "email_team");
   assert.equal(nextAction(calling, today)?.date, "2026-11-09");
   const emailed = { ...calling, emailed_two_weeks: true };
@@ -32,7 +32,7 @@ test("next action walks the steps: call, email, week-before, then the show", () 
 });
 
 test("an unsent step stays on the list as overdue instead of rolling forward", () => {
-  const show = { ...base, show_start_date: "2026-10-05", lead_gen_start_date: "2026-08-01" };
+  const show = { ...base, show_start_date: "2026-10-05", start_call_done: true };
   const a = nextAction(show, today);
   assert.equal(a?.kind, "email_team");
   assert.equal(a?.state, "overdue");
@@ -53,4 +53,15 @@ test("reps parse out of the free-text field however it was typed", () => {
   assert.deepEqual(parseReps(null), []);
   assert.equal(joinReps(["Kevin", "", "Yves"]), "Kevin, Yves");
   assert.equal(joinReps([]), null);
+});
+
+test("lead gen comes first, and its dates never mark calling done", () => {
+  const noList = { ...base, show_start_date: "2026-11-23", lead_gen_completion_date: null };
+  assert.equal(nextAction(noList, today)?.kind, "lead_gen_done");
+  assert.equal(nextAction(noList, today)?.label, "Finish lead gen");
+  // A list built months ago says nothing about whether anyone has called.
+  const listBuilt = { ...base, show_start_date: "2026-10-26" };
+  const a = nextAction(listBuilt, today);
+  assert.equal(a?.kind, "start_call");
+  assert.equal(a?.state, "overdue");
 });

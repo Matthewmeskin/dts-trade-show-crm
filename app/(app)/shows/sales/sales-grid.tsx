@@ -29,14 +29,22 @@ export type SalesGridRow = {
   rosterCount: number;
   industry_vertical: string | null;
   show_management_company: string | null; // shown as "Decorator"
-  advWhse: string; // read-only window from the show's advance-warehouse dates
-  direct: string; // read-only window from the show's direct-to-show dates
+  advWhse: string; // formatted advance-warehouse window (kept for the digest/tests)
+  direct: string; // formatted direct-to-show window
+  /** Raw YYYY-MM-DD values for the editable date pairs. */
+  show_start_date: string | null;
+  show_end_date: string | null;
+  advance_warehouse_open: string | null;
+  advance_warehouse_cutoff: string | null;
+  direct_to_show_start: string | null;
+  direct_to_show_end: string | null;
   sales_people: string | null;
   lead_gen_owner: string | null;
   lead_gen_start_date: string | null;
   lead_gen_completion_date: string | null;
   emailed_two_weeks: boolean;
   week_before_sent: boolean;
+  start_call_done: boolean;
   instantly_created: boolean;
 };
 
@@ -47,14 +55,14 @@ export type SalesGridRow = {
  */
 const COLUMNS = [
   { key: "show", label: "Show", width: 240, min: 140 },
-  { key: "dates", label: "Show dates", width: 148, min: 90 },
+  { key: "dates", label: "Show dates", width: 150, min: 128 },
   { key: "next", label: "Next action", width: 210, min: 120 },
   { key: "exh", label: "# Exh", width: 96, min: 60, title: "Exhibitors at the show (typed) · exhibitors linked in the CRM" },
   { key: "industry", label: "Industry", width: 150, min: 70 },
   { key: "decorator", label: "Decorator", width: 140, min: 70 },
-  { key: "adv", label: "Adv whse", width: 118, min: 70 },
-  { key: "direct", label: "Direct", width: 118, min: 70 },
-  { key: "call", label: "Start call", width: 86, min: 64 },
+  { key: "adv", label: "Adv whse", width: 150, min: 128 },
+  { key: "direct", label: "Direct", width: 150, min: 128 },
+  { key: "call", label: "Start call", width: 118, min: 90 },
   { key: "email", label: "Email team", width: 118, min: 90 },
   { key: "week", label: "Wk before", width: 118, min: 90 },
   { key: "reps", label: "Sales reps", width: 200, min: 110 },
@@ -100,7 +108,9 @@ function useStored(key: string): string | null {
   return useSyncExternalStore(subscribe, () => readKey(key), () => null);
 }
 
-const WIDTHS_KEY = "dts.salesGrid.widths.v1";
+// v2: the three date columns became editable and wider; old saved widths
+// would squeeze the date pickers, so they are not carried over.
+const WIDTHS_KEY = "dts.salesGrid.widths.v3";
 const WRAP_KEY = "dts.salesGrid.wrap.v1";
 
 function parseWidths(raw: string | null): number[] {
@@ -143,7 +153,7 @@ const STATE_STYLE: Record<NextActionCell["state"], string> = {
   none: "text-slate-400",
 };
 
-const COMPLETABLE = new Set<string>(["start_call", "email_team", "week_before"]);
+const COMPLETABLE = new Set<string>(["lead_gen_done", "start_call", "email_team", "week_before"]);
 
 function NextActionBadge({ next, wrap }: { next: SalesGridRow["next"]; wrap: boolean }) {
   if (!next) return <span className={roClip}>—</span>;
@@ -278,6 +288,51 @@ function TextCell({
   );
 }
 
+/**
+ * An editable date range: start above end, each a native date picker. The
+ * end picker cannot go before the start, and the server re-checks it.
+ */
+function DateRangeCell({
+  startName,
+  endName,
+  start,
+  end,
+  label,
+}: {
+  startName: string;
+  endName: string;
+  start: string | null;
+  end: string | null;
+  label: string;
+}) {
+  const [from, setFrom] = useState(start?.slice(0, 10) ?? "");
+  const [to, setTo] = useState(end?.slice(0, 10) ?? "");
+  // An empty picker shows the browser's "mm/dd/yyyy"; keep that faint so a
+  // blank date reads as blank rather than as a value.
+  const tone = (v: string) => (v ? "" : "text-slate-300 focus:text-slate-700");
+  return (
+    <div className="flex w-full flex-col gap-0.5 py-1">
+      <input
+        type="date"
+        name={startName}
+        value={from}
+        onChange={(e) => setFrom(e.target.value)}
+        aria-label={`${label} start`}
+        className={`${inp} tabular-nums ${tone(from)}`}
+      />
+      <input
+        type="date"
+        name={endName}
+        value={to}
+        onChange={(e) => setTo(e.target.value)}
+        min={from || undefined}
+        aria-label={`${label} end`}
+        className={`${inp} tabular-nums ${tone(to)}`}
+      />
+    </div>
+  );
+}
+
 function SavingDot() {
   const { pending } = useFormStatus();
   return pending ? <span className="text-[10px] text-slate-400">Saving…</span> : null;
@@ -367,7 +422,10 @@ export function SalesGrid({
         <span className="text-slate-400">Drag a column&apos;s right edge to widen it · double-click the edge to reset it.</span>
       </div>
 
-    <div className="overflow-x-auto">
+    {/* The grid scrolls inside its own box, both ways, so the header row can
+        stay frozen at the top while the show column stays frozen at the left.
+        A sticky header only sticks inside its nearest scroll container. */}
+    <div className="max-h-[calc(100vh-8rem)] overflow-auto overscroll-contain rounded-lg border border-slate-100">
       <datalist id={repList}>
         {repOptions.map((o) => <option key={o} value={o} />)}
       </datalist>
@@ -383,8 +441,8 @@ export function SalesGrid({
           <div
             key={c.key}
             title={"title" in c ? c.title : undefined}
-            className={`${head} relative ${"center" in c && c.center ? "justify-center" : ""} ${
-              i === 0 ? "sticky left-0 z-20 bg-white shadow-[inset_-1px_0_0_#e2e8f0]" : ""
+            className={`${head} sticky top-0 bg-white pt-2 shadow-[inset_0_-1px_0_#e2e8f0] ${"center" in c && c.center ? "justify-center" : ""} ${
+              i === 0 ? "left-0 z-30 shadow-[inset_-1px_-1px_0_#e2e8f0]" : "z-20"
             }`}
           >
             <span className="truncate">{c.label}</span>
@@ -451,7 +509,7 @@ export function SalesGrid({
                     {r.editionYear ? <span className="ml-1 text-slate-400">{r.editionYear}</span> : null}
                   </Link>
                 </div>
-                <div className={cell}><span className={ro}>{r.showDates}</span></div>
+                <div className={cell}><DateRangeCell startName="show_start_date" endName="show_end_date" start={r.show_start_date} end={r.show_end_date} label="Show" /></div>
                 <div className={`${cell} pr-2`}><NextActionBadge next={r.next} wrap={wrap} /></div>
                 <div className={`${cell} gap-1`}>
                   <input name="exhibitor_count" type="number" inputMode="numeric" defaultValue={r.exhibitor_count ?? ""} placeholder={r.rosterCount ? String(r.rosterCount) : ""} title="Exhibitors at the show, from the organizer's list" className={`${numInp} w-12`} />
@@ -463,23 +521,24 @@ export function SalesGrid({
                 </div>
                 <div className={cell}><TextCell name="industry_vertical" value={r.industry_vertical} wrap={wrap} width={w("industry")} /></div>
                 <div className={cell}><TextCell name="show_management_company" value={r.show_management_company} wrap={wrap} width={w("decorator")} /></div>
-                <div className={cell}><span className={ro}>{r.advWhse}</span></div>
-                <div className={cell}><span className={ro}>{r.direct}</span></div>
-                <div className={cell}>
-                  <span className={ro} title={r.lead_gen_start_date ? `Calling started ${r.lead_gen_start_date}` : "Marked done by setting LG start"}>
-                    {r.startCall}
-                    {r.lead_gen_start_date ? <span className="ml-1 text-emerald-600">✓</span> : null}
-                  </span>
+                <div className={cell}><DateRangeCell startName="advance_warehouse_open" endName="advance_warehouse_cutoff" start={r.advance_warehouse_open} end={r.advance_warehouse_cutoff} label="Advance warehouse" /></div>
+                <div className={cell}><DateRangeCell startName="direct_to_show_start" endName="direct_to_show_end" start={r.direct_to_show_start} end={r.direct_to_show_end} label="Direct to show" /></div>
+                <div className={`${cell} justify-between gap-1`}>
+                  <span className={`${ro} tabular-nums`} title="60 days before the show start">{r.startCall}</span>
+                  <label className="flex shrink-0 items-center gap-1 text-[10px] text-slate-400">
+                    <input type="checkbox" name="start_call_done" defaultChecked={r.start_call_done} onChange={saveNow} className={check} />
+                    done
+                  </label>
                 </div>
                 <div className={`${cell} justify-between gap-1`}>
-                  <span className={`${ro} tabular-nums`}>{r.emailTeam}</span>
+                  <span className={`${ro} tabular-nums`} title="14 days before the show start">{r.emailTeam}</span>
                   <label className="flex shrink-0 items-center gap-1 text-[10px] text-slate-400">
                     <input type="checkbox" name="emailed_two_weeks" defaultChecked={r.emailed_two_weeks} onChange={saveNow} className={check} />
                     sent
                   </label>
                 </div>
                 <div className={`${cell} justify-between gap-1`}>
-                  <span className={`${ro} tabular-nums`}>{r.weekBefore}</span>
+                  <span className={`${ro} tabular-nums`} title="7 days before the show start">{r.weekBefore}</span>
                   <label className="flex shrink-0 items-center gap-1 text-[10px] text-slate-400">
                     <input type="checkbox" name="week_before_sent" defaultChecked={r.week_before_sent} onChange={saveNow} className={check} />
                     sent

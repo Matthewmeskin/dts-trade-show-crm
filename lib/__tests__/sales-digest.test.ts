@@ -5,8 +5,8 @@ import { buildDigest, type DigestShow } from "../sales-digest";
 const today = "2026-09-24";
 const show = (over: Partial<DigestShow>): DigestShow => ({
   id: "id", show_name: "Show", edition_year: 2026, show_start_date: "2026-12-01", show_end_date: "2026-12-03",
-  lead_gen_owner: "Joy", lead_gen_start_date: null, lead_gen_completion_date: null,
-  emailed_two_weeks: false, week_before_sent: false, instantly_created: false, sales_people: "Kevin", ...over,
+  lead_gen_owner: "Joy", lead_gen_start_date: "2026-05-01", lead_gen_completion_date: "2026-05-02",
+  start_call_done: false, emailed_two_weeks: false, week_before_sent: false, instantly_created: false, sales_people: "Kevin", ...over,
 });
 
 test("the digest sorts shows into overdue, due this week and no-rep, and writes a subject", () => {
