@@ -206,7 +206,7 @@ export function SalesGrid({
       </datalist>
 
       <div className="grid min-w-[1780px]" style={{ gridTemplateColumns: COLS }}>
-        <div className={`${head} sticky left-0 z-20 bg-white`}>Show</div>
+        <div className={`${head} sticky left-0 z-20 bg-white shadow-[inset_-1px_0_0_#e2e8f0]`}>Show</div>
         <div className={head}>Show dates</div>
         <div className={head}>Next action</div>
         <div className={head} title="Exhibitors at the show (typed) · exhibitors linked in the CRM"># Exh</div>
@@ -232,26 +232,33 @@ export function SalesGrid({
           // display:contents form can't carry a background or opacity).
           const band = i % 2 === 1 ? "bg-slate-50/70" : "bg-white";
           const cell = `${cellBase} ${band} ${r.past ? "opacity-55" : ""}`;
+          // The sticky show cell must be fully opaque — a translucent band or a
+          // dimmed past row lets the columns scrolling underneath ghost through
+          // it — so it gets its own solid background and a dimmed text colour.
+          const stickyCell = `${cellBase} ${i % 2 === 1 ? "bg-slate-50" : "bg-white"} shadow-[inset_-1px_0_0_#e2e8f0]`;
           // An overdue row gets a red edge so it reads from across the room.
           const edge = state === "overdue" ? "border-l-2 border-l-rose-500" : "border-l-2 border-l-transparent";
           return (
             <div key={r.id} className="contents">
               {divider ? (
-                <div className="col-span-full flex items-center gap-2 border-t border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                  {GROUP_LABEL[state]}
-                  <span className="font-normal normal-case tracking-normal text-slate-400">
-                    {rows.filter((x) => (x.next?.state ?? "none") === state).length}
+                <div className="col-span-full border-t border-slate-200 bg-slate-50 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  {/* The label sticks with the show column so it survives a horizontal scroll. */}
+                  <span className="sticky left-0 inline-flex items-center gap-2 px-3">
+                    {GROUP_LABEL[state]}
+                    <span className="font-normal normal-case tracking-normal text-slate-400">
+                      {rows.filter((x) => (x.next?.state ?? "none") === state).length}
+                    </span>
                   </span>
                 </div>
               ) : null}
               <form action={updateShowSales} onBlur={autosave} className="contents">
                 <input type="hidden" name="id" value={r.id} />
 
-                <div className={`${cell} ${edge} sticky left-0 z-10 pl-3`}>
+                <div className={`${stickyCell} ${edge} sticky left-0 z-10 pl-3`}>
                   <Link
                     href={`/shows/${r.id}`}
                     title={r.showName}
-                    className="min-w-0 truncate text-sm font-medium text-slate-900 hover:text-dts-maroon"
+                    className={`min-w-0 truncate text-sm font-medium hover:text-dts-maroon ${r.past ? "text-slate-400" : "text-slate-900"}`}
                   >
                     {r.showName}
                     {r.editionYear ? <span className="ml-1 text-slate-400">{r.editionYear}</span> : null}
