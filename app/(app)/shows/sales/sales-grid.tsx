@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, useSyncExternalStore } from "react";
 import { useFormStatus } from "react-dom";
 import { completeSalesStep, updateShowSales } from "../actions";
 import { joinReps, parseReps, type CompletableStep } from "@/lib/sales";
@@ -40,15 +40,87 @@ export type SalesGridRow = {
   instantly_created: boolean;
 };
 
-const COLS =
-  "minmax(200px,1.4fr) 148px 190px 84px minmax(120px,1fr) minmax(118px,1fr) 118px 118px 82px 118px 118px minmax(180px,1.2fr) 110px 120px 120px 46px 58px";
+/**
+ * The grid's columns, in order. Widths are pixels so a person can drag them;
+ * what they drag to is remembered per browser. `min` stops a column being
+ * dragged to nothing.
+ */
+const COLUMNS = [
+  { key: "show", label: "Show", width: 240, min: 140 },
+  { key: "dates", label: "Show dates", width: 148, min: 90 },
+  { key: "next", label: "Next action", width: 210, min: 120 },
+  { key: "exh", label: "# Exh", width: 96, min: 60, title: "Exhibitors at the show (typed) · exhibitors linked in the CRM" },
+  { key: "industry", label: "Industry", width: 150, min: 70 },
+  { key: "decorator", label: "Decorator", width: 140, min: 70 },
+  { key: "adv", label: "Adv whse", width: 118, min: 70 },
+  { key: "direct", label: "Direct", width: 118, min: 70 },
+  { key: "call", label: "Start call", width: 86, min: 64 },
+  { key: "email", label: "Email team", width: 118, min: 90 },
+  { key: "week", label: "Wk before", width: 118, min: 90 },
+  { key: "reps", label: "Sales reps", width: 200, min: 110 },
+  { key: "owner", label: "Lead gen", width: 110, min: 70 },
+  { key: "lgStart", label: "LG start", width: 124, min: 110 },
+  { key: "lgDone", label: "LG done", width: 124, min: 110 },
+  { key: "inst", label: "Inst", width: 48, min: 40, title: "Instantly campaign created", center: true },
+  { key: "save", label: "", width: 58, min: 40 },
+] as const;
+const DEFAULT_WIDTHS = COLUMNS.map((c) => c.width);
+
+/**
+ * A tiny per-browser store over localStorage. useSyncExternalStore gives the
+ * server and the first client render the same default (no hydration
+ * mismatch), then the saved value takes over.
+ */
+const STORE_EVENT = "sales-grid-prefs";
+function subscribe(cb: () => void) {
+  window.addEventListener(STORE_EVENT, cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    window.removeEventListener(STORE_EVENT, cb);
+    window.removeEventListener("storage", cb);
+  };
+}
+function readKey(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function writeKey(key: string, value: string | null) {
+  try {
+    if (value == null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, value);
+  } catch {
+    /* private window: the preference just is not remembered */
+  }
+  window.dispatchEvent(new Event(STORE_EVENT));
+}
+function useStored(key: string): string | null {
+  return useSyncExternalStore(subscribe, () => readKey(key), () => null);
+}
+
+const WIDTHS_KEY = "dts.salesGrid.widths.v1";
+const WRAP_KEY = "dts.salesGrid.wrap.v1";
+
+function parseWidths(raw: string | null): number[] {
+  if (!raw) return DEFAULT_WIDTHS;
+  try {
+    const v = JSON.parse(raw);
+    if (!Array.isArray(v) || v.length !== COLUMNS.length) return DEFAULT_WIDTHS;
+    return v.map((w, i) => (typeof w === "number" && w >= COLUMNS[i].min ? Math.round(w) : COLUMNS[i].width));
+  } catch {
+    return DEFAULT_WIDTHS;
+  }
+}
 
 // Ghost inputs: look like plain text until you focus them.
 const inp =
   "w-full rounded bg-transparent px-1.5 py-1 text-xs text-slate-700 outline-none transition hover:bg-white focus:bg-white focus:ring-1 focus:ring-dts-maroon";
 // Number field without the native spinner arrows (they steal width and clip the count).
 const numInp = `${inp} [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`;
-const ro = "min-w-0 truncate text-xs text-slate-500";
+const roClip = "min-w-0 truncate text-xs text-slate-500";
+const roWrap = "min-w-0 whitespace-normal break-words py-1 text-xs leading-4 text-slate-500";
 const head =
   "flex items-center px-2 pb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400";
 // Every row cell shares one height so rows line up cleanly.
@@ -73,8 +145,8 @@ const STATE_STYLE: Record<NextActionCell["state"], string> = {
 
 const COMPLETABLE = new Set<string>(["start_call", "email_team", "week_before"]);
 
-function NextActionBadge({ next }: { next: SalesGridRow["next"] }) {
-  if (!next) return <span className={ro}>—</span>;
+function NextActionBadge({ next, wrap }: { next: SalesGridRow["next"]; wrap: boolean }) {
+  if (!next) return <span className={roClip}>—</span>;
   const when =
     next.state === "done"
       ? ""
@@ -85,12 +157,12 @@ function NextActionBadge({ next }: { next: SalesGridRow["next"] }) {
           : `in ${next.daysOut}d`;
   const completable = next.state !== "done" && COMPLETABLE.has(next.kind);
   return (
-    <span className="flex min-w-0 items-center gap-1.5">
+    <span className={`flex min-w-0 gap-1.5 ${wrap ? "flex-wrap items-start py-1" : "items-center"}`}>
       <span
         title={`${next.label} · ${next.date}`}
-        className={`inline-flex min-w-0 items-baseline gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium leading-4 ${STATE_STYLE[next.state]}`}
+        className={`inline-flex min-w-0 gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium leading-4 ${wrap ? "flex-wrap items-baseline" : "items-baseline"} ${STATE_STYLE[next.state]}`}
       >
-        <span className="truncate">{next.label}</span>
+        <span className={wrap ? "whitespace-normal break-words" : "truncate"}>{next.label}</span>
         {when ? <span className="shrink-0 font-normal opacity-80">{when}</span> : null}
       </span>
       {completable ? (
@@ -171,6 +243,41 @@ function RepPicker({ value, options, listId }: { value: string | null; options: 
   );
 }
 
+/**
+ * A text field that wraps when wrapping is on. Inputs are single-line by
+ * nature, so in wrap mode it becomes a one-row textarea that grows with its
+ * content (field-sizing where the browser has it, a row estimate otherwise).
+ * Enter never adds a newline — these are one-line values.
+ */
+function TextCell({
+  name,
+  value,
+  wrap,
+  width,
+}: {
+  name: string;
+  value: string | null;
+  wrap: boolean;
+  width: number;
+}) {
+  if (!wrap) {
+    return <input name={name} defaultValue={value ?? ""} title={value ?? ""} className={inp} />;
+  }
+  const perLine = Math.max(8, Math.floor((width - 14) / 6.2));
+  const rows = Math.max(1, Math.min(6, Math.ceil((value?.length ?? 0) / perLine)));
+  return (
+    <textarea
+      name={name}
+      defaultValue={value ?? ""}
+      rows={rows}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.preventDefault();
+      }}
+      className={`${inp} block resize-none leading-4 [field-sizing:content]`}
+    />
+  );
+}
+
 function SavingDot() {
   const { pending } = useFormStatus();
   return pending ? <span className="text-[10px] text-slate-400">Saving…</span> : null;
@@ -190,6 +297,45 @@ export function SalesGrid({
 }) {
   const repList = useId();
   const ownerList = useId();
+
+  const wrap = useStored(WRAP_KEY) === "1";
+  const saved = parseWidths(useStored(WIDTHS_KEY));
+  // While a column edge is being dragged the widths live here; they are saved
+  // once, on release, rather than on every mouse move.
+  const [dragging, setDragging] = useState<number[] | null>(null);
+  const [activeCol, setActiveCol] = useState<number | null>(null);
+  const dragStart = useRef<{ index: number; x: number; width: number; widths: number[] } | null>(null);
+  const widths = dragging ?? saved;
+  const w = (key: (typeof COLUMNS)[number]["key"]) => widths[COLUMNS.findIndex((c) => c.key === key)];
+  const customised = widths.some((x, i) => x !== DEFAULT_WIDTHS[i]);
+
+  const beginResize = (index: number) => (e: React.PointerEvent<HTMLSpanElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragStart.current = { index, x: e.clientX, width: widths[index], widths: [...widths] };
+    setDragging([...widths]);
+    setActiveCol(index);
+  };
+  const moveResize = (e: React.PointerEvent<HTMLSpanElement>) => {
+    const d = dragStart.current;
+    if (!d) return;
+    const next = [...d.widths];
+    next[d.index] = Math.max(COLUMNS[d.index].min, Math.round(d.width + e.clientX - d.x));
+    setDragging(next);
+  };
+  const endResize = () => {
+    if (dragStart.current && dragging) writeKey(WIDTHS_KEY, JSON.stringify(dragging));
+    dragStart.current = null;
+    setDragging(null);
+    setActiveCol(null);
+  };
+  const resetColumn = (index: number) => {
+    const next = [...widths];
+    next[index] = DEFAULT_WIDTHS[index];
+    writeKey(WIDTHS_KEY, JSON.stringify(next));
+  };
+  const ro = wrap ? roWrap : roClip;
   // Save the row when focus leaves it entirely (auto-save, no Save button).
   const autosave = (e: React.FocusEvent<HTMLFormElement>) => {
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) e.currentTarget.requestSubmit();
@@ -197,6 +343,29 @@ export function SalesGrid({
   const saveNow = (e: React.ChangeEvent<HTMLInputElement>) => e.currentTarget.form?.requestSubmit();
 
   return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-1.5 hover:border-slate-300">
+          <input
+            type="checkbox"
+            checked={wrap}
+            onChange={(e) => writeKey(WRAP_KEY, e.target.checked ? "1" : null)}
+            className={check}
+          />
+          Wrap long text
+        </label>
+        {customised ? (
+          <button
+            type="button"
+            onClick={() => writeKey(WIDTHS_KEY, null)}
+            className="rounded-lg border border-slate-200 px-2.5 py-1.5 hover:border-slate-300 hover:text-slate-800"
+          >
+            Reset column widths
+          </button>
+        ) : null}
+        <span className="text-slate-400">Drag a column&apos;s right edge to widen it · double-click the edge to reset it.</span>
+      </div>
+
     <div className="overflow-x-auto">
       <datalist id={repList}>
         {repOptions.map((o) => <option key={o} value={o} />)}
@@ -205,24 +374,41 @@ export function SalesGrid({
         {ownerOptions.map((o) => <option key={o} value={o} />)}
       </datalist>
 
-      <div className="grid min-w-[1780px]" style={{ gridTemplateColumns: COLS }}>
-        <div className={`${head} sticky left-0 z-20 bg-white shadow-[inset_-1px_0_0_#e2e8f0]`}>Show</div>
-        <div className={head}>Show dates</div>
-        <div className={head}>Next action</div>
-        <div className={head} title="Exhibitors at the show (typed) · exhibitors linked in the CRM"># Exh</div>
-        <div className={head}>Industry</div>
-        <div className={head}>Decorator</div>
-        <div className={head}>Adv whse</div>
-        <div className={head}>Direct</div>
-        <div className={head}>Start call</div>
-        <div className={head}>Email team</div>
-        <div className={head}>Wk before</div>
-        <div className={head}>Sales reps</div>
-        <div className={head}>Lead gen</div>
-        <div className={head}>LG start</div>
-        <div className={head}>LG done</div>
-        <div className={`${head} justify-center`} title="Instantly campaign created">Inst</div>
-        <div className={head} />
+      <div
+        className={`grid w-max ${dragging ? "cursor-col-resize select-none" : ""}`}
+        style={{ gridTemplateColumns: widths.map((x) => `${x}px`).join(" ") }}
+      >
+        {COLUMNS.map((c, i) => (
+          <div
+            key={c.key}
+            title={"title" in c ? c.title : undefined}
+            className={`${head} relative ${"center" in c && c.center ? "justify-center" : ""} ${
+              i === 0 ? "sticky left-0 z-20 bg-white shadow-[inset_-1px_0_0_#e2e8f0]" : ""
+            }`}
+          >
+            <span className="truncate">{c.label}</span>
+            {c.label ? (
+              <span
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={`Resize ${c.label}`}
+                title="Drag to resize · double-click to reset"
+                onPointerDown={beginResize(i)}
+                onPointerMove={moveResize}
+                onPointerUp={endResize}
+                onPointerCancel={endResize}
+                onDoubleClick={() => resetColumn(i)}
+                className="group absolute -right-1.5 top-0 z-30 flex h-full w-3 cursor-col-resize justify-center"
+              >
+                <span
+                  className={`h-full w-0.5 rounded transition ${
+                    activeCol === i ? "bg-dts-maroon" : "bg-transparent group-hover:bg-slate-300"
+                  }`}
+                />
+              </span>
+            ) : null}
+          </div>
+        ))}
 
         {rows.map((r, i) => {
           const state = r.next?.state ?? "none";
@@ -258,14 +444,14 @@ export function SalesGrid({
                   <Link
                     href={`/shows/${r.id}`}
                     title={r.showName}
-                    className={`min-w-0 truncate text-sm font-medium hover:text-dts-maroon ${r.past ? "text-slate-400" : "text-slate-900"}`}
+                    className={`min-w-0 text-sm font-medium hover:text-dts-maroon ${wrap ? "whitespace-normal break-words py-1.5 leading-5" : "truncate"} ${r.past ? "text-slate-400" : "text-slate-900"}`}
                   >
                     {r.showName}
                     {r.editionYear ? <span className="ml-1 text-slate-400">{r.editionYear}</span> : null}
                   </Link>
                 </div>
                 <div className={cell}><span className={ro}>{r.showDates}</span></div>
-                <div className={`${cell} pr-2`}><NextActionBadge next={r.next} /></div>
+                <div className={`${cell} pr-2`}><NextActionBadge next={r.next} wrap={wrap} /></div>
                 <div className={`${cell} gap-1`}>
                   <input name="exhibitor_count" type="number" inputMode="numeric" defaultValue={r.exhibitor_count ?? ""} placeholder={r.rosterCount ? String(r.rosterCount) : ""} title="Exhibitors at the show, from the organizer's list" className={`${numInp} w-12`} />
                   {r.rosterCount ? (
@@ -274,8 +460,8 @@ export function SalesGrid({
                     </span>
                   ) : null}
                 </div>
-                <div className={cell}><input name="industry_vertical" defaultValue={r.industry_vertical ?? ""} title={r.industry_vertical ?? ""} className={inp} /></div>
-                <div className={cell}><input name="show_management_company" defaultValue={r.show_management_company ?? ""} title={r.show_management_company ?? ""} className={inp} /></div>
+                <div className={cell}><TextCell name="industry_vertical" value={r.industry_vertical} wrap={wrap} width={w("industry")} /></div>
+                <div className={cell}><TextCell name="show_management_company" value={r.show_management_company} wrap={wrap} width={w("decorator")} /></div>
                 <div className={cell}><span className={ro}>{r.advWhse}</span></div>
                 <div className={cell}><span className={ro}>{r.direct}</span></div>
                 <div className={cell}>
@@ -311,6 +497,7 @@ export function SalesGrid({
           );
         })}
       </div>
+    </div>
     </div>
   );
 }
