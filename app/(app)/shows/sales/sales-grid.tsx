@@ -298,7 +298,8 @@ export function SalesGrid({
   const repList = useId();
   const ownerList = useId();
 
-  const wrap = useStored(WRAP_KEY) === "1";
+  // Wrapping is the default; only an explicit "0" (the box unticked) turns it off.
+  const wrap = useStored(WRAP_KEY) !== "0";
   const saved = parseWidths(useStored(WIDTHS_KEY));
   // While a column edge is being dragged the widths live here; they are saved
   // once, on release, rather than on every mouse move.
@@ -349,7 +350,7 @@ export function SalesGrid({
           <input
             type="checkbox"
             checked={wrap}
-            onChange={(e) => writeKey(WRAP_KEY, e.target.checked ? "1" : null)}
+            onChange={(e) => writeKey(WRAP_KEY, e.target.checked ? null : "0")}
             className={check}
           />
           Wrap long text
