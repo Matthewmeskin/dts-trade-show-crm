@@ -8,6 +8,8 @@ export type NavItem = {
   adminOnly?: boolean;
   /** Extra path prefixes that should light this item up (e.g. Quotes → Shipments). */
   match?: string[];
+  /** Sub-paths that belong to a sibling item, so both don't light up. */
+  exclude?: string[];
 };
 
 export type NavSection = {
@@ -34,6 +36,16 @@ export const NAV_SECTIONS: NavSection[] = [
       // Quotes lives as a tab on Shipments, so light Shipments up there too.
       { label: "Shipments", href: "/shipments", icon: "shipments", match: ["/quotes"] },
       { label: "MHA Check", href: "/mha-check", icon: "truck" },
+    ],
+  },
+  {
+    // The partner growth plan: builders, GSCs and organizers who control
+    // freight for many exhibitors. The worklist is the sales admin's morning.
+    title: "Partners",
+    items: [
+      { label: "Partners", href: "/partners", icon: "users", exclude: ["/partners/worklist", "/partners/playbook"] },
+      { label: "Worklist", href: "/partners/worklist", icon: "bell" },
+      { label: "Playbook", href: "/partners/playbook", icon: "documents" },
     ],
   },
   {

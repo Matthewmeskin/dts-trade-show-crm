@@ -49,6 +49,63 @@ export function dayOf(instant: string | Date | null | undefined): string | null 
   return appDayFormat.format(d);
 }
 
+const appPartsFormat = new Intl.DateTimeFormat("en-US", {
+  timeZone: APP_TIME_ZONE,
+  hourCycle: "h23",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
+
+/** Minutes the company zone is ahead of UTC at an instant (negative in the US). */
+function zoneOffsetMinutes(at: Date): number {
+  const p = Object.fromEntries(appPartsFormat.formatToParts(at).map((x) => [x.type, x.value]));
+  const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+  return Math.round((asUtc - Math.floor(at.getTime() / 1000) * 1000) / 60000);
+}
+
+/**
+ * A wall-clock time typed in Pacific ("YYYY-MM-DDTHH:mm", what a
+ * datetime-local input sends) as a UTC ISO instant. The server runs in UTC, so
+ * reading that string with `new Date()` would book a 10am call at 3am.
+ */
+export function pacificWallToIso(wall: string): string | null {
+  const m = wall.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!m) return null;
+  const guess = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  let t = guess - zoneOffsetMinutes(new Date(guess)) * 60000;
+  t = guess - zoneOffsetMinutes(new Date(t)) * 60000; // settle across a DST change
+  return new Date(t).toISOString();
+}
+
+/** An instant as the Pacific wall clock a datetime-local input shows. */
+export function isoToPacificWall(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const p = Object.fromEntries(appPartsFormat.formatToParts(d).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+}
+
+const appDateTimeFormat = new Intl.DateTimeFormat("en-US", {
+  timeZone: APP_TIME_ZONE,
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+/** "Tue, Oct 6, 10:00 AM PT" - a meeting time, always in the company zone. */
+export function formatPacificDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "—" : `${appDateTimeFormat.format(d)} PT`;
+}
+
 /** Today's calendar date in the company zone, as "YYYY-MM-DD". */
 export function todayYMD(now: Date = new Date()): string {
   return dayOf(now) as string;

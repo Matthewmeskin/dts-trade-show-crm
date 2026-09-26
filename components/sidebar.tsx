@@ -9,6 +9,7 @@ import { signOut } from "@/app/login/actions";
 
 function isActive(pathname: string, item: NavItem): boolean {
   const hrefs = [item.href, ...(item.match ?? [])];
+  if (item.exclude?.some((x) => pathname === x || pathname.startsWith(`${x}/`))) return false;
   return hrefs.some((href) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`),
   );

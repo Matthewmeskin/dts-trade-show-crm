@@ -92,7 +92,7 @@ export async function createUser(
   redirect("/users?flash=user-created");
 }
 
-/** Save a user's contact details + default-MHA-contact flag. Admin only. */
+/** Save a user's contact details, booking link + default-MHA-contact flag. Admin only. */
 export async function setUserContact(fd: FormData) {
   const gate = await requireAdmin();
   if ("error" in gate) return;
@@ -102,13 +102,16 @@ export async function setUserContact(fd: FormData) {
   const phone = str(fd, "phone") || null;
   const title = str(fd, "title") || null;
   const is_mha_default_contact = fd.get("is_mha_default_contact") != null;
+  // The rep's booking link: the sales admin books partner calls straight onto it.
+  const rawBooking = str(fd, "booking_url");
+  const booking_url = rawBooking && /^https?:\/\//i.test(rawBooking) ? rawBooking : null;
 
   // Admin update runs through the caller's session so the profiles RLS
   // "admin update any" policy applies (the role-change trigger is untouched).
   const supabase = await createClient();
   await supabase
     .from("profiles")
-    .update({ phone, title, is_mha_default_contact })
+    .update({ phone, title, is_mha_default_contact, booking_url })
     .eq("id", id);
   revalidatePath("/users");
 }

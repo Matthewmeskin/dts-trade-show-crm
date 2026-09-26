@@ -26,7 +26,7 @@ export default async function UsersPage() {
 
   const { data: users } = await supabase
     .from("profiles")
-    .select("id, full_name, email, role, phone, title, is_mha_default_contact, created_at")
+    .select("id, full_name, email, role, phone, title, is_mha_default_contact, booking_url, created_at")
     .order("created_at");
 
   const rows = users ?? [];
@@ -78,6 +78,7 @@ export default async function UsersPage() {
                           phone={u.phone}
                           title={u.title}
                           isDefault={u.is_mha_default_contact}
+                          bookingUrl={u.booking_url}
                         />
                       </td>
                       <td className="px-5 py-3">

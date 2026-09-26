@@ -3,7 +3,7 @@
 import { setUserContact } from "./actions";
 
 /**
- * Inline contact editor for a user row: phone + title, saved on blur, and a
+ * Inline contact editor for a user row: phone, title and booking link, saved on blur, and a
  * "Default MHA contact" checkbox saved on change. The whole row is one form so
  * every save carries all three fields (an unchecked checkbox is simply absent).
  */
@@ -12,11 +12,13 @@ export function UserContactControls({
   phone,
   title,
   isDefault,
+  bookingUrl,
 }: {
   id: string;
   phone: string | null;
   title: string | null;
   isDefault: boolean;
+  bookingUrl: string | null;
 }) {
   const save = (form: HTMLFormElement | null) => form?.requestSubmit();
 
@@ -37,6 +39,15 @@ export function UserContactControls({
         placeholder="Title"
         onBlur={(e) => save(e.currentTarget.form)}
         className="w-32 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon"
+      />
+      <input
+        name="booking_url"
+        type="url"
+        defaultValue={bookingUrl ?? ""}
+        placeholder="Booking link"
+        title="Where the sales admin books partner calls onto this rep's calendar"
+        onBlur={(e) => save(e.currentTarget.form)}
+        className="w-44 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-dts-maroon focus:ring-1 focus:ring-dts-maroon"
       />
       <label className="flex items-center gap-1.5 whitespace-nowrap text-xs text-slate-600">
         <input

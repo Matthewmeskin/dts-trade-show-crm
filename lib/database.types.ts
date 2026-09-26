@@ -191,6 +191,7 @@ export type Database = {
           id: string
           last_name: string | null
           notes: string | null
+          partner_id: string | null
           phone: string | null
           show_id: string | null
           title: string | null
@@ -208,6 +209,7 @@ export type Database = {
           id?: string
           last_name?: string | null
           notes?: string | null
+          partner_id?: string | null
           phone?: string | null
           show_id?: string | null
           title?: string | null
@@ -225,6 +227,7 @@ export type Database = {
           id?: string
           last_name?: string | null
           notes?: string | null
+          partner_id?: string | null
           phone?: string | null
           show_id?: string | null
           title?: string | null
@@ -490,8 +493,352 @@ export type Database = {
           },
         ]
       }
+      partner_calls: {
+        Row: {
+          booked_by: string | null
+          client_count: number | null
+          contact_id: string | null
+          created_at: string
+          id: string
+          outcome: string | null
+          outcome_at: string | null
+          outcome_by: string | null
+          outcome_note: string | null
+          partner_id: string
+          q_agreed_time: boolean
+          q_influence: boolean
+          q_show_120: boolean
+          rep_id: string
+          scheduled_at: string
+          shipping_pain: string
+          shows_note: string
+          signal: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          booked_by?: string | null
+          client_count?: number | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          outcome?: string | null
+          outcome_at?: string | null
+          outcome_by?: string | null
+          outcome_note?: string | null
+          partner_id: string
+          q_agreed_time?: boolean
+          q_influence?: boolean
+          q_show_120?: boolean
+          rep_id: string
+          scheduled_at: string
+          shipping_pain: string
+          shows_note: string
+          signal: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          booked_by?: string | null
+          client_count?: number | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          outcome?: string | null
+          outcome_at?: string | null
+          outcome_by?: string | null
+          outcome_note?: string | null
+          partner_id?: string
+          q_agreed_time?: boolean
+          q_influence?: boolean
+          q_show_120?: boolean
+          rep_id?: string
+          scheduled_at?: string
+          shipping_pain?: string
+          shows_note?: string
+          signal?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_calls_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_calls_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_calls_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_shows: {
+        Row: {
+          client_count: number | null
+          created_at: string
+          id: string
+          notes: string | null
+          partner_id: string
+          show_id: string
+        }
+        Insert: {
+          client_count?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          partner_id: string
+          show_id: string
+        }
+        Update: {
+          client_count?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          partner_id?: string
+          show_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_shows_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_shows_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_signals: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string | null
+          occurred_on: string
+          partner_id: string
+          show_id: string | null
+          signal_type: string
+          worked_at: string | null
+          worked_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          occurred_on?: string
+          partner_id: string
+          show_id?: string | null
+          signal_type: string
+          worked_at?: string | null
+          worked_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          occurred_on?: string
+          partner_id?: string
+          show_id?: string | null
+          signal_type?: string
+          worked_at?: string | null
+          worked_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_signals_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_signals_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_touches: {
+        Row: {
+          channel: string
+          created_by: string | null
+          id: string
+          note: string | null
+          occurred_at: string
+          partner_id: string
+          reached: boolean
+        }
+        Insert: {
+          channel: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          occurred_at?: string
+          partner_id: string
+          reached?: boolean
+        }
+        Update: {
+          channel?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          occurred_at?: string
+          partner_id?: string
+          reached?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_touches_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_touches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partners: {
+        Row: {
+          admin_id: string | null
+          archived: boolean
+          city: string | null
+          client_count: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          next_step: string | null
+          next_step_on: string | null
+          notes: string | null
+          partner_type: string
+          rep_id: string | null
+          shipping_pain: string | null
+          source: string | null
+          stage: string
+          state: string | null
+          tier: number | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          admin_id?: string | null
+          archived?: boolean
+          city?: string | null
+          client_count?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          next_step?: string | null
+          next_step_on?: string | null
+          notes?: string | null
+          partner_type?: string
+          rep_id?: string | null
+          shipping_pain?: string | null
+          source?: string | null
+          stage?: string
+          state?: string | null
+          tier?: number | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          admin_id?: string | null
+          archived?: boolean
+          city?: string | null
+          client_count?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          next_step?: string | null
+          next_step_on?: string | null
+          notes?: string | null
+          partner_type?: string
+          rep_id?: string | null
+          shipping_pain?: string | null
+          source?: string | null
+          stage?: string
+          state?: string | null
+          tier?: number | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partners_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partners_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      playbook_sections: {
+        Row: {
+          body: string
+          key: string
+          sort: number
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          body?: string
+          key: string
+          sort?: number
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          body?: string
+          key?: string
+          sort?: number
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          booking_url: string | null
           created_at: string
           email: string | null
           full_name: string | null
@@ -503,6 +850,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          booking_url?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
@@ -514,6 +862,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          booking_url?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
