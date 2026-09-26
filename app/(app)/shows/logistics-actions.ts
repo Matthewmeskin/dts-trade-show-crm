@@ -105,11 +105,14 @@ export async function saveLogistics(
 
   if (error) return { error: error.message };
 
+  const kitFilled = Number(fd.get("kit_filled") ?? 0) || 0;
   await logActivity(supabase, {
     action: "updated",
     entityType: "show_logistics",
     entityId: show_id,
-    summary: "Saved public logistics draft",
+    summary: kitFilled
+      ? `Saved public logistics draft (kit reader filled ${kitFilled} field${kitFilled === 1 ? "" : "s"})`
+      : "Saved public logistics draft",
   });
   revalidatePath(`/shows/${show_id}`);
   revalidatePath("/show-pages");

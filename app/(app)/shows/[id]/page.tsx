@@ -1095,12 +1095,37 @@ async function LogisticsTab({ showId }: { showId: string }) {
   const { data: show } = await supabase
     .from("shows")
     .select(
-      "show_name, edition_year, show_start_date, show_end_date, series_id, venue_id, advance_warehouse_name, advance_warehouse_street1, direct_to_show_street1, advance_warehouse_address, direct_to_show_address",
+      "show_name, edition_year, show_start_date, show_end_date, series_id, venue_id, advance_warehouse_name, advance_warehouse_street1, direct_to_show_street1, advance_warehouse_address, direct_to_show_address, exhibitor_manual_url, move_in_start, move_in_end, move_out_start, move_out_end, advance_warehouse_open, advance_warehouse_cutoff, advance_warehouse_care_of, advance_warehouse_street2, advance_warehouse_city, advance_warehouse_state, advance_warehouse_zip, direct_to_show_start, direct_to_show_end, direct_to_show_name, direct_to_show_care_of, direct_to_show_street2, direct_to_show_city, direct_to_show_state, direct_to_show_zip, marshalling_yard_name, marshalling_yard_street1, marshalling_yard_city, marshalling_yard_state, marshalling_yard_zip, marshalling_yard_address, decorator",
     )
     .eq("id", showId)
     .single();
 
   if (!show) notFound();
+
+  // What the show record already says, for the kit reader to compare against.
+  const oneLine = (...parts: (string | null)[]) => parts.filter(Boolean).join(", ") || null;
+  const crmFacts = {
+    show_start_date: show.show_start_date,
+    show_end_date: show.show_end_date,
+    move_in_start: show.move_in_start,
+    move_in_end: show.move_in_end,
+    move_out_start: show.move_out_start,
+    move_out_end: show.move_out_end,
+    advance_warehouse_open: show.advance_warehouse_open,
+    advance_warehouse_cutoff: show.advance_warehouse_cutoff,
+    advance_warehouse_address:
+      oneLine(show.advance_warehouse_name, show.advance_warehouse_care_of, show.advance_warehouse_street1, show.advance_warehouse_street2, show.advance_warehouse_city, oneLine(show.advance_warehouse_state, show.advance_warehouse_zip)?.replace(", ", " ") ?? null) ??
+      show.advance_warehouse_address,
+    direct_to_show_start: show.direct_to_show_start,
+    direct_to_show_end: show.direct_to_show_end,
+    direct_to_show_address:
+      oneLine(show.direct_to_show_name, show.direct_to_show_care_of, show.direct_to_show_street1, show.direct_to_show_street2, show.direct_to_show_city, oneLine(show.direct_to_show_state, show.direct_to_show_zip)?.replace(", ", " ") ?? null) ??
+      show.direct_to_show_address,
+    marshalling_yard_address:
+      oneLine(show.marshalling_yard_name, show.marshalling_yard_street1, show.marshalling_yard_city, oneLine(show.marshalling_yard_state, show.marshalling_yard_zip)?.replace(", ", " ") ?? null) ??
+      show.marshalling_yard_address,
+    decorator: show.decorator,
+  };
 
   const [{ data: logistics }, { data: series }, { data: candidates }, { data: venue }, previous] =
     await Promise.all([
@@ -1206,6 +1231,9 @@ async function LogisticsTab({ showId }: { showId: string }) {
             showId={showId}
             show={show}
             logistics={logistics ?? null}
+            showYear={show.edition_year ?? (show.show_start_date ? Number(show.show_start_date.slice(0, 4)) : null)}
+            kitUrl={show.exhibitor_manual_url}
+            crmFacts={crmFacts}
           />
         </div>
       </Card>

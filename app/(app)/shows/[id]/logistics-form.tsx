@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { Field, SubmitButton, inputClass } from "@/components/form";
 import { Icon } from "@/components/icons";
 import {
@@ -15,6 +15,13 @@ import {
   type LogisticsState,
 } from "../logistics-actions";
 import type { Tables } from "@/lib/database.types";
+import { KitReaderPanel, type FillResult } from "./kit-reader-panel";
+import {
+  KIT_LOGISTICS_FIELDS,
+  type KitLogisticsField,
+  type KitReading,
+  type KitShowFact,
+} from "@/lib/kit-reader";
 
 type ShowFields = Pick<
   Tables<"shows">,
@@ -34,10 +41,16 @@ export function LogisticsForm({
   showId,
   show,
   logistics,
+  showYear,
+  kitUrl,
+  crmFacts,
 }: {
   showId: string;
   show: ShowFields;
   logistics: Logistics | null;
+  showYear: number | null;
+  kitUrl: string | null;
+  crmFacts: Partial<Record<KitShowFact, string | null>>;
 }) {
   const [saveState, saveAction] = useActionState(saveLogistics, empty);
   const [verifyState, verifyAction] = useActionState(verifyLogistics, empty);
@@ -57,9 +70,64 @@ export function LogisticsForm({
 
   const state = verifyState.error || verifyState.ok ? verifyState : saveState;
 
+  // The kit reader writes straight into the form's inputs, so anything the
+  // coordinator already typed is left alone and nothing is saved until they
+  // press Save draft.
+  const formRef = useRef<HTMLFormElement>(null);
+  const [kitFilled, setKitFilled] = useState(0);
+
+  const readField = (field: KitLogisticsField): string => {
+    if (field === "timezone") return timezone;
+    const el = formRef.current?.elements.namedItem(field);
+    if (el instanceof HTMLInputElement && el.type === "checkbox") return el.checked ? "yes" : "";
+    return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? el.value.trim() : "";
+  };
+
+  const writeField = (field: KitLogisticsField, value: string) => {
+    if (field === "timezone") return setTimezone(value);
+    const el = formRef.current?.elements.namedItem(field);
+    if (el instanceof HTMLInputElement && el.type === "checkbox") el.checked = value === "yes";
+    else if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) el.value = value;
+  };
+
+  const applyReading = (reading: KitReading, url: string | null): FillResult[] => {
+    const out: FillResult[] = [];
+    for (const field of KIT_LOGISTICS_FIELDS) {
+      const k = reading.logistics[field];
+      if (!k) continue;
+      const current = readField(field);
+      // An unticked box says nothing, so "no" from the kit is only news if it was ticked.
+      const empty = field === "targeted_move_in" ? current === "" && k.value === "yes" : current === "";
+      const same =
+        field === "targeted_move_in" ? (current === "yes") === (k.value === "yes") : current === k.value;
+      if (same) out.push({ field, value: k.value, where: k.where, outcome: "same", current });
+      else if (empty) {
+        writeField(field, k.value);
+        out.push({ field, value: k.value, where: k.where, outcome: "filled", current });
+      } else out.push({ field, value: k.value, where: k.where, outcome: "kept", current });
+    }
+    if (url && !sourceUrl) setSourceUrl(url);
+    if (!sourceType) setSourceType("official_kit");
+    setKitFilled(out.filter((f) => f.outcome === "filled").length);
+    return out;
+  };
+
   return (
-    <form action={saveAction} className="space-y-6">
+    <div className="space-y-6">
+    <KitReaderPanel
+      showId={showId}
+      showYear={showYear}
+      defaultUrl={kitUrl ?? logistics?.source_url ?? null}
+      crmFacts={crmFacts}
+      onRead={applyReading}
+      onUseKit={(field, value) => {
+        writeField(field, value);
+        setKitFilled((n) => n + 1);
+      }}
+    />
+    <form ref={formRef} action={saveAction} className="space-y-6">
       <input type="hidden" name="show_id" value={showId} />
+      <input type="hidden" name="kit_filled" value={kitFilled} />
       <input
         type="hidden"
         name="previous_notes"
@@ -347,5 +415,6 @@ export function LogisticsForm({
         </ul>
       ) : null}
     </form>
+    </div>
   );
 }
