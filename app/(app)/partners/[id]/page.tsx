@@ -137,6 +137,9 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
     .join("; ");
   const firstEmail = (contacts ?? []).find((c) => c.email)?.email ?? null;
   const now = new Date();
+  // Where the show pages are served today (the show site's own address until
+  // dtsone.com points at the new website). The kit link above stays dtsone.com.
+  const siteOrigin = (process.env.TRADE_SHOW_SITE_URL || "https://www.dtsone.com").replace(/\/+$/, "");
 
   return (
     <div>
@@ -690,16 +693,38 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
                         {l.cobranded ? (
                           <div className="text-xs text-slate-500">
                             {!ser ? (
-                              "This show isn't attached to a public show page yet (Show page tab)."
+                              <>
+                                This show has no public page yet.{" "}
+                                <Link href={`/shows/${l.show_id}?tab=logistics`} className="text-sky-700 hover:underline">
+                                  Set it up on its Show page tab →
+                                </Link>
+                              </>
                             ) : !ser.is_public ? (
-                              "Its show page isn't published yet — the link starts working once it's verified and published."
+                              <>
+                                Its show page isn&apos;t published yet — the link starts working once it&apos;s verified and
+                                published.{" "}
+                                <Link href={`/shows/${l.show_id}?tab=logistics`} className="text-sky-700 hover:underline">
+                                  Show page tab →
+                                </Link>
+                              </>
                             ) : !partner.code ? (
                               "Set a code above to get the link."
                             ) : (
                               <span className="flex flex-wrap items-center gap-2">
                                 <span className="break-all">{cobrandUrl(ser.slug, partner.code)}</span>
                                 <CopyLink url={cobrandUrl(ser.slug, partner.code)} />
-                                {!live ? <span className="text-amber-700">Turn cobranding on to go live.</span> : null}
+                                {live ? (
+                                  <a
+                                    href={`${siteOrigin}/trade-show/shipping/${ser.slug}/with/${partner.code}/`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="font-medium text-sky-700 hover:underline"
+                                  >
+                                    Preview ↗
+                                  </a>
+                                ) : (
+                                  <span className="text-amber-700">Turn cobranding on to go live.</span>
+                                )}
                               </span>
                             )}
                           </div>
