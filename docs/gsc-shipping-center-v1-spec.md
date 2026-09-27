@@ -109,15 +109,45 @@ and PRO when booked, and the label and BOL downloads again.
 - Inbound but no outbound: 7 days and 2 days before move out, "Book your return trip."
 - Before inbound pickup and before move out: a short checklist (labels on every piece, BOL ready).
 
-## 6. The GSC experience
+## 6. The GSC experience, including a GSC admin site
 
-- Their landing page and cobranded show pages (above).
-- **Manifest by booth** emailed on a schedule the CRM already supports (weekly, then daily the week
-  before move in): booth, exhibitor, pieces, weight, inbound mode, expected arrival, outbound booked
-  yes or no. Build it from orders plus shipments.
-- **Outbound list** before move out: which booths have outbound booked with DTS, carrier, pickup
-  window. This is the list that saves them forced freight work.
-- No GSC login in version 1.
+**What the GSC's exhibitors see:** the landing page and cobranded show pages (above).
+
+**GSC admin site** at `/trade-show/shipping/gsc-admin/` (in `trade-show/web`), for the GSC's own
+exhibitor services and warehouse staff. This is how the GSC runs its shows with us, so it has to feel
+like their own tool, not a DTS report.
+
+Access
+- Logins live in the DTS Trade Show project (Supabase Auth), never in DTS Database. Email magic link
+  plus a password option; MFA available.
+- DTS staff invite GSC users from the CRM (section 7). A GSC user belongs to one GSC and can see only
+  that GSC's shows and orders, enforced by RLS on every table and view they touch, not just in the UI.
+- Two roles: GSC admin (manage their users, branding details) and GSC staff (view and export).
+
+Screens
+1. **Home:** their upcoming shows as cards with move in date, orders count, booths with outbound
+   booked, booths without outbound, and a "Copy kit link" button for each show and for their landing
+   page.
+2. **Show board** (one per show), tabs:
+   - **Inbound manifest:** booth, exhibitor, pieces, weight, advance warehouse or direct, expected
+     arrival date, status (booked, picked up, delivered to warehouse). Filter by date. Print and CSV.
+   - **Outbound:** every booth with an outbound order, pickup window, destination city, carrier and
+     PRO once booked, check in status on move out day. A second list of booths that shipped inbound
+     with DTS but have no outbound yet.
+   - **Exhibitor lookup:** search by booth or company, see that exhibitor's order and status, and
+     copy the exhibitor's status link to send them.
+3. **Nudge:** one button to email every booth on the "no outbound yet" list a reminder (DTS wording,
+   GSC branding), with a log of when it was sent.
+4. **Settings:** their public name, logo, exhibitor services phone and email shown on their pages,
+   and their users (GSC admin role only).
+
+What the GSC does not see
+- DTS pricing, quotes, or margins. Order views show freight facts and status only.
+- Other GSCs' shows or anything from the CRM beyond what is synced to the public project for their
+  shows.
+
+Also emailed (for GSCs who never log in): the manifest by booth on a schedule (weekly, then daily
+the week before move in) and the outbound list before move out.
 
 ## 7. The DTS staff experience (the current setup is too hard; fix it)
 
@@ -146,7 +176,7 @@ slug, Verify, Publish, then the partner page to cobrand. Version 1 adds one plac
 ## 8. Not in version 1 (stop and flag if you drift here)
 
 Online payment (invoice through the normal process), exhibitor logins, instant or automated rates,
-a GSC login or dashboard, rebates or markup to the GSC, exhibit house features, national big show
+GSC ordering of anything besides viewing freight (material handling stays the GSC's), rebates or markup to the GSC, exhibit house features, national big show
 rollouts, material handling ordering (that stays the GSC's), international freight, and any change
 to how the TMS books loads.
 
@@ -168,7 +198,10 @@ to how the TMS books loads.
 6. **Status page and reminder emails.**
 7. **GSC landing page** and the show page checklist and button.
 8. **CRM GSC Shipping Centers screen** with the one panel show setup.
-9. **Manifest and outbound list fed from orders.**
+9. **Manifest and outbound list fed from orders** (emailed).
+10. **GSC admin site:** auth and RLS first (with SQL tests proving a GSC user cannot read another
+    GSC's rows or any price field), then Home, Show board, Nudge, Settings, then user invites from
+    the CRM.
 
 ## 10. Done means
 
@@ -178,7 +211,9 @@ to how the TMS books loads.
   labels and a BOL, and open a status link later.
 - The order appears in the CRM inbox within minutes, alerts the team, and staff can move it to
   Booked with a load number in two clicks.
-- The GSC receives a manifest by booth and an outbound list for that show.
+- The GSC receives a manifest by booth and an outbound list for that show, by email and in their
+  admin site, and can nudge booths with no outbound in one click.
+- A GSC user can log in and see only their own shows and orders, never prices; SQL tests prove it.
 - Security checks from the Phase 1 spec still pass, plus: `anon` cannot read orders, the order route
   rejects spam and oversized input, and no secret is in the repo.
 - A new staff member can take a GSC from "added" to "show live" in one screen without help.
@@ -191,3 +226,5 @@ to how the TMS books loads.
 4. Whether exhibitors can choose "I have my own carrier for inbound" and still use DTS for outbound
    (recommended yes).
 5. Logo hosting for GSC branding (public storage bucket on the public project is fine).
+6. How much of the exhibitor's contact info a GSC should see (recommended: company, contact name and
+   booth; email and phone only if Matthew approves, since the GSC already has them from registration).
