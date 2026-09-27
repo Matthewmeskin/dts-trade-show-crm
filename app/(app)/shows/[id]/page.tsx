@@ -1153,6 +1153,11 @@ async function LogisticsTab({ showId }: { showId: string }) {
   const staleOn = goesStaleOn(logistics ?? null);
   const pageBlockers = publishBlockers(show, series ?? null);
   const live = status !== "none" && status !== "draft" && pageBlockers.length === 0;
+  // Where the page is served: the show site's own address until dtsone.com
+  // points at the new website, the same page after. The sync pushes a verify
+  // within seconds, the schedule within 15 minutes.
+  const siteOrigin = (process.env.TRADE_SHOW_SITE_URL || "https://www.dtsone.com").replace(/\/+$/, "");
+  const pageUrl = series?.slug ? `${siteOrigin}/trade-show/shipping/${series.slug}/` : null;
 
   return (
     <div className="space-y-5">
@@ -1168,6 +1173,11 @@ async function LogisticsTab({ showId }: { showId: string }) {
             >
               {live ? "Page is live" : "Page is not live"}
             </Badge>
+            {live && pageUrl ? (
+              <a href={pageUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-dts-blue hover:underline">
+                View the live page ↗
+              </a>
+            ) : null}
             {staleOn && status === "verified" ? (
               <span className="text-xs text-slate-400">
                 Goes stale on {formatDate(dayOf(staleOn))}
@@ -1218,6 +1228,7 @@ async function LogisticsTab({ showId }: { showId: string }) {
             series={series ?? null}
             candidates={candidates ?? []}
             venue={venue ?? null}
+            liveUrl={live ? pageUrl : null}
           />
         </div>
       </Card>

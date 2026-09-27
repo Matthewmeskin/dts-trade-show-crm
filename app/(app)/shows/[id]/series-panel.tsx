@@ -30,6 +30,7 @@ export function SeriesPanel({
   series,
   candidates,
   venue,
+  liveUrl,
 }: {
   showId: string;
   showName: string;
@@ -37,6 +38,8 @@ export function SeriesPanel({
   series: Series | null;
   candidates: { id: string; name: string; slug: string; is_public: boolean }[];
   venue: { id: string; venue_name: string; public_slug: string | null } | null;
+  /** The page's address when this edition is actually on the site; null otherwise. */
+  liveUrl: string | null;
 }) {
   const [mode, setMode] = useState<"attach" | "create">(
     candidates.length ? "attach" : "create",
@@ -67,13 +70,25 @@ export function SeriesPanel({
               </Badge>
             </div>
             <p className="mt-0.5 font-mono text-xs text-slate-400">
-              /trade-show/shipping/{series.slug}
+              {liveUrl ? (
+                <a href={liveUrl} target="_blank" rel="noreferrer" className="text-dts-blue hover:underline">
+                  /trade-show/shipping/{series.slug}/ ↗
+                </a>
+              ) : (
+                <>/trade-show/shipping/{series.slug}/</>
+              )}
               {editionYear ? (
                 <span className="ml-2 font-sans">
                   · this row is the {editionYear} edition
                 </span>
               ) : null}
             </p>
+            {series.is_public && !liveUrl ? (
+              <p className="mt-1 text-xs text-amber-700">
+                The address is reserved, but there&apos;s no page yet: it goes live once this year&apos;s freight
+                details below are verified.
+              </p>
+            ) : null}
           </div>
 
           <form action={setSeriesPublic}>
