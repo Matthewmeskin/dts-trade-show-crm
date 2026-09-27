@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity";
 import { nudgePublicSync } from "@/lib/public-sync";
-import { isValidSlug, verifyBlockers } from "@/lib/logistics";
+import { isValidSlug, verifyBlockers, timezoneForState } from "@/lib/logistics";
 import { composeFreightAddress } from "@/lib/freight";
 import type { TablesUpdate } from "@/lib/database.types";
 import { decodeKitFacts, kitFillForShow } from "@/lib/kit-reader";
@@ -501,4 +501,50 @@ export async function applyKitToShow(_prev: LogisticsState, fd: FormData): Promi
     ok: true,
     message: `Added to the show: ${fill.filled.map((f) => f.label).join(", ") || "the kit link"}.${skipped}`,
   };
+}
+
+
+/**
+ * Start draft show pages for big shows in one go, from what the CRM already
+ * knows: the venue's timezone and the exhibitor kit as the source. Drafts are
+ * never published, and an existing draft or verified row is left alone, so this
+ * only ever saves a person typing. Verify stays a person's decision, show by show.
+ */
+export async function startShowPageDrafts(fd: FormData) {
+  const ids = fd.getAll("show_id").map(String).filter(Boolean);
+  if (!ids.length) return;
+
+  const supabase = await createClient();
+  const { data: shows } = await supabase
+    .from("shows")
+    .select("id, exhibitor_manual_url, venues(state), show_public_logistics(show_id)")
+    .in("id", ids);
+
+  const rows = (shows ?? [])
+    .filter((s) => !s.show_public_logistics || (Array.isArray(s.show_public_logistics) && s.show_public_logistics.length === 0))
+    .map((s) => {
+      const venue = Array.isArray(s.venues) ? s.venues[0] : s.venues;
+      return {
+        show_id: s.id,
+        timezone: timezoneForState(venue?.state ?? null),
+        source_url: s.exhibitor_manual_url ?? null,
+        source_type: s.exhibitor_manual_url ? "official_kit" : null,
+      };
+    });
+  if (!rows.length) return;
+
+  const { error } = await supabase
+    .from("show_public_logistics")
+    .upsert(rows, { onConflict: "show_id", ignoreDuplicates: true });
+  if (error) throw new Error(error.message);
+
+  for (const r of rows) {
+    await logActivity(supabase, {
+      action: "created",
+      entityType: "show_logistics",
+      entityId: r.show_id,
+      summary: "Started a show page draft from the venue and exhibitor kit",
+    });
+  }
+  revalidatePath("/show-pages");
 }
