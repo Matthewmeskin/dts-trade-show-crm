@@ -30,6 +30,7 @@ export function KitFillBar({
 }) {
   const [url, setUrl] = useState(defaultUrl ?? "");
   const [file, setFile] = useState<File | null>(null);
+  const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ filled: string[]; skipped: string[]; warnings: string[] } | null>(null);
@@ -99,7 +100,9 @@ export function KitFillBar({
     setDone(null);
     const fd = new FormData();
     fd.set("show_id", showId);
-    if (file) fd.set("file", file);
+    const pasted = text.trim().length > 40;
+    if (pasted) fd.set("text", text);
+    else if (file) fd.set("file", file);
     else fd.set("url", url);
     try {
       const res = await fetch("/api/read-kit", { method: "POST", body: fd });
@@ -108,7 +111,7 @@ export function KitFillBar({
         setError(body?.error ?? (res.status === 413 ? "That PDF is too big to upload here — use the link instead." : "The reader failed. Try again."));
         return;
       }
-      apply(body.reading as KitReading, file ? null : url);
+      apply(body.reading as KitReading, pasted || file ? null : url);
     } catch {
       setError("The reader didn't answer. Check your connection and try again.");
     } finally {
@@ -116,7 +119,7 @@ export function KitFillBar({
     }
   }
 
-  const canRead = !busy && (!!file || /^https?:\/\//i.test(url));
+  const canRead = !busy && (!!file || text.trim().length > 40 || /^https?:\/\//i.test(url));
 
   return (
     <div className="mb-5 space-y-3 rounded-xl border border-sky-200 bg-sky-50/40 p-4">
@@ -156,6 +159,16 @@ export function KitFillBar({
           className="text-xs"
         />
       </label>
+        <details className="text-xs text-slate-500" open={text.length > 0}>
+          <summary className="cursor-pointer">or paste the text from the kit</summary>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={6}
+            placeholder="Paste the shipping / material handling section — dates, warehouse and show-site addresses. Used instead of the link when filled."
+            className={`${inputClass} mt-2 text-sm`}
+          />
+        </details>
       {error ? <p className="text-sm text-dts-maroon">{error}</p> : null}
       {done ? (
         <div className="space-y-2 text-xs">

@@ -24,6 +24,7 @@ export function OverviewKitFill({
 }) {
   const [url, setUrl] = useState(defaultUrl ?? "");
   const [file, setFile] = useState<File | null>(null);
+  const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [read, setRead] = useState<{ reading: KitReading; fill: KitFill; kitUrl: string | null } | null>(null);
@@ -35,7 +36,9 @@ export function OverviewKitFill({
     setRead(null);
     const fd = new FormData();
     fd.set("show_id", showId);
-    if (file) fd.set("file", file);
+    const pasted = text.trim().length > 40;
+    if (pasted) fd.set("text", text);
+    else if (file) fd.set("file", file);
     else fd.set("url", url);
     try {
       const res = await fetch("/api/read-kit", { method: "POST", body: fd });
@@ -45,7 +48,7 @@ export function OverviewKitFill({
         return;
       }
       const reading = body.reading as KitReading;
-      setRead({ reading, fill: kitFillForShow(reading.facts, current), kitUrl: file ? null : url });
+      setRead({ reading, fill: kitFillForShow(reading.facts, current), kitUrl: pasted || file ? null : url });
     } catch {
       setError("The reader didn't answer. Check your connection and try again.");
     } finally {
@@ -76,7 +79,7 @@ export function OverviewKitFill({
           <button
             type="button"
             onClick={readKit}
-            disabled={busy || (!file && !/^https?:\/\//i.test(url))}
+            disabled={busy || (!file && text.trim().length <= 40 && !/^https?:\/\//i.test(url))}
             className="whitespace-nowrap rounded-lg bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
           >
             {busy ? "Reading… (up to a couple of minutes)" : "Read the kit"}
@@ -86,6 +89,16 @@ export function OverviewKitFill({
           or upload the kit PDF:{" "}
           <input type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-xs" />
         </label>
+        <details className="text-xs text-slate-500" open={text.length > 0}>
+          <summary className="cursor-pointer">or paste the text from the kit</summary>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={6}
+            placeholder="Paste the shipping / material handling section — dates, warehouse and show-site addresses. Used instead of the link when filled."
+            className={`${inputClass} mt-2 text-sm`}
+          />
+        </details>
         {error ? <p className="text-dts-maroon">{error}</p> : null}
 
         {read ? (
