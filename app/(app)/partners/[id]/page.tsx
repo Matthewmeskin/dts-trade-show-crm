@@ -112,6 +112,13 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
   const seriesBy = new Map((seriesRows ?? []).map((x) => [x.id, x]));
   const reportSentThisWeek = !!partner.last_report_sent_at && (dayOf(partner.last_report_sent_at) ?? "") >= weekStart(today);
 
+  // The pilot and account tools (clients, weekly report, GSC manifest, rebates,
+  // terms) only matter once a partner is running freight with us. Before that
+  // the page stays on the work that gets them there: shows, people, touches,
+  // calls and the cobranded page. Anything already recorded keeps them visible.
+  const afterPilot =
+    partner.stage === "pilot" || partner.stage === "full_book" || clientList.length > 0 || credit.creditedCount > 0;
+
   const names = new Map(people.map((p) => [p.id, p.name]));
   const linked = (links ?? [])
     .filter((l) => l.shows)
@@ -372,6 +379,7 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
             </div>
           </Card>
 
+          {afterPilot ? (
           <Card>
             <CardHeader title={`Clients (${clientList.length})`} icon="exhibitors" />
             <div className="space-y-3 p-5">
@@ -413,6 +421,7 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
               <AddClientForm partnerId={id} />
             </div>
           </Card>
+          ) : null}
 
           <Card>
             <CardHeader title="People" icon="contacts" />
@@ -523,6 +532,8 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
             </div>
           </Card>
 
+          {afterPilot ? (
+            <>
           <Card>
             <CardHeader
               title="Weekly client report"
@@ -650,6 +661,17 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
               />
             </div>
           </Card>
+
+            </>
+          ) : (
+            <Card>
+              <CardHeader title="After the pilot" icon="clock" />
+              <div className="p-5 text-xs text-slate-500">
+                Clients, the weekly client report, the GSC manifest, rebates and terms open up when this partner moves
+                to Pilot. Until then the job is a verified show page for a show they work, and a first conversation.
+              </div>
+            </Card>
+          )}
 
           <Card>
             <CardHeader title="Cobranded show pages" icon="external" />
