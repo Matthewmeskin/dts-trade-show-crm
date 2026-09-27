@@ -32,6 +32,7 @@ import { DeleteDocButton } from "@/app/(app)/documents/delete-doc-button";
 import { DOCUMENT_TYPE_META } from "@/lib/documents";
 import { DebriefForm } from "./debrief-form";
 import { LogisticsForm } from "./logistics-form";
+import { OverviewKitFill } from "./overview-kit-fill";
 import { SeriesPanel } from "./series-panel";
 import {
   STATUS_META,
@@ -316,8 +317,18 @@ async function OverviewTab({ show, links, sales }: { show: ShowWithStatus; links
       ? show.actual_revenue - show.estimated_revenue
       : null;
 
+  // Offer the kit reader right here while the dates or freight address are missing.
+  const row = (sales ?? show) as unknown as Record<string, unknown>;
+  const needsKit =
+    !row.show_start_date ||
+    !row.show_end_date ||
+    !((row.advance_warehouse_name && row.advance_warehouse_street1) || row.direct_to_show_street1);
+
   return (
     <div className="space-y-5">
+      {needsKit && show.id ? (
+        <OverviewKitFill showId={show.id} defaultUrl={(row.exhibitor_manual_url as string | null) ?? null} current={row} />
+      ) : null}
       {/* Key dates — full width and dense so it isn't a tall sparse column. */}
       <Card>
         <CardHeader title="Key dates" icon="calendar" />
