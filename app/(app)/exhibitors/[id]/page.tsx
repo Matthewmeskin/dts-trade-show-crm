@@ -49,7 +49,7 @@ export default async function ExhibitorRecordPage({
   if (from) shipQuery = shipQuery.gte("pickup_date", from);
   if (to) shipQuery = shipQuery.lte("pickup_date", to);
 
-  const [showsRes, shipRes] = await Promise.all([
+  const [showsRes, shipRes, partnersRes] = await Promise.all([
     showIds.length
       ? supabase
           .from("shows_with_status")
@@ -58,7 +58,10 @@ export default async function ExhibitorRecordPage({
           .order("move_in_start", { ascending: true, nullsFirst: false })
       : Promise.resolve({ data: [] as never[] }),
     shipQuery.order("pickup_date", { ascending: true, nullsFirst: false }),
+    // Which partners (exhibit houses, GSCs…) count this exhibitor as a client.
+    supabase.from("partner_clients").select("in_pilot, partner_id, partners(name)").eq("exhibitor_id", id),
   ]);
+  const clientOf = partnersRes.data ?? [];
 
   const shows = showsRes.data ?? [];
   const shipments = shipRes.data ?? [];
@@ -84,6 +87,20 @@ export default async function ExhibitorRecordPage({
           </h1>
           {e.industry ? (
             <p className="mt-1 text-sm text-slate-500">{e.industry}</p>
+          ) : null}
+          {clientOf.length ? (
+            <p className="mt-1 text-sm text-slate-500">
+              Client of{" "}
+              {clientOf.map((c, i) => (
+                <span key={c.partner_id}>
+                  {i > 0 ? ", " : null}
+                  <Link href={`/partners/${c.partner_id}`} className="font-medium text-dts-maroon hover:underline">
+                    {c.partners?.name ?? "a partner"}
+                  </Link>
+                  {c.in_pilot ? " (pilot)" : null}
+                </span>
+              ))}
+            </p>
           ) : null}
         </div>
         <div className="flex items-center gap-2">

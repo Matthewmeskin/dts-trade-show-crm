@@ -15,9 +15,20 @@ import {
   loopState,
   metaOf,
   suggestQualification,
+  weekStart,
   type PartnerType,
 } from "@/lib/partners";
-import { archivePartner, markSignalWorked, removePartnerShow, setPartnerStatus } from "../actions";
+import {
+  archivePartner,
+  markSignalWorked,
+  removePartnerClient,
+  removePartnerShow,
+  setClientPilot,
+  setPartnerStatus,
+  setShowPilot,
+} from "../actions";
+import { loadPartnerReport } from "../report-data";
+import { AddClientForm, ReportSettingsForm } from "./client-panels";
 import { StageBadge, TierBadge, loadPeople } from "../parts";
 import { AddContactForm, AddShowForm, BookCallForm, CloseCallForm, SignalForm, TouchForm } from "./panels";
 import { DraftTouch } from "./draft-touch";
@@ -35,12 +46,21 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
   const { data: partner } = await supabase.from("partners").select("*").eq("id", id).maybeSingle();
   if (!partner) notFound();
 
-  const [people, { data: links }, { data: contacts }, { data: signals }, { data: touches }, { data: calls }, { data: allShows }] =
-    await Promise.all([
+  const [
+    people,
+    { data: links },
+    { data: contacts },
+    { data: signals },
+    { data: touches },
+    { data: calls },
+    { data: allShows },
+    { data: clients },
+    reportData,
+  ] = await Promise.all([
       loadPeople(supabase),
       supabase
         .from("partner_shows")
-        .select("id, show_id, client_count, notes, shows(show_name, show_start_date, show_end_date)")
+        .select("id, show_id, client_count, notes, is_pilot, shows(show_name, show_start_date, show_end_date)")
         .eq("partner_id", id),
       supabase.from("contacts").select("id, first_name, last_name, title, email, phone").eq("partner_id", id).order("created_at"),
       supabase
@@ -63,7 +83,17 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
         .gte("show_start_date", today)
         .order("show_start_date")
         .limit(1000),
+      supabase
+        .from("partner_clients")
+        .select("id, exhibitor_id, in_pilot, exhibitors(company_name)")
+        .eq("partner_id", id),
+      loadPartnerReport(supabase, id),
     ]);
+  const clientList = (clients ?? []).sort(
+    (a, b) => Number(b.in_pilot) - Number(a.in_pilot) || (a.exhibitors?.company_name ?? "").localeCompare(b.exhibitors?.company_name ?? ""),
+  );
+  const report = reportData?.report;
+  const reportSentThisWeek = !!partner.last_report_sent_at && (dayOf(partner.last_report_sent_at) ?? "") >= weekStart(today);
 
   const names = new Map(people.map((p) => [p.id, p.name]));
   const linked = (links ?? [])
@@ -296,6 +326,18 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
                           {l.shows!.show_start_date && l.shows!.show_start_date < today ? " · past" : ""}
                         </div>
                       </div>
+                      <form action={setShowPilot} className="ml-auto">
+                        <input type="hidden" name="id" value={l.id} />
+                        <input type="hidden" name="partner_id" value={id} />
+                        <input type="hidden" name="is_pilot" value={l.is_pilot ? "false" : "true"} />
+                        <button
+                          type="submit"
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${l.is_pilot ? "bg-dts-maroon text-white" : "text-slate-400 hover:text-slate-700"}`}
+                          title={l.is_pilot ? "Pilot show — click to unmark" : "Mark as the pilot show"}
+                        >
+                          {l.is_pilot ? "Pilot show" : "Make pilot show"}
+                        </button>
+                      </form>
                       <form action={removePartnerShow}>
                         <input type="hidden" name="id" value={l.id} />
                         <input type="hidden" name="partner_id" value={id} />
@@ -310,6 +352,48 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
                 <p className="text-sm text-slate-400">No shows linked. The first touch and the qualification check both need one.</p>
               )}
               <AddShowForm partnerId={id} shows={addableShows} />
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader title={`Clients (${clientList.length})`} icon="exhibitors" />
+            <div className="space-y-3 p-5">
+              <p className="text-xs text-slate-500">
+                The exhibitors whose freight this partner controls. Their shipments feed the weekly report. Land and
+                expand: mark the few in the pilot, then add the rest of the book as they come over.
+              </p>
+              {clientList.length ? (
+                <ul className="divide-y divide-slate-100 text-sm">
+                  {clientList.map((c) => (
+                    <li key={c.id} className="flex items-center justify-between gap-3 py-2">
+                      <Link href={`/exhibitors/${c.exhibitor_id}`} className="font-medium text-slate-900 hover:text-dts-maroon">
+                        {c.exhibitors?.company_name ?? "—"}
+                      </Link>
+                      <div className="flex items-center gap-3">
+                        <form action={setClientPilot}>
+                          <input type="hidden" name="id" value={c.id} />
+                          <input type="hidden" name="partner_id" value={id} />
+                          <input type="hidden" name="in_pilot" value={c.in_pilot ? "false" : "true"} />
+                          <button
+                            type="submit"
+                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${c.in_pilot ? "bg-dts-maroon text-white" : "text-slate-400 hover:text-slate-700"}`}
+                          >
+                            {c.in_pilot ? "Pilot" : "Add to pilot"}
+                          </button>
+                        </form>
+                        <form action={removePartnerClient}>
+                          <input type="hidden" name="id" value={c.id} />
+                          <input type="hidden" name="partner_id" value={id} />
+                          <button type="submit" className="text-xs text-slate-400 hover:text-dts-maroon">
+                            Remove
+                          </button>
+                        </form>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <AddClientForm partnerId={id} />
             </div>
           </Card>
 
@@ -339,6 +423,43 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
         </div>
 
         <div className="space-y-5">
+          <Card>
+            <CardHeader
+              title="Weekly client report"
+              icon="documents"
+              action={
+                <Link href={`/partners/${id}/report`} className="text-xs font-medium text-dts-maroon hover:underline">
+                  Open this week&apos;s →
+                </Link>
+              }
+            />
+            <div className="space-y-3 p-5">
+              {report && clientList.length ? (
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className={`rounded-lg border px-2 py-1.5 ${report.counts.outboundGaps ? "border-dts-maroon/30 bg-dts-maroon/5" : "border-slate-200"}`}>
+                    <div className={`text-lg font-semibold ${report.counts.outboundGaps ? "text-dts-maroon" : "text-slate-900"}`}>
+                      {report.counts.outboundGaps}
+                    </div>
+                    <div className="text-xs text-slate-500">Outbound not booked</div>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 px-2 py-1.5">
+                    <div className="text-lg font-semibold text-slate-900">{report.counts.inMotion + report.counts.outboundBooked}</div>
+                    <div className="text-xs text-slate-500">Moving now</div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">Link their clients below and their freight shows up here.</p>
+              )}
+              <ReportSettingsForm partnerId={id} reportTo={partner.report_to} active={partner.report_active} />
+              <p className="text-xs text-slate-400">
+                {partner.last_report_sent_at
+                  ? `${reportSentThisWeek ? "Sent this week" : "Last sent"} ${formatPacificDateTime(partner.last_report_sent_at)}.`
+                  : "Never sent."}{" "}
+                The CRM writes it; you check it and send it.
+              </p>
+            </div>
+          </Card>
+
           <Card>
             <CardHeader title="First touch" icon="sparkles" />
             <div className="p-5">

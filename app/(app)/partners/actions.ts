@@ -480,3 +480,155 @@ export async function savePlaybookSection(_prev: PartnerState, fd: FormData): Pr
   revalidatePath("/partners/playbook");
   return { error: null, ok: true };
 }
+
+// ---------------------------------------------------------------------------
+// Clients and pilots
+// ---------------------------------------------------------------------------
+
+/** Exhibitor lookup for the "add a client" box. Top matches by name. */
+export async function searchExhibitors(q: string): Promise<{ id: string; name: string }[]> {
+  const term = q.trim().replace(/[%_,()]/g, " ").trim();
+  if (term.length < 2) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("exhibitors")
+    .select("id, company_name")
+    .ilike("company_name", `%${term}%`)
+    .order("company_name")
+    .limit(12);
+  return (data ?? []).map((e) => ({ id: e.id, name: e.company_name }));
+}
+
+/**
+ * Link an exhibitor as this partner's client. Picks an existing exhibitor, or
+ * creates one by name when the admin confirms it isn't in the CRM yet - so the
+ * same company doesn't end up in the directory twice.
+ */
+export async function addPartnerClient(_prev: PartnerState, fd: FormData): Promise<PartnerState> {
+  const partner_id = str(fd, "partner_id");
+  let exhibitor_id = str(fd, "exhibitor_id");
+  const newName = str(fd, "new_company_name");
+  if (!partner_id) return { error: "Missing partner." };
+  const supabase = await createClient();
+
+  if (!exhibitor_id && newName) {
+    const { data: same } = await supabase
+      .from("exhibitors")
+      .select("id")
+      .ilike("company_name", newName.replace(/[%_]/g, "\\$&"))
+      .limit(1);
+    if (same?.length) exhibitor_id = same[0].id;
+    else {
+      const { data: created, error } = await supabase
+        .from("exhibitors")
+        .insert({ company_name: newName })
+        .select("id")
+        .single();
+      if (error) return { error: error.message };
+      exhibitor_id = created.id;
+      await logActivity(supabase, {
+        action: "created",
+        entityType: "exhibitor",
+        entityId: created.id,
+        entityLabel: newName,
+        summary: "Added as a partner's client",
+      });
+    }
+  }
+  if (!exhibitor_id) return { error: "Pick the client from the list, or add them as a new exhibitor." };
+
+  const { error } = await supabase
+    .from("partner_clients")
+    .upsert({ partner_id, exhibitor_id, in_pilot: fd.get("in_pilot") != null }, { onConflict: "partner_id,exhibitor_id" });
+  if (error) return { error: error.message };
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "partner",
+    entityId: partner_id,
+    summary: "Linked a client exhibitor",
+    details: { exhibitor_id },
+  });
+  touchPaths(partner_id);
+  revalidatePath(`/exhibitors/${exhibitor_id}`);
+  return { error: null, ok: true };
+}
+
+export async function setClientPilot(fd: FormData) {
+  const id = str(fd, "id");
+  const partner_id = str(fd, "partner_id");
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.from("partner_clients").update({ in_pilot: str(fd, "in_pilot") === "true" }).eq("id", id);
+  touchPaths(partner_id);
+}
+
+export async function removePartnerClient(fd: FormData) {
+  const id = str(fd, "id");
+  const partner_id = str(fd, "partner_id");
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.from("partner_clients").delete().eq("id", id);
+  touchPaths(partner_id);
+}
+
+export async function setShowPilot(fd: FormData) {
+  const id = str(fd, "id");
+  const partner_id = str(fd, "partner_id");
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.from("partner_shows").update({ is_pilot: str(fd, "is_pilot") === "true" }).eq("id", id);
+  touchPaths(partner_id);
+}
+
+// ---------------------------------------------------------------------------
+// The weekly pilot report
+// ---------------------------------------------------------------------------
+
+const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
+
+export async function saveReportSettings(_prev: PartnerState, fd: FormData): Promise<PartnerState> {
+  const id = str(fd, "partner_id");
+  if (!id) return { error: "Missing partner." };
+  const emails = (str(fd, "report_to") ?? "")
+    .split(/[,;\s]+/)
+    .map((e) => e.trim())
+    .filter(Boolean);
+  const bad = emails.filter((e) => !EMAIL.test(e));
+  if (bad.length) return { error: `Not an email address: ${bad.join(", ")}` };
+  const report_active = fd.get("report_active") != null;
+  if (report_active && !emails.length) return { error: "Add who gets the report before turning it on." };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("partners")
+    .update({ report_to: emails.length ? emails.join(", ") : null, report_active })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  touchPaths(id);
+  return { error: null, ok: true };
+}
+
+/**
+ * The rep sent this week's report from their own mailbox. Record it as a touch
+ * so it counts, and so the worklist stops asking for it until next Monday.
+ */
+export async function markReportSent(fd: FormData) {
+  const id = str(fd, "partner_id");
+  if (!id) return;
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+  await supabase.from("partners").update({ last_report_sent_at: now }).eq("id", id);
+  await supabase.from("partner_touches").insert({
+    partner_id: id,
+    channel: "email",
+    reached: false,
+    note: `Sent the weekly client freight status report${str(fd, "week_of") ? ` (week of ${str(fd, "week_of")})` : ""}.`,
+  });
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "partner",
+    entityId: id,
+    summary: "Sent the weekly pilot report",
+  });
+  touchPaths(id);
+  revalidatePath(`/partners/${id}/report`);
+}

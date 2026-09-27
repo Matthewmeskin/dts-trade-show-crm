@@ -584,11 +584,57 @@ export type Database = {
           },
         ]
       }
+      partner_clients: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          exhibitor_id: string
+          id: string
+          in_pilot: boolean
+          notes: string | null
+          partner_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          exhibitor_id: string
+          id?: string
+          in_pilot?: boolean
+          notes?: string | null
+          partner_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          exhibitor_id?: string
+          id?: string
+          in_pilot?: boolean
+          notes?: string | null
+          partner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_clients_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_clients_exhibitor_id_fkey"
+            columns: ["exhibitor_id"]
+            isOneToOne: false
+            referencedRelation: "exhibitors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_shows: {
         Row: {
           client_count: number | null
           created_at: string
           id: string
+          is_pilot: boolean
           notes: string | null
           partner_id: string
           show_id: string
@@ -597,6 +643,7 @@ export type Database = {
           client_count?: number | null
           created_at?: string
           id?: string
+          is_pilot?: boolean
           notes?: string | null
           partner_id: string
           show_id: string
@@ -605,6 +652,7 @@ export type Database = {
           client_count?: number | null
           created_at?: string
           id?: string
+          is_pilot?: boolean
           notes?: string | null
           partner_id?: string
           show_id?: string
@@ -734,10 +782,13 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          last_report_sent_at: string | null
           name: string
           next_step: string | null
           next_step_on: string | null
           notes: string | null
+          report_active: boolean
+          report_to: string | null
           partner_type: string
           rep_id: string | null
           shipping_pain: string | null
@@ -756,10 +807,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          last_report_sent_at?: string | null
           name: string
           next_step?: string | null
           next_step_on?: string | null
           notes?: string | null
+          report_active?: boolean
+          report_to?: string | null
           partner_type?: string
           rep_id?: string | null
           shipping_pain?: string | null
@@ -778,10 +832,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          last_report_sent_at?: string | null
           name?: string
           next_step?: string | null
           next_step_on?: string | null
           notes?: string | null
+          report_active?: boolean
+          report_to?: string | null
           partner_type?: string
           rep_id?: string | null
           shipping_pain?: string | null

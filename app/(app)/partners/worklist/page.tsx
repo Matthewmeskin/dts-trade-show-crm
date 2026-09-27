@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Badge, Card, CardHeader, EmptyState, PageHeader } from "@/components/ui";
-import { daysUntil, formatDate, formatPacificDateTime, formatShortDate, todayYMD } from "@/lib/format";
+import { dayOf, daysUntil, formatDate, formatPacificDateTime, formatShortDate, todayYMD } from "@/lib/format";
 import { shiftDays } from "@/lib/sales";
-import { SIGNAL_TYPES, labelOf, loopState } from "@/lib/partners";
+import { SIGNAL_TYPES, labelOf, loopState, weekStart } from "@/lib/partners";
 import { markSignalWorked } from "../actions";
 import { PartnersNav, StageBadge, TierBadge, WeeklyStrip, loadPeople, loadWeeklyNumbers } from "../parts";
 
@@ -23,7 +23,7 @@ export default async function WorklistPage({ searchParams }: { searchParams: Pro
   const me = claims?.claims?.sub ?? "";
   const onlyMine = mine === "1" && !!me;
 
-  const [people, week, { data: signals }, { data: steps }, { data: calls }, { data: links }] = await Promise.all([
+  const [people, week, { data: signals }, { data: steps }, { data: calls }, { data: links }, { data: reporting }] = await Promise.all([
     loadPeople(supabase),
     loadWeeklyNumbers(supabase),
     supabase
@@ -50,6 +50,12 @@ export default async function WorklistPage({ searchParams }: { searchParams: Pro
       .order("scheduled_at")
       .limit(200),
     supabase.from("partner_shows").select("partner_id, client_count, shows(show_name, show_start_date)").limit(5000),
+    supabase
+      .from("partners")
+      .select("id, name, tier, stage, admin_id, rep_id, report_to, last_report_sent_at")
+      .eq("archived", false)
+      .eq("report_active", true)
+      .order("name"),
   ]);
 
   const names = new Map(people.map((p) => [p.id, p.name]));
@@ -68,6 +74,12 @@ export default async function WorklistPage({ searchParams }: { searchParams: Pro
   const upcoming = mineOnly(calls ?? [], (c) => c.partners?.admin_id).filter((c) => loopState(c, now) === "upcoming");
   const sigs = mineOnly(signals ?? [], (s) => s.partners.admin_id);
   const due = mineOnly(steps ?? [], (p) => p.admin_id);
+  // Weekly pilot reports not yet sent since Monday. Reps send these, so "mine"
+  // here means the rep or the admin on the partner.
+  const monday = weekStart(today);
+  const reportsDue = (reporting ?? [])
+    .filter((p) => !p.last_report_sent_at || (dayOf(p.last_report_sent_at) ?? "") < monday)
+    .filter((p) => !onlyMine || p.admin_id === me || p.rep_id === me);
 
   const NextShow = ({ partnerId }: { partnerId: string }) => {
     const ns = nextShow.get(partnerId);
@@ -86,7 +98,7 @@ export default async function WorklistPage({ searchParams }: { searchParams: Pro
     <div>
       <PageHeader
         title="Partner worklist"
-        description="Work it top to bottom: outcomes owed, new signals, next steps due, then the calls coming up."
+        description="Work it top to bottom: outcomes owed, client reports to send, new signals, next steps due, then the calls coming up."
         actions={
           <Link
             href={onlyMine ? "/partners/worklist" : "/partners/worklist?mine=1"}
@@ -122,6 +134,36 @@ export default async function WorklistPage({ searchParams }: { searchParams: Pro
                   </li>
                 );
               })}
+            </ul>
+          </Card>
+        ) : null}
+
+        {reportsDue.length ? (
+          <Card>
+            <CardHeader title={`Weekly client reports to send (${reportsDue.length})`} icon="documents" />
+            <ul className="divide-y divide-slate-100">
+              {reportsDue.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
+                  <div className="space-y-0.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link href={`/partners/${p.id}`} className="font-medium text-slate-900 hover:text-dts-maroon">
+                        {p.name}
+                      </Link>
+                      <StageBadge stage={p.stage} />
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      To {p.report_to ?? "—"} · rep {p.rep_id ? (names.get(p.rep_id) ?? "—") : "—"}
+                      {p.last_report_sent_at ? ` · last sent ${formatShortDate(dayOf(p.last_report_sent_at))}` : " · never sent"}
+                    </div>
+                  </div>
+                  <Link
+                    href={`/partners/${p.id}/report`}
+                    className="rounded-lg bg-dts-maroon px-3 py-1.5 text-xs font-medium text-white hover:bg-dts-maroon-dark"
+                  >
+                    Check and send
+                  </Link>
+                </li>
+              ))}
             </ul>
           </Card>
         ) : null}
