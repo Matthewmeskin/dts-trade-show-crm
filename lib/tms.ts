@@ -466,3 +466,22 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
     fields,
   };
 }
+
+/**
+ * Should the sync (re)set a shipment's exhibitor from the TMS customer?
+ *
+ * Yes when nothing is linked yet. Otherwise only when the TMS customer on the
+ * load has CHANGED since the last sync - a load moved from a test or house
+ * account to the real customer. A link an operator set by hand, on a load
+ * whose TMS customer hasn't changed, is never touched.
+ */
+export function shouldRelinkExhibitor(input: {
+  linkedExhibitorId: string | null | undefined;
+  storedCustomerId: string | null | undefined;
+  incomingCustomerId: string | null | undefined;
+}): boolean {
+  if (!input.linkedExhibitorId) return true;
+  const was = (input.storedCustomerId ?? "").trim();
+  const now = (input.incomingCustomerId ?? "").trim();
+  return !!was && !!now && was !== now;
+}

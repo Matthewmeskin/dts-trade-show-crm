@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { parseLoad } from "@/lib/tms";
+import { parseLoad, shouldRelinkExhibitor } from "@/lib/tms";
 import { resolveVenueId, resolveShowId, type ShowLite } from "@/lib/tms-link";
 
 const TRACKING_BASE = "https://hyperion.dtsone.com/api/home/tracking";
@@ -44,7 +44,7 @@ export async function syncLoadNumber(loadNumber: string): Promise<boolean> {
   // records that can't be linked to anything.
   const { data: current } = await supabase
     .from("shipments")
-    .select("exhibitor_id, venue_id, show_id, venue_auto_linked, show_auto_linked")
+    .select("exhibitor_id, tms_customer_id, venue_id, show_id, venue_auto_linked, show_auto_linked")
     .eq("tms_reference_id", parsed.ref)
     .maybeSingle();
   if (!current) return false;
@@ -94,12 +94,17 @@ export async function syncLoadNumber(loadNumber: string): Promise<boolean> {
       ).data?.id;
   }
 
-  // Resolve the exhibitor from the TMS customer name, but only when this
-  // shipment has no exhibitor yet — never overwrite a manual operator link
-  // (and skip find-or-create entirely when already linked, so we don't mint
-  // orphan exhibitor records).
+  // Resolve the exhibitor from the TMS customer name when this shipment has
+  // none yet, or when the load moved to a different TMS customer since the
+  // last sync. Otherwise never overwrite a manual operator link (and skip
+  // find-or-create entirely, so we don't mint orphan exhibitor records).
   let exhibitor_id: string | undefined;
-  if (!current.exhibitor_id && parsed.customerName) {
+  const relink = shouldRelinkExhibitor({
+    linkedExhibitorId: current.exhibitor_id,
+    storedCustomerId: current.tms_customer_id,
+    incomingCustomerId: parsed.fields.tms_customer_id,
+  });
+  if (relink && parsed.customerName) {
     const found = await supabase
       .from("exhibitors")
       .select("id")

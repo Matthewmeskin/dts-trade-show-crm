@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { parseLoad, isRoadshow, type ParsedLoad } from "@/lib/tms";
+import { parseLoad, isRoadshow, shouldRelinkExhibitor, type ParsedLoad } from "@/lib/tms";
 import { resolveVenueId, resolveShowId, type ShowLite } from "@/lib/tms-link";
 import type { TablesInsert } from "@/lib/database.types";
 
@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
   const refs = parsed.filter(Boolean).map((p) => p!.ref);
   const existing = new Set<string>();
   const existingExhibitor = new Map<string, string | null>();
+  const existingCustomer = new Map<string, string | null>();
   const existingVenue = new Map<string, string | null>();
   const existingShow = new Map<string, string | null>();
   const existingDirection = new Map<string, string | null>();
@@ -88,13 +89,14 @@ export async function POST(req: NextRequest) {
     const { data } = await supabase
       .from("shipments")
       .select(
-        "tms_reference_id, exhibitor_id, venue_id, show_id, direction, venue_auto_linked, show_auto_linked",
+        "tms_reference_id, exhibitor_id, tms_customer_id, venue_id, show_id, direction, venue_auto_linked, show_auto_linked",
       )
       .in("tms_reference_id", refs);
     for (const r of data ?? [])
       if (r.tms_reference_id) {
         existing.add(r.tms_reference_id);
         existingExhibitor.set(r.tms_reference_id, r.exhibitor_id);
+        existingCustomer.set(r.tms_reference_id, r.tms_customer_id);
         existingVenue.set(r.tms_reference_id, r.venue_id);
         existingShow.set(r.tms_reference_id, r.show_id);
         existingDirection.set(r.tms_reference_id, r.direction);
@@ -163,9 +165,14 @@ export async function POST(req: NextRequest) {
     const exhibitor_id = p.customerName
       ? exhibitorIds.get(p.customerName.toLowerCase())
       : undefined;
-    // Link the exhibitor only when we resolved one AND the shipment isn't
-    // already linked — never clobber an operator's manual exhibitor/show link.
-    const alreadyLinked = existingExhibitor.get(p.ref);
+    // Link the exhibitor when the shipment has none, or when the load moved to
+    // a different TMS customer since the last sync. Otherwise never clobber an
+    // operator's manual exhibitor link.
+    const relinkExhibitor = shouldRelinkExhibitor({
+      linkedExhibitorId: existingExhibitor.get(p.ref),
+      storedCustomerId: existingCustomer.get(p.ref),
+      incomingCustomerId: p.fields.tms_customer_id,
+    });
 
     // Auto-link venue + show to EXISTING records when confident and not already
     // linked. Never creates records (that's the reviewed Suggestions flow).
@@ -189,7 +196,7 @@ export async function POST(req: NextRequest) {
       tms_reference_id: p.ref,
       ...p.fields,
       ...(carrier_id ? { carrier_id } : {}),
-      ...(exhibitor_id && !alreadyLinked ? { exhibitor_id } : {}),
+      ...(exhibitor_id && relinkExhibitor ? { exhibitor_id } : {}),
       ...(venue_id ? { venue_id, venue_auto_linked: true } : {}),
       ...(show_id ? { show_id, show_auto_linked: true } : {}),
       // Inferred direction only when the operator hasn't set one (never clobber).

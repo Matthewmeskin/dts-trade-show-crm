@@ -48,3 +48,15 @@ describe("TMS dates land on the day Hyperion shows", () => {
     assert.equal(parsed?.fields.pickup_date, "2026-09-22");
   });
 });
+
+test("exhibitor relink: fill an empty link, follow a load moved to another TMS customer, never override a manual link", async () => {
+  const { shouldRelinkExhibitor } = await import("../tms");
+  assert.equal(shouldRelinkExhibitor({ linkedExhibitorId: null, storedCustomerId: null, incomingCustomerId: "72898" }), true);
+  // Load 120203: booked on Kevin's Test Account (69003), moved to Adeeb Robotics (72898).
+  assert.equal(shouldRelinkExhibitor({ linkedExhibitorId: "kevin", storedCustomerId: "69003", incomingCustomerId: "72898" }), true);
+  // Same customer: whatever the operator linked stays.
+  assert.equal(shouldRelinkExhibitor({ linkedExhibitorId: "manual", storedCustomerId: "72898", incomingCustomerId: "72898" }), false);
+  // Unknown either side: can't tell it moved, so leave it.
+  assert.equal(shouldRelinkExhibitor({ linkedExhibitorId: "x", storedCustomerId: null, incomingCustomerId: "72898" }), false);
+  assert.equal(shouldRelinkExhibitor({ linkedExhibitorId: "x", storedCustomerId: "69003", incomingCustomerId: null }), false);
+});
