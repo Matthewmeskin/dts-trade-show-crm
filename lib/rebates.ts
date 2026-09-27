@@ -15,9 +15,9 @@ import { formatDate } from "@/lib/format";
  * that no earlier statement took, so a load credited late is carried into the
  * next statement instead of being lost.
  *
- * Money figures: billed is what Sage says the customer was invoiced (the
- * amount actually paid), cost is the TMS carrier cost, margin is the
- * difference. The partner-facing statement never shows cost or margin.
+ * Money figures: billed is what Sage says the customer was invoiced when it
+ * says (its AR extract carries no amounts as of 2026-09), otherwise the TMS
+ * billed amount; cost is the TMS carrier cost; margin is the difference. The partner-facing statement never shows cost or margin.
  */
 
 export type ArStatus = "paid" | "open" | "not_in_ledger" | "no_reference" | "no_ledger";
@@ -192,7 +192,9 @@ export function buildRebateDraft(input: {
       checks.push({ ...who, problem: "Marked cancelled in the CRM but its invoice is paid. Check which is right." });
       continue;
     }
-    const billed = ar.invoiced != null ? Number(ar.invoiced) : s.billed_amount;
+    // Sage's invoice amount when it has one; its AR extract leaves it at 0
+    // today, so in practice this is the TMS billed amount.
+    const billed = ar.invoiced != null && Number(ar.invoiced) > 0 ? Number(ar.invoiced) : s.billed_amount;
     if (billed == null || s.cost_amount == null) {
       checks.push({ ...who, problem: "No carrier cost in the TMS yet, so there's no margin to figure a rebate on." });
       continue;

@@ -83,6 +83,14 @@ test("Sage's invoiced amount is the billed figure; a TMS mismatch is noted, not 
   assert.match(d.notes[0].problem, /Using Sage/);
 });
 
+test("Sage with no invoice amount (its extract today) falls back to the TMS billed amount", () => {
+  const a = ship({ billed_amount: 1000, cost_amount: 700 });
+  const d = draft([a], [paid(a.id, "2026-10-15", 0)]);
+  assert.equal(d.lines[0].billed, 1000);
+  assert.equal(d.lines[0].margin, 300);
+  assert.equal(d.notes.length, 0);
+});
+
 test("paid after the quarter waits for the next one; paid before it is carried in", () => {
   const later = ship({ tms_reference_id: "1" });
   const earlier = ship({ tms_reference_id: "2" });

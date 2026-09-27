@@ -225,7 +225,8 @@ begin
         else 'open'
       end,
       coalesce(array_agg(distinct g.invoice_no) filter (where g.id is not null), array[]::text[]),
-      sum(g.invoice_amt),
+      -- Sage's extract leaves invoice_amt at 0; null says "Sage doesn't know".
+      nullif(sum(g.invoice_amt), 0),
       sum(g.balance),
       case
         when count(g.id) > 0 and bool_and(g.balance = 0 and g.closed_at is not null)
