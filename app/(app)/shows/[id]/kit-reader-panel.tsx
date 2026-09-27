@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
+import { applyKitToShow, type LogisticsState } from "../logistics-actions";
 import { inputClass } from "@/components/form";
 import { Icon } from "@/components/icons";
 import {
@@ -42,7 +43,8 @@ export function KitReaderPanel({ showId, showYear, defaultUrl, crmFacts, onRead,
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ reading: KitReading; fills: FillResult[] } | null>(null);
+  const [result, setResult] = useState<{ reading: KitReading; fills: FillResult[]; url: string | null } | null>(null);
+  const [applyState, applyAction] = useActionState(applyKitToShow, { error: null } as LogisticsState);
 
   async function read() {
     setBusy(true);
@@ -62,7 +64,7 @@ export function KitReaderPanel({ showId, showYear, defaultUrl, crmFacts, onRead,
       }
       const reading = body.reading as KitReading;
       const fills = onRead(reading, mode === "url" ? url : null);
-      setResult({ reading, fills });
+      setResult({ reading, fills, url: mode === "url" ? url : null });
     } catch {
       setError("The reader didn't answer. Check your connection and try again.");
     } finally {
@@ -237,20 +239,35 @@ export function KitReaderPanel({ showId, showYear, defaultUrl, crmFacts, onRead,
                 These live on the show record, so the reader doesn&apos;t change them here.
               </p>
               {missingFacts ? (
-                <a
-                  href={`/shows/${showId}/edit?kit=${encodeURIComponent(encodeKitFacts(missingFacts))}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mb-2 inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3 py-1.5 text-xs font-medium text-white hover:bg-dts-maroon-dark"
-                >
-                  Put the {Object.keys(missingFacts).length} missing on the show&apos;s edit form ↗
-                </a>
-              ) : null}
-              {missingFacts ? (
-                <p className="mb-2 text-xs text-slate-400">
-                  Opens in a new tab with only the empty fields filled in; you check them and save there. Save this
-                  tab&apos;s draft too.
-                </p>
+                <form action={applyAction} className="mb-2 space-y-1.5">
+                  <input type="hidden" name="show_id" value={showId} />
+                  <input type="hidden" name="facts" value={encodeKitFacts(missingFacts)} />
+                  <input type="hidden" name="kit_url" value={result?.url ?? ""} />
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="submit"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3 py-1.5 text-xs font-medium text-white hover:bg-dts-maroon-dark"
+                    >
+                      Add the {Object.keys(missingFacts).length} missing to the show
+                    </button>
+                    <a
+                      href={`/shows/${showId}/edit?kit=${encodeURIComponent(encodeKitFacts(missingFacts))}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-dts-blue hover:underline"
+                    >
+                      or review them on the edit form ↗
+                    </a>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Saves only the ones marked &ldquo;Not on the show record yet&rdquo; below, never over something
+                    already there. Check them against the kit first. Nothing publishes until Verify.
+                  </p>
+                  {applyState.error ? <p className="text-xs text-dts-maroon">{applyState.error}</p> : null}
+                  {applyState.ok ? <p className="text-xs text-emerald-700">{applyState.message}</p> : null}
+                </form>
+              ) : applyState.ok ? (
+                <p className="mb-2 text-xs text-emerald-700">{applyState.message}</p>
               ) : null}
               <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white text-xs">
                 {facts.map((f) => (

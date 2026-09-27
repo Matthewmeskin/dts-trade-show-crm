@@ -6,12 +6,16 @@ import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity";
 import { nudgePublicSync } from "@/lib/public-sync";
 import { isValidSlug, verifyBlockers } from "@/lib/logistics";
+import { composeFreightAddress } from "@/lib/freight";
+import type { TablesUpdate } from "@/lib/database.types";
+import { decodeKitFacts, kitFillForShow } from "@/lib/kit-reader";
 
 export type LogisticsState = {
   error: string | null;
   ok?: boolean;
   /** Blockers the database would have raised, reported before it had to. */
   blockers?: string[];
+  message?: string;
 };
 
 const str = (fd: FormData, k: string) => {
@@ -439,4 +443,62 @@ export async function rollToNextYear(
   revalidatePath("/show-pages");
   revalidatePath(`/shows/${show_id}`);
   redirect(`/shows/${row.id}?tab=logistics&flash=rolled`);
+}
+
+/**
+ * Put the kit's dates and addresses on the show record in one click, instead
+ * of retyping them field by field. The coordinator has just read each value,
+ * with where the kit says it, in the reader's list; this saves only the ones
+ * the show doesn't have yet (never overwrites), and none of it publishes
+ * anything - the page still needs a person to Verify.
+ */
+export async function applyKitToShow(_prev: LogisticsState, fd: FormData): Promise<LogisticsState> {
+  const showId = str(fd, "show_id");
+  const facts = decodeKitFacts(str(fd, "facts"));
+  if (!showId || !facts) return { error: "Nothing to add. Read the kit again." };
+  const supabase = await createClient();
+  const { data: show, error: readErr } = await supabase.from("shows").select("*").eq("id", showId).maybeSingle();
+  if (readErr || !show) return { error: readErr?.message ?? "Show not found." };
+
+  const fill = kitFillForShow(facts, show);
+  const update: Record<string, string> = { ...fill.values };
+  // Keep the one-line address column in step with the parts, as the edit form does.
+  for (const prefix of ["advance_warehouse", "direct_to_show", "marshalling_yard"] as const) {
+    if (!update[`${prefix}_street1`]) continue;
+    const oneLine = composeFreightAddress({
+      name: update[`${prefix}_name`],
+      care_of: update[`${prefix}_care_of`],
+      street1: update[`${prefix}_street1`],
+      street2: update[`${prefix}_street2`],
+      city: update[`${prefix}_city`],
+      state: update[`${prefix}_state`],
+      zip: update[`${prefix}_zip`],
+      country: update[`${prefix}_country`],
+    }).oneLine;
+    if (oneLine) update[`${prefix}_address`] = oneLine;
+  }
+  const kitUrl = str(fd, "kit_url");
+  if (kitUrl && /^https?:\/\//i.test(kitUrl) && !show.exhibitor_manual_url) update.exhibitor_manual_url = kitUrl;
+
+  if (!Object.keys(update).length) {
+    return { error: null, ok: true, message: "The show already has everything the kit covers. Nothing changed." };
+  }
+  // Keys come from kitFillForShow's fixed list of show columns.
+  const { error } = await supabase.from("shows").update(update as TablesUpdate<"shows">).eq("id", showId);
+  if (error) return { error: error.message };
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "show",
+    entityId: showId,
+    entityLabel: show.show_name,
+    summary: `Added ${fill.filled.length} value${fill.filled.length === 1 ? "" : "s"} from the exhibitor kit to the show`,
+    details: { fields: Object.keys(update) },
+  });
+  revalidatePath(`/shows/${showId}`);
+  const skipped = fill.skipped.length ? ` ${fill.skipped.map((x) => `${x.label}: ${x.why}`).join(" ")}` : "";
+  return {
+    error: null,
+    ok: true,
+    message: `Added to the show: ${fill.filled.map((f) => f.label).join(", ") || "the kit link"}.${skipped}`,
+  };
 }
