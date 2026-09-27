@@ -7,8 +7,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * and right after Verify, Revert, Publish or a cobranding change.
  *
  *   1. read   tradeshow.public_export() on DTS Database (service role, server only):
- *             exactly the rows of the two reviewed export views
- *   2. apply  public.apply_export_signed / apply_partner_export_signed on the
+ *             exactly the rows of the reviewed export views
+ *   2. apply  public.apply_export_signed / apply_partner_export_signed /
+ *             apply_ship_export_signed (GSC Shipping Center) on the
  *             DTS Trade Show project, with its publishable key + the sync secret.
  *             The public project checks the secret against a stored SHA-256
  *             fingerprint, then reconciles with all its guards (column
@@ -22,8 +23,21 @@ import { createAdminClient } from "@/lib/supabase/admin";
  */
 
 /** md5 of each export view's column names. The public side refuses a widened view. */
-export const SHOW_EXPORT_SIG = "69e2b14b62548958d3acd661eaf52c24";
+export const SHOW_EXPORT_SIG = "539191084e0eed1a285e2cb5b5e4b97a";
+/**
+ * The show export before it carried is_public and ship_enabled (export 008).
+ * Accepted only for a row without those keys, so the CRM and the export
+ * migration can deploy in either order. Remove once 008 is live.
+ */
+export const SHOW_EXPORT_SIG_BEFORE_FLAGS = "69e2b14b62548958d3acd661eaf52c24";
 export const PARTNER_EXPORT_SIG = "0f6087d487a0bcffd359f1d01ddf095d";
+export const SHIP_EXPORT_SIG = "3aaa83846b0c3d1453f5cc9c306723f4";
+
+/** The signature to expect for this show export: null when there is nothing to check. */
+export function showExportSig(rows: Record<string, unknown>[]): string | null {
+  if (!rows.length) return null;
+  return "is_public" in rows[0] ? SHOW_EXPORT_SIG : SHOW_EXPORT_SIG_BEFORE_FLAGS;
+}
 
 export type SyncTrigger = "schedule" | "on_verify" | "manual";
 
@@ -32,8 +46,11 @@ export type SyncResult = {
   trigger: SyncTrigger;
   showRows: number;
   partnerRows: number;
+  /** null until export 009 (ship_export) is live on DTS Database. */
+  shipRows?: number | null;
   shows?: Record<string, unknown>;
   partners?: Record<string, unknown>;
+  ship?: Record<string, unknown>;
   revalidated?: boolean;
   error?: string;
 };
@@ -108,7 +125,7 @@ async function runOnce(trigger: SyncTrigger): Promise<SyncResult> {
   try {
     const { data, error } = await createAdminClient().rpc("public_export" as never);
     if (error) throw new Error(`public_export: ${error.message}`);
-    const exported = (data ?? {}) as { shows?: Row[]; partners?: Row[] };
+    const exported = (data ?? {}) as { shows?: Row[]; partners?: Row[]; ship?: Row[]; ship_codes?: Row[] };
     showRows = exported.shows ?? [];
     partnerRows = exported.partners ?? [];
 
@@ -119,13 +136,25 @@ async function runOnce(trigger: SyncTrigger): Promise<SyncResult> {
       p_trigger_source: trigger,
       // An empty export has no columns to check; requiring a signature there
       // would stop the last show from ever coming down.
-      p_expected_sig: showRows.length ? SHOW_EXPORT_SIG : null,
+      p_expected_sig: showExportSig(showRows),
     });
     const partners = await rpc("apply_partner_export_signed", {
       p_secret: process.env.TRADE_SHOW_SYNC_SECRET,
       p_rows: partnerRows,
       p_expected_sig: partnerRows.length ? PARTNER_EXPORT_SIG : null,
     });
+    // GSC Shipping Center: after the shows, whose editions it points at. Never
+    // deletes on the public side; a row that leaves the export is switched off.
+    let ship: Record<string, unknown> | undefined;
+    const shipRows = exported.ship ?? null;
+    if (shipRows) {
+      ship = await rpc("apply_ship_export_signed", {
+        p_secret: process.env.TRADE_SHOW_SYNC_SECRET,
+        p_rows: shipRows,
+        p_codes: exported.ship_codes ?? [],
+        p_expected_sig: shipRows.length ? SHIP_EXPORT_SIG : null,
+      });
+    }
 
     let revalidated = false;
     const site = process.env.TRADE_SHOW_SITE_URL;
@@ -140,7 +169,17 @@ async function runOnce(trigger: SyncTrigger): Promise<SyncResult> {
       // The data is applied either way; pages still refresh on their hourly timer.
       revalidated = res.ok;
     }
-    return { ok: true, trigger, showRows: showRows.length, partnerRows: partnerRows.length, shows, partners, revalidated };
+    return {
+      ok: true,
+      trigger,
+      showRows: showRows.length,
+      partnerRows: partnerRows.length,
+      shipRows: shipRows ? shipRows.length : null,
+      shows,
+      partners,
+      ship,
+      revalidated,
+    };
   } catch (e) {
     return {
       ok: false,

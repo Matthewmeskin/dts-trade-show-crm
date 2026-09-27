@@ -27,6 +27,7 @@ import {
   setClientPilot,
   setPartnerStatus,
   setShowCobranded,
+  setShipCenter,
   setShowPilot,
 } from "../actions";
 import { loadPartnerReport } from "../report-data";
@@ -63,6 +64,8 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
     { data: clients },
     reportData,
     credit,
+    { data: shipRows },
+    { data: me },
   ] = await Promise.all([
       loadPeople(supabase),
       supabase
@@ -96,7 +99,15 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
         .eq("partner_id", id),
       loadPartnerReport(supabase, id),
       loadCreditSummary(supabase, id),
+      supabase.from("ship_shows").select("show_id, enabled").eq("partner_id", id),
+      supabase.auth.getClaims().then(({ data }) =>
+        supabase.from("profiles").select("role").eq("id", data?.claims?.sub ?? "").maybeSingle(),
+      ),
     ]);
+  const isAdmin = me?.role === "admin";
+  const shipOn = new Set((shipRows ?? []).filter((r) => r.enabled).map((r) => r.show_id));
+  // The GSC Shipping Center pilot switch shows for GSCs; only admins can flip it.
+  const shipSwitch = partner.partner_type === "gsc" && (isAdmin || shipOn.size > 0);
   const clientList = (clients ?? []).sort(
     (a, b) => Number(b.in_pilot) - Number(a.in_pilot) || (a.exhibitors?.company_name ?? "").localeCompare(b.exhibitors?.company_name ?? ""),
   );
@@ -343,18 +354,46 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
                           {l.shows!.show_start_date && l.shows!.show_start_date < today ? " · past" : ""}
                         </div>
                       </div>
-                      <form action={setShowPilot} className="ml-auto">
-                        <input type="hidden" name="id" value={l.id} />
-                        <input type="hidden" name="partner_id" value={id} />
-                        <input type="hidden" name="is_pilot" value={l.is_pilot ? "false" : "true"} />
-                        <button
-                          type="submit"
-                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${l.is_pilot ? "bg-dts-maroon text-white" : "text-slate-400 hover:text-slate-700"}`}
-                          title={l.is_pilot ? "Pilot show — click to unmark" : "Mark as the pilot show"}
-                        >
-                          {l.is_pilot ? "Pilot show" : "Make pilot show"}
-                        </button>
-                      </form>
+                      <div className="ml-auto flex items-center gap-2">
+                        {shipSwitch ? (
+                          isAdmin && partner.code ? (
+                            <form action={setShipCenter}>
+                              <input type="hidden" name="partner_id" value={id} />
+                              <input type="hidden" name="show_id" value={l.show_id} />
+                              <input type="hidden" name="enabled" value={shipOn.has(l.show_id) ? "false" : "true"} />
+                              <button
+                                type="submit"
+                                className={`rounded-full px-2 py-0.5 text-xs font-medium ${shipOn.has(l.show_id) ? "bg-emerald-700 text-white" : "text-slate-400 hover:text-slate-700"}`}
+                                title={
+                                  shipOn.has(l.show_id)
+                                    ? "In this GSC's Shipping Center. Click to switch off."
+                                    : "Put this show in the GSC's Shipping Center (it goes live once its freight details are verified)"
+                                }
+                              >
+                                {shipOn.has(l.show_id) ? "Shipping Center" : "Add to Shipping Center"}
+                              </button>
+                            </form>
+                          ) : shipOn.has(l.show_id) ? (
+                            <Badge className="bg-emerald-100 text-emerald-800">Shipping Center</Badge>
+                          ) : isAdmin ? (
+                            <span className="text-xs text-slate-400" title="Set a code in the Cobranding panel first">
+                              Shipping Center needs a code
+                            </span>
+                          ) : null
+                        ) : null}
+                        <form action={setShowPilot}>
+                          <input type="hidden" name="id" value={l.id} />
+                          <input type="hidden" name="partner_id" value={id} />
+                          <input type="hidden" name="is_pilot" value={l.is_pilot ? "false" : "true"} />
+                          <button
+                            type="submit"
+                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${l.is_pilot ? "bg-dts-maroon text-white" : "text-slate-400 hover:text-slate-700"}`}
+                            title={l.is_pilot ? "Pilot show — click to unmark" : "Mark as the pilot show"}
+                          >
+                            {l.is_pilot ? "Pilot show" : "Make pilot show"}
+                          </button>
+                        </form>
+                      </div>
                       <form action={removePartnerShow}>
                         <input type="hidden" name="id" value={l.id} />
                         <input type="hidden" name="partner_id" value={id} />

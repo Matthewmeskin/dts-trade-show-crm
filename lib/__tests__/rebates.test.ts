@@ -129,7 +129,7 @@ test("blockers: wrong model, no %, quarter already issued", () => {
   assert.match(draft([a], ar, { today: "2026-12-31" }).blockers[0], /isn't over until Dec 31, 2026/);
 });
 
-test("credit suggestions: the partner's clients' booked loads since they were linked, uncredited only", () => {
+test("credit suggestions: the partner's clients' booked loads since they were linked, uncredited only, never Shipping Center loads", () => {
   const base = { partner_id: null, status: "booked", cancelled_at: null, tms_reference_id: "1", show_name: null, billed_amount: 500 };
   const s = creditSuggestions(
     [{ exhibitor_id: "acme", company_name: "Acme Audio", linked_on: "2026-10-01" }],
@@ -140,6 +140,7 @@ test("credit suggestions: the partner's clients' booked loads since they were li
       { ...base, id: "quote", exhibitor_id: "acme", booked_on: "2026-10-06", status: "quoted" },
       { ...base, id: "cancelled", exhibitor_id: "acme", booked_on: "2026-10-06", cancelled_at: "2026-10-07" },
       { ...base, id: "stranger", exhibitor_id: "bolt", booked_on: "2026-10-06" },
+      { ...base, id: "ship-center", exhibitor_id: "acme", booked_on: "2026-10-06", source: "ship_center" },
     ],
   );
   assert.deepEqual(s.map((x) => x.id), ["ok"]);

@@ -32,6 +32,8 @@ async function creditedShipments(supabase: Supabase, partnerId: string): Promise
         "id, tms_reference_id, status, billed_amount, cost_amount, pickup_date, partner_credit_source, exhibitor:exhibitors(company_name), show:shows(show_name)",
       )
       .eq("partner_id", partnerId)
+      // The database refuses credit on a Shipping Center load; this says so here too.
+      .eq("source", "tms")
       .order("id"),
   );
   return rows.map((r) => ({
@@ -111,6 +113,7 @@ export async function loadCreditSummary(
     .select("id, exhibitor_id, partner_id, status, tms_reference_id, tms_created_at, created_at, billed_amount, show:shows(show_name)")
     .in("exhibitor_id", clientList.map((c) => c.exhibitor_id))
     .is("partner_id", null)
+    .eq("source", "tms")
     .neq("status", "quoted")
     .limit(2000);
   const suggestions = creditSuggestions(

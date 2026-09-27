@@ -42,7 +42,8 @@ export async function creditShipments(_prev: RebateState, fd: FormData): Promise
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  // Only loads nobody has credited yet: this never takes a load from another partner.
+  // Only loads nobody has credited yet: this never takes a load from another
+  // partner. Shipping Center loads never earn partner credit.
   const { data, error } = await supabase
     .from("shipments")
     .update({
@@ -53,6 +54,7 @@ export async function creditShipments(_prev: RebateState, fd: FormData): Promise
     })
     .in("id", ids)
     .is("partner_id", null)
+    .eq("source", "tms")
     .select("id");
   if (error) return { error: error.message };
   const done = data?.length ?? 0;
@@ -68,7 +70,7 @@ export async function creditShipments(_prev: RebateState, fd: FormData): Promise
   return {
     error: null,
     ok: true,
-    message: `Credited ${done}.${skipped ? ` ${skipped} already had credit and were left alone.` : ""}`,
+    message: `Credited ${done}.${skipped ? ` ${skipped} already had credit or came through a Shipping Center, and were left alone.` : ""}`,
   };
 }
 
@@ -97,7 +99,12 @@ export async function setShipmentPartner(_prev: RebateState, fd: FormData): Prom
         : { partner_id: null, partner_credit_source: null, partner_credited_at: null, partner_credited_by: null },
     )
     .eq("id", shipment_id);
-  if (error) return { error: error.message };
+  if (error) {
+    if (/shipments_ship_center_no_partner_credit/.test(error.message)) {
+      return { error: "This load came through a GSC Shipping Center, so it can't earn partner credit." };
+    }
+    return { error: error.message };
+  }
   await logActivity(supabase, {
     action: "updated",
     entityType: "shipment",
