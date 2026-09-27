@@ -30,6 +30,7 @@ import {
   setShowPilot,
 } from "../actions";
 import { loadPartnerReport } from "../report-data";
+import { loadManifestOptions } from "../manifest-data";
 import { AddClientForm, ReportSettingsForm } from "./client-panels";
 import { CobrandForm, CopyLink, TermsForm } from "./cobrand-panels";
 import { StageBadge, TierBadge, loadPeople } from "../parts";
@@ -96,6 +97,7 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
     (a, b) => Number(b.in_pilot) - Number(a.in_pilot) || (a.exhibitors?.company_name ?? "").localeCompare(b.exhibitors?.company_name ?? ""),
   );
   const report = reportData?.report;
+  const manifestOptions = partner.partner_type === "gsc" ? await loadManifestOptions(supabase, id) : [];
 
   // Which linked shows have a public page, so the cobranded links can say
   // whether they'll actually land on this partner's branding yet.
@@ -434,6 +436,42 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
         </div>
 
         <div className="space-y-5">
+          {partner.partner_type === "gsc" ? (
+            <Card>
+              <CardHeader
+                title="GSC manifest"
+                icon="truck"
+                action={
+                  <Link href={`/partners/${id}/manifest`} className="text-xs font-medium text-dts-maroon hover:underline">
+                    Open →
+                  </Link>
+                }
+              />
+              <div className="space-y-2 p-5 text-xs text-slate-600">
+                <p>
+                  Every DTS load to the shows they service: the inbound manifest weekly, daily the last week before move-in,
+                  then the outbound list through teardown.
+                </p>
+                {manifestOptions.length ? (
+                  <ul className="space-y-1">
+                    {manifestOptions.map((o) => (
+                      <li key={o.partnerShowId} className="flex items-center justify-between gap-2">
+                        <Link href={`/partners/${id}/manifest?ps=${o.partnerShowId}`} className="text-slate-800 hover:text-dts-maroon">
+                          {o.show.show_name}
+                        </Link>
+                        <span className={o.due ? "font-semibold text-dts-maroon" : "text-slate-400"}>
+                          {o.due ? "Due now" : o.cadence === "none" ? "Not yet" : "Sent"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-slate-400">Link the shows they service below.</p>
+                )}
+              </div>
+            </Card>
+          ) : null}
+
           <Card>
             <CardHeader
               title="Weekly client report"

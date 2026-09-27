@@ -1,6 +1,7 @@
 import { formatDate, formatDateRange, formatShortDate } from "@/lib/format";
 import { shiftDays } from "@/lib/sales";
 import { weekStart } from "@/lib/partners";
+import { isInternalAccount } from "@/lib/gsc-manifest";
 
 /**
  * The weekly pilot status email for a partner: where each of their clients'
@@ -146,7 +147,9 @@ export function buildPartnerReport(input: {
   const staleBefore = shiftDays(today, -STALE_OPEN_DAYS)!;
   const horizon = shiftDays(today, OUTBOUND_HORIZON_DAYS)!;
 
-  const mine = input.shipments.filter((s) => s.exhibitor_id && clientBy.has(s.exhibitor_id));
+  const mine = input.shipments.filter(
+    (s) => s.exhibitor_id && clientBy.has(s.exhibitor_id) && !isInternalAccount(clientBy.get(s.exhibitor_id)!.company_name),
+  );
   const quoteSince = shiftDays(today, -QUOTE_FRESH_DAYS)!;
   const live = mine.filter((s) => {
     if (s.status === "delivered") return (s.actual_delivery_date ?? anchor(s)) >= deliveredSince;

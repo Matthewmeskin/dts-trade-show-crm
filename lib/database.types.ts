@@ -631,6 +631,7 @@ export type Database = {
       }
       partner_shows: {
         Row: {
+          manifest_sent_at: string | null
           cobranded: boolean
           client_count: number | null
           created_at: string
@@ -641,6 +642,7 @@ export type Database = {
           show_id: string
         }
         Insert: {
+          manifest_sent_at?: string | null
           cobranded?: boolean
           client_count?: number | null
           created_at?: string
@@ -651,6 +653,7 @@ export type Database = {
           show_id: string
         }
         Update: {
+          manifest_sent_at?: string | null
           cobranded?: boolean
           client_count?: number | null
           created_at?: string

@@ -5,6 +5,7 @@ import { dayOf, daysUntil, formatDate, formatPacificDateTime, formatShortDate, t
 import { shiftDays } from "@/lib/sales";
 import { SIGNAL_TYPES, labelOf, loopState, weekStart } from "@/lib/partners";
 import { markSignalWorked } from "../actions";
+import { manifestCadence, manifestDue, type CandidateShow } from "@/lib/gsc-manifest";
 import { PartnersNav, StageBadge, TierBadge, WeeklyStrip, loadPeople, loadWeeklyNumbers } from "../parts";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ export default async function WorklistPage({ searchParams }: { searchParams: Pro
   const me = claims?.claims?.sub ?? "";
   const onlyMine = mine === "1" && !!me;
 
-  const [people, week, { data: signals }, { data: steps }, { data: calls }, { data: links }, { data: reporting }] = await Promise.all([
+  const [people, week, { data: signals }, { data: steps }, { data: calls }, { data: links }, { data: reporting }, { data: gscShows }] = await Promise.all([
     loadPeople(supabase),
     loadWeeklyNumbers(supabase),
     supabase
@@ -56,6 +57,16 @@ export default async function WorklistPage({ searchParams }: { searchParams: Pro
       .eq("archived", false)
       .eq("report_active", true)
       .order("name"),
+    // Shows serviced by GSCs whose reports are on: candidates for a manifest today.
+    supabase
+      .from("partner_shows")
+      .select(
+        "id, manifest_sent_at, partner_id, partners!inner(name, partner_type, report_active, archived, admin_id, rep_id), shows(id, show_name, show_start_date, show_end_date, move_in_start, move_in_end, move_out_start, move_out_end, advance_warehouse_open, advance_warehouse_cutoff, advance_warehouse_name, venue_id, advance_warehouse_zip, direct_to_show_zip)",
+      )
+      .eq("partners.partner_type", "gsc")
+      .eq("partners.report_active", true)
+      .eq("partners.archived", false)
+      .limit(1000),
   ]);
 
   const names = new Map(people.map((p) => [p.id, p.name]));
@@ -76,6 +87,15 @@ export default async function WorklistPage({ searchParams }: { searchParams: Pro
   const due = mineOnly(steps ?? [], (p) => p.admin_id);
   // Weekly pilot reports not yet sent since Monday. Reps send these, so "mine"
   // here means the rep or the admin on the partner.
+  const manifestsDue = (gscShows ?? [])
+    .filter((r) => r.shows)
+    .map((r) => {
+      const show = r.shows as unknown as CandidateShow;
+      const cadence = manifestCadence(show, today);
+      return { r, show, cadence, due: manifestDue(cadence, r.manifest_sent_at ? dayOf(r.manifest_sent_at) : null, today) };
+    })
+    .filter((x) => x.due)
+    .filter((x) => !onlyMine || x.r.partners.admin_id === me || x.r.partners.rep_id === me);
   const monday = weekStart(today);
   const reportsDue = (reporting ?? [])
     .filter((p) => !p.last_report_sent_at || (dayOf(p.last_report_sent_at) ?? "") < monday)
@@ -134,6 +154,33 @@ export default async function WorklistPage({ searchParams }: { searchParams: Pro
                   </li>
                 );
               })}
+            </ul>
+          </Card>
+        ) : null}
+
+        {manifestsDue.length ? (
+          <Card>
+            <CardHeader title={`GSC manifests to send (${manifestsDue.length})`} icon="truck" />
+            <ul className="divide-y divide-slate-100">
+              {manifestsDue.map(({ r, show, cadence }) => (
+                <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
+                  <div>
+                    <Link href={`/partners/${r.partner_id}`} className="font-medium text-slate-900 hover:text-dts-maroon">
+                      {r.partners.name}
+                    </Link>
+                    <div className="text-xs text-slate-500">
+                      {show.show_name} ·{" "}
+                      {cadence === "outbound" ? "outbound list, daily through teardown" : cadence === "daily" ? "inbound, daily — move-in is this week" : "inbound, weekly"}
+                    </div>
+                  </div>
+                  <Link
+                    href={`/partners/${r.partner_id}/manifest?ps=${r.id}`}
+                    className="rounded-lg bg-dts-maroon px-3 py-1.5 text-xs font-medium text-white hover:bg-dts-maroon-dark"
+                  >
+                    Check and send
+                  </Link>
+                </li>
+              ))}
             </ul>
           </Card>
         ) : null}

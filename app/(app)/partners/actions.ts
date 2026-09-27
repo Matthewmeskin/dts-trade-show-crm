@@ -732,3 +732,60 @@ export async function saveTerms(_prev: PartnerState, fd: FormData): Promise<Part
   touchPaths(id);
   return { error: null, ok: true };
 }
+
+// ---------------------------------------------------------------------------
+// GSC manifest
+// ---------------------------------------------------------------------------
+
+/**
+ * Link a load to a show from the manifest's "possible loads" list. A person
+ * decided, so the TMS sync stops managing this link (show_auto_linked false),
+ * the same as saving the show on the shipment page.
+ */
+export async function linkShipmentToShow(fd: FormData) {
+  const shipment_id = str(fd, "shipment_id");
+  const show_id = str(fd, "show_id");
+  const partner_id = str(fd, "partner_id");
+  if (!shipment_id || !show_id) return;
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("shipments")
+    .update({ show_id, show_auto_linked: false })
+    .eq("id", shipment_id)
+    .is("show_id", null);
+  if (error) return;
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "shipment",
+    entityId: shipment_id,
+    summary: "Linked to a show from a GSC manifest",
+    details: { show_id },
+  });
+  revalidatePath(`/shipments/${shipment_id}`);
+  revalidatePath(`/shows/${show_id}`);
+  if (partner_id) revalidatePath(`/partners/${partner_id}/manifest`);
+  touchPaths(partner_id);
+}
+
+/** The rep sent today's manifest for one show. Counts as an email touch. */
+export async function markManifestSent(fd: FormData) {
+  const partner_show_id = str(fd, "partner_show_id");
+  const partner_id = str(fd, "partner_id");
+  if (!partner_show_id || !partner_id) return;
+  const supabase = await createClient();
+  await supabase.from("partner_shows").update({ manifest_sent_at: new Date().toISOString() }).eq("id", partner_show_id);
+  await supabase.from("partner_touches").insert({
+    partner_id,
+    channel: "email",
+    reached: false,
+    note: `Sent the ${str(fd, "kind") === "outbound" ? "outbound list" : "inbound manifest"}${str(fd, "show_name") ? ` for ${str(fd, "show_name")}` : ""}.`,
+  });
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "partner",
+    entityId: partner_id,
+    summary: `Sent the GSC ${str(fd, "kind") === "outbound" ? "outbound list" : "manifest"}`,
+  });
+  touchPaths(partner_id);
+  revalidatePath(`/partners/${partner_id}/manifest`);
+}
