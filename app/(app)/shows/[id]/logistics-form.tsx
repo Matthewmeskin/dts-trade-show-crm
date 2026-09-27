@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
-import { Field, SubmitButton, inputClass } from "@/components/form";
+import { useFormStatus } from "react-dom";
+import { Field, inputClass } from "@/components/form";
 import { Icon } from "@/components/icons";
 import {
   SOURCE_TYPES,
@@ -44,6 +45,7 @@ export function LogisticsForm({
   showYear,
   kitUrl,
   crmFacts,
+  pageUrl,
 }: {
   showId: string;
   show: ShowFields;
@@ -51,6 +53,8 @@ export function LogisticsForm({
   showYear: number | null;
   kitUrl: string | null;
   crmFacts: Partial<Record<KitShowFact, string | null>>;
+  /** Where this show's public page lives, for the "verified" confirmation. */
+  pageUrl?: string | null;
 }) {
   const [saveState, saveAction] = useActionState(saveLogistics, empty);
   const [verifyState, verifyAction] = useActionState(verifyLogistics, empty);
@@ -383,23 +387,21 @@ export function LogisticsForm({
       </section>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
-        <SubmitButton pendingLabel="Saving…">Save draft</SubmitButton>
-        <button
-          type="submit"
-          formAction={verifyAction}
-          disabled={!ready}
-          title={
-            ready
-              ? "Records you and today's date against this source"
-              : "Fix the items above first"
-          }
-          className="inline-flex items-center gap-2 rounded-lg border border-emerald-600 bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
-        >
-          <Icon name="check" className="h-4 w-4" />
-          Verify
-        </button>
+        <FormButtons verifyAction={verifyAction} ready={ready} />
 
-        {state.ok ? (
+        {verifyState.ok ? (
+          <span className="text-sm text-emerald-700">
+            Verified. It&apos;s on the site within a few seconds.
+            {pageUrl ? (
+              <>
+                {" "}
+                <a href={pageUrl} target="_blank" rel="noreferrer" className="font-medium text-dts-blue hover:underline">
+                  View the page ↗
+                </a>
+              </>
+            ) : null}
+          </span>
+        ) : state.ok ? (
           <span className="text-sm text-emerald-600">Saved.</span>
         ) : null}
         {!ready ? (
@@ -429,5 +431,44 @@ export function LogisticsForm({
       ) : null}
     </form>
     </div>
+  );
+}
+
+/**
+ * Save draft and Verify share one form, so both used to show "Saving…" and
+ * stay clickable while either ran - Verify looked stuck and got clicked twice.
+ * Now the one you clicked says what it's doing and both lock until it's done.
+ */
+function FormButtons({
+  verifyAction,
+  ready,
+}: {
+  verifyAction: (fd: FormData) => void;
+  ready: boolean;
+}) {
+  const { pending } = useFormStatus();
+  const [clicked, setClicked] = useState<"save" | "verify">("save");
+  return (
+    <>
+      <button
+        type="submit"
+        disabled={pending}
+        onClick={() => setClicked("save")}
+        className="inline-flex items-center justify-center rounded-lg bg-dts-maroon px-4 py-2 text-sm font-medium text-white transition hover:bg-dts-maroon-dark disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {pending && clicked === "save" ? "Saving…" : "Save draft"}
+      </button>
+      <button
+        type="submit"
+        formAction={verifyAction}
+        disabled={!ready || pending}
+        onClick={() => setClicked("verify")}
+        title={ready ? "Records you and today's date against this source" : "Fix the items above first"}
+        className="inline-flex items-center gap-2 rounded-lg border border-emerald-600 bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+      >
+        <Icon name="check" className="h-4 w-4" />
+        {pending && clicked === "verify" ? "Verifying…" : "Verify"}
+      </button>
+    </>
   );
 }

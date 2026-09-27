@@ -1256,6 +1256,7 @@ async function LogisticsTab({ showId }: { showId: string }) {
             showYear={show.edition_year ?? (show.show_start_date ? Number(show.show_start_date.slice(0, 4)) : null)}
             kitUrl={show.exhibitor_manual_url}
             crmFacts={crmFacts}
+            pageUrl={pageUrl}
           />
         </div>
       </Card>
