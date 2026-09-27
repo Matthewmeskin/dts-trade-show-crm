@@ -370,7 +370,7 @@ export type KitFill = {
   /** Show columns to prefill on the edit form. */
   values: Record<string, string>;
   /** What was filled, for the banner: label, value, and where in the kit. */
-  filled: { label: string; value: string; where: string }[];
+  filled: { field: KitShowFact; label: string; value: string; where: string }[];
   /** Found in the kit but not filled, and why. */
   skipped: { label: string; value: string; why: string }[];
 };
@@ -397,12 +397,12 @@ export function kitFillForShow(facts: KitReading["facts"], show: Record<string, 
         continue;
       }
       for (const [k, v] of Object.entries(parts)) if (v) values[`${prefix}_${k}`] = v;
-      filled.push({ label, value: f.value, where: f.where });
+      filled.push({ field, label, value: f.value, where: f.where });
       continue;
     }
     if (!empty(field)) continue;
     values[field] = f.value;
-    filled.push({ label, value: f.value, where: f.where });
+    filled.push({ field, label, value: f.value, where: f.where });
   }
   return { values, filled, skipped };
 }

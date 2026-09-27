@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
+import { KitFillBar } from "./kit-fill-bar";
 import { Card } from "@/components/ui";
 import { Field, FormSection, SubmitButton, inputClass } from "@/components/form";
 import type { ShowFormState } from "./actions";
@@ -78,9 +79,19 @@ export function ShowForm({
   const [state, formAction] = useActionState(action, { error: null });
   const err = state.fieldErrors ?? {};
   const d = show ?? defaults;
+  const formRef = useRef<HTMLFormElement>(null);
 
   return (
-    <form action={formAction}>
+    <>
+    {show ? (
+      <KitFillBar
+        showId={show.id}
+        formRef={formRef}
+        defaultUrl={show.exhibitor_manual_url}
+        venues={venues.map((v) => ({ id: v.id, venue_name: v.venue_name }))}
+      />
+    ) : null}
+    <form ref={formRef} action={formAction}>
       {show ? <input type="hidden" name="id" value={show.id} /> : null}
       {redirectTo ? <input type="hidden" name="redirect_to" value={redirectTo} /> : null}
 
@@ -380,5 +391,6 @@ export function ShowForm({
         </Link>
       </div>
     </form>
+    </>
   );
 }
