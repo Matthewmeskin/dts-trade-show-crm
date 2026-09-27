@@ -73,6 +73,33 @@ async function rpc(name: string, body: Record<string, unknown>): Promise<Record<
 }
 
 export async function runPublicSync(trigger: SyncTrigger): Promise<SyncResult> {
+  const result = await runOnce(trigger);
+  if (syncConfigured()) await logRun(result);
+  return result;
+}
+
+/**
+ * One row per run, for the health check that emails when the sync is failing
+ * (lib/sync-health.ts). Best-effort: logging must never fail the sync.
+ */
+async function logRun(r: SyncResult) {
+  try {
+    const db = createAdminClient();
+    await db.from("public_sync_runs").insert({
+      trigger: r.trigger,
+      ok: r.ok,
+      show_rows: r.showRows,
+      partner_rows: r.partnerRows,
+      revalidated: r.revalidated ?? null,
+      error: r.error?.slice(0, 2000) ?? null,
+    });
+    await db.from("public_sync_runs").delete().lt("ran_at", new Date(Date.now() - 30 * 86_400_000).toISOString());
+  } catch (e) {
+    console.error("[public-sync] couldn't log the run:", e instanceof Error ? e.message : e);
+  }
+}
+
+async function runOnce(trigger: SyncTrigger): Promise<SyncResult> {
   if (!syncConfigured()) {
     return { ok: false, trigger, showRows: 0, partnerRows: 0, error: "Public sync is not configured on this deployment." };
   }

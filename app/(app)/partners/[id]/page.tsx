@@ -31,6 +31,8 @@ import {
 } from "../actions";
 import { loadPartnerReport } from "../report-data";
 import { loadManifestOptions } from "../manifest-data";
+import { loadCreditSummary } from "../rebate-data";
+import { CreditSuggestionsForm } from "./rebates/rebate-forms";
 import { AddClientForm, ReportSettingsForm } from "./client-panels";
 import { CobrandForm, CopyLink, TermsForm } from "./cobrand-panels";
 import { StageBadge, TierBadge, loadPeople } from "../parts";
@@ -60,6 +62,7 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
     { data: allShows },
     { data: clients },
     reportData,
+    credit,
   ] = await Promise.all([
       loadPeople(supabase),
       supabase
@@ -92,6 +95,7 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
         .select("id, exhibitor_id, in_pilot, exhibitors(company_name)")
         .eq("partner_id", id),
       loadPartnerReport(supabase, id),
+      loadCreditSummary(supabase, id),
     ]);
   const clientList = (clients ?? []).sort(
     (a, b) => Number(b.in_pilot) - Number(a.in_pilot) || (a.exhibitors?.company_name ?? "").localeCompare(b.exhibitors?.company_name ?? ""),
@@ -583,6 +587,47 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
                 basis={partner.commission_basis}
                 note={partner.terms_note}
               />
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Credit and rebates"
+              icon="reports"
+              action={
+                <Link href={`/partners/${id}/rebates`} className="text-xs font-medium text-dts-maroon hover:underline">
+                  Rebate statements →
+                </Link>
+              }
+            />
+            <div className="space-y-3 p-5 text-sm">
+              <p className="text-slate-600">
+                {credit.creditedCount} load{credit.creditedCount === 1 ? "" : "s"} credited to them.
+                {partner.incentive_model === "rebate" && partner.rebate_pct
+                  ? ` They earn ${partner.rebate_pct}% of gross margin once each invoice is paid.`
+                  : " No rebate terms set yet."}
+              </p>
+              {credit.suggestions.length ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-500">
+                    Booked by their clients since each client was linked, and not credited to anyone. Untick any that
+                    didn&apos;t come through them.
+                  </p>
+                  <CreditSuggestionsForm
+                    partnerId={id}
+                    rows={credit.suggestions.slice(0, 50).map((x) => ({
+                      id: x.id,
+                      label: `${x.tms_reference_id ?? "No load #"} · ${x.client}`,
+                      detail: [x.show_name, `booked ${formatShortDate(x.booked_on)}`, x.status].filter(Boolean).join(" · "),
+                    }))}
+                  />
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400">
+                  Nothing to credit from their clients. Loads that came in on their partner code are credited from the
+                  shipment page (the office email names the code).
+                </p>
+              )}
             </div>
           </Card>
 

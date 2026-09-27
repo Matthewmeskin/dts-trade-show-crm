@@ -629,6 +629,140 @@ export type Database = {
           },
         ]
       }
+      partner_rebate_lines: {
+        Row: {
+          billed: number
+          cost: number
+          exhibitor_name: string | null
+          id: string
+          invoice_nos: string | null
+          margin: number
+          paid_on: string
+          rebate: number
+          shipment_id: string | null
+          show_name: string | null
+          statement_id: string
+          tms_reference_id: string | null
+        }
+        Insert: {
+          billed: number
+          cost: number
+          exhibitor_name?: string | null
+          id?: string
+          invoice_nos?: string | null
+          margin: number
+          paid_on: string
+          rebate: number
+          shipment_id?: string | null
+          show_name?: string | null
+          statement_id: string
+          tms_reference_id?: string | null
+        }
+        Update: {
+          billed?: number
+          cost?: number
+          exhibitor_name?: string | null
+          id?: string
+          invoice_nos?: string | null
+          margin?: number
+          paid_on?: string
+          rebate?: number
+          shipment_id?: string | null
+          show_name?: string | null
+          statement_id?: string
+          tms_reference_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_rebate_lines_statement_id_fkey"
+            columns: ["statement_id"]
+            isOneToOne: false
+            referencedRelation: "partner_rebate_statements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_rebate_lines_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_rebate_statements: {
+        Row: {
+          billed_total: number
+          commission_basis: string | null
+          id: string
+          issued_at: string
+          issued_by: string | null
+          line_count: number
+          margin_total: number
+          notes: string | null
+          paid_by: string | null
+          paid_on: string | null
+          paid_ref: string | null
+          partner_id: string
+          period_end: string
+          period_start: string
+          quarter: string
+          rebate_pct: number
+          rebate_total: number
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          billed_total: number
+          commission_basis?: string | null
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          line_count: number
+          margin_total: number
+          notes?: string | null
+          paid_by?: string | null
+          paid_on?: string | null
+          paid_ref?: string | null
+          partner_id: string
+          period_end: string
+          period_start: string
+          quarter: string
+          rebate_pct: number
+          rebate_total: number
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          billed_total?: number
+          commission_basis?: string | null
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          line_count?: number
+          margin_total?: number
+          notes?: string | null
+          paid_by?: string | null
+          paid_on?: string | null
+          paid_ref?: string | null
+          partner_id?: string
+          period_end?: string
+          period_start?: string
+          quarter?: string
+          rebate_pct?: number
+          rebate_total?: number
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_rebate_statements_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_shows: {
         Row: {
           manifest_sent_at: string | null
@@ -965,8 +1099,45 @@ export type Database = {
         }
         Relationships: []
       }
+      public_sync_runs: {
+        Row: {
+          error: string | null
+          id: number
+          ok: boolean
+          partner_rows: number
+          ran_at: string
+          revalidated: boolean | null
+          show_rows: number
+          trigger: string
+        }
+        Insert: {
+          error?: string | null
+          id?: never
+          ok: boolean
+          partner_rows?: number
+          ran_at?: string
+          revalidated?: boolean | null
+          show_rows?: number
+          trigger: string
+        }
+        Update: {
+          error?: string | null
+          id?: never
+          ok?: boolean
+          partner_rows?: number
+          ran_at?: string
+          revalidated?: boolean | null
+          show_rows?: number
+          trigger?: string
+        }
+        Relationships: []
+      }
       shipments: {
         Row: {
+          partner_credit_source: string | null
+          partner_credited_at: string | null
+          partner_credited_by: string | null
+          partner_id: string | null
           accessorials_flagged: boolean
           actual_delivery_date: string | null
           billed_amount: number | null
@@ -1032,6 +1203,10 @@ export type Database = {
           weight: number | null
         }
         Insert: {
+          partner_credit_source?: string | null
+          partner_credited_at?: string | null
+          partner_credited_by?: string | null
+          partner_id?: string | null
           accessorials_flagged?: boolean
           actual_delivery_date?: string | null
           billed_amount?: number | null
@@ -1097,6 +1272,10 @@ export type Database = {
           weight?: number | null
         }
         Update: {
+          partner_credit_source?: string | null
+          partner_credited_at?: string | null
+          partner_credited_by?: string | null
+          partner_id?: string | null
           accessorials_flagged?: boolean
           actual_delivery_date?: string | null
           billed_amount?: number | null
@@ -1162,6 +1341,13 @@ export type Database = {
           weight?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "shipments_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "shipments_carrier_id_fkey"
             columns: ["carrier_id"]
@@ -2052,6 +2238,18 @@ export type Database = {
           show_ids: string[]
         }[]
       }
+      issue_rebate_statement: {
+        Args: {
+          p_commission_basis: string | null
+          p_lines: Json
+          p_partner_id: string
+          p_period_end: string
+          p_period_start: string
+          p_quarter: string
+          p_rebate_pct: number
+        }
+        Returns: string
+      }
       is_admin: { Args: never; Returns: boolean }
       merge_shows: {
         Args: { p_source: string; p_target: string }
@@ -2060,6 +2258,17 @@ export type Database = {
       merge_venues: {
         Args: { p_source: string; p_target: string }
         Returns: undefined
+      }
+      shipment_ar_status: {
+        Args: { p_shipment_ids: string[] }
+        Returns: {
+          ar_status: string
+          invoice_nos: string[]
+          invoiced: number | null
+          open_balance: number | null
+          paid_on: string | null
+          shipment_id: string
+        }[]
       }
       show_status: {
         Args: { s: Database["public"]["Tables"]["shows"]["Row"] }

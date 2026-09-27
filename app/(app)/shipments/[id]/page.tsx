@@ -24,6 +24,7 @@ import { deleteShipment } from "../actions";
 import { QuickEditShipment } from "./quick-edit";
 import { ForcedControl } from "./forced-control";
 import { ShipmentActivity } from "./shipment-activity";
+import { ShipmentPartnerForm } from "../../partners/[id]/rebates/rebate-forms";
 
 export const dynamic = "force-dynamic";
 
@@ -45,10 +46,17 @@ export default async function ShipmentRecordPage({
 
   if (!s) notFound();
 
-  const [{ data: showsData }, { data: exhibitorsData }] = await Promise.all([
+  const [{ data: showsData }, { data: exhibitorsData }, { data: partnerRows }, { data: onStatement }] = await Promise.all([
     supabase.from("shows").select("id, show_name, edition_year").order("show_name"),
     supabase.from("exhibitors").select("id, company_name").order("company_name"),
+    supabase.from("partners").select("id, name, code, archived").order("name"),
+    supabase.from("partner_rebate_lines").select("id").eq("shipment_id", id).limit(1),
   ]);
+  // Archived partners stay pickable only if this load is already theirs.
+  const partnerOptions = (partnerRows ?? [])
+    .filter((p) => !p.archived || p.id === s.partner_id)
+    .map((p) => ({ id: p.id, label: p.code ? `${p.name} (${p.code})` : p.name }));
+  const creditedPartner = (partnerRows ?? []).find((p) => p.id === s.partner_id);
   const showOptions = (showsData ?? []).map((x) => ({
     id: x.id,
     label: `${x.show_name}${x.edition_year ? ` ${x.edition_year}` : ""}`,
@@ -320,6 +328,37 @@ export default async function ShipmentRecordPage({
                 }
               />
             </dl>
+          </Card>
+
+          <Card>
+            <CardHeader title="Partner credit" icon="contacts" />
+            <div className="space-y-2 p-5 text-sm">
+              {creditedPartner ? (
+                <p className="text-slate-700">
+                  <Link href={`/partners/${creditedPartner.id}`} className="text-dts-blue hover:underline">
+                    {creditedPartner.name}
+                  </Link>{" "}
+                  <span className="text-xs text-slate-400">
+                    {s.partner_credit_source === "referral_code"
+                      ? "· came in on their code"
+                      : s.partner_credit_source === "client"
+                        ? "· their client"
+                        : "· rep's call"}
+                  </span>
+                </p>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  No partner. If the quote email said &ldquo;Partner referral: &lt;code&gt;&rdquo;, pick that partner here.
+                </p>
+              )}
+              <ShipmentPartnerForm
+                shipmentId={s.id}
+                partnerId={s.partner_id}
+                source={s.partner_credit_source}
+                partners={partnerOptions}
+                locked={!!onStatement?.length}
+              />
+            </div>
           </Card>
 
           {(s.po_ref || s.shipper_number || s.carrier_quote_number) && (
