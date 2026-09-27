@@ -103,16 +103,21 @@ pays nothing; DTS earns on the freight it moves. Rebates are off the table.
   table and redirect old codes, like slugs.
 - **Separate root layouts.** Move the existing pages into `app/(site)/` with the current root layout,
   and give `app/(ship)/` its own root layout: GSC logo and name, show name, "Shipping arranged by DTS"
-  footer, no dtsone.com header, menus, search or QuoteBar. Every `/ship` page sets its own metadata,
-  noindex, no canonical to dtsone.com. Confirm the asset prefix works when served on the app's own
+  footer, no www.dtsone.com header, menus, search or QuoteBar. Every `/ship` page sets its own
+  metadata, noindex, no canonical to www.dtsone.com. Confirm the asset prefix works when served on the app's own
   host. Extend `/api/revalidate` to `/ship` paths.
 - **Separate CRM areas.** Show pages stays the SEO publishing queue. GSC Shipping Centers is its own
   nav item. Neither gets the other's controls.
-- **Where it is served:** for now the app's own Vercel URL (`dts-trade-show-web.vercel.app/ship/...`),
-  read from one env var (`SHIP_BASE_URL`). Do not use dtsone.com anywhere in `/ship`. **Before the
-  first kit is printed**, Matthew picks a permanent domain (not dtsone.com) and points it at the app,
-  because printed kit links cannot be recalled and vercel.app links in email look like phishing.
-  Flag this in the plan; do not block the build on it.
+- **Where it is served (decided Sept 27):** `https://ship.dtsone.com`, a DTS subdomain pointed at
+  the `dts-trade-show-web` Vercel project. Until the DNS record exists, build on the Vercel URL; both
+  come from one env var (`SHIP_BASE_URL`). It is **not** a path on the main site: no rewrite in
+  `dts-website`, no links, canonicals or sitemap entries from www.dtsone.com, and every `/ship` page
+  stays noindex, so it never mixes with the main site or its SEO. Kit links, emails and labels all use
+  `ship.dtsone.com`. Never use the cold outreach domains (dtsshowfreight.com, shipwithdts.com) for
+  anything in the Shipping Center: not links, not email.
+- **Email domain:** send from a DTS subdomain dedicated to this product (for example
+  `ship.dtsone.com` or `mail.dtsone.com`) through Resend with SPF, DKIM and DMARC, so it has its own
+  sending reputation and never affects the dtsone.com mailboxes.
 
 ## 6. The exhibitor experience
 
@@ -441,7 +446,7 @@ each booked request; and a cap on accepted requests for the pilot show.
 3. First pilot GSC and show, and their label sample.
 4. How a first time exhibitor is approved to book (card, prepay or existing credit process).
 5. Whether GSCs see exhibitor email and phone (recommended: company, contact name, booth only).
-6. The permanent domain for kit links before the first kit prints (not dtsone.com).
+6. ~~Permanent domain~~ decided: ship.dtsone.com (DNS record to add before the first kit prints).
 7. Pilot request cap.
 9. Which marketing tool receives opted in contacts (CRM list, HubSpot or other) and who owns the
    everyday freight follow up.
