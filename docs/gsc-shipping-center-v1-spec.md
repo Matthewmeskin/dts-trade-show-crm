@@ -268,10 +268,48 @@ assumption; make it an explicit per show setting.
   ends. Privacy notice linked from the form.
 - **Rebates:** exclude Shipping Center freight from `partner_rebate_statements` and any partner credit.
 
+## 9a. Instant LTL rates from the TMS (slice 5b, right after the status page)
+
+Instant pricing is the strongest differentiator in this product: the big GSCs' freight arms quote
+through staff, and no decorator tool prices freight at all. Build it on top of the request flow, not
+instead of it.
+
+- **Source of truth is the TMS sell rate.** Pull sell rates from Hyperion (the TMS already applies
+  DTS's per carrier linehaul markups, minimums, the DTS fuel table and the 20 percent accessorial
+  markup). Never recompute markup or fuel in the web app or CRM. First task: confirm what rating API
+  Hyperion exposes (rate request by origin, destination, class or density, pieces, weight,
+  accessorials) and its limits. If there is no usable rating API, stop and flag it.
+- **Where it runs:** server to server only. The web app calls a signed, rate limited rating endpoint
+  on the CRM side (same secret pattern as the other signed calls); the CRM calls Hyperion. No TMS
+  credentials in the web app, the public project or the browser. Log every rate request.
+- **What qualifies for an instant rate:** LTL only, US only, business or residential addresses with
+  standard accessorials, no hazmat, within weight and dimension limits set per show (default up to
+  about 5,000 lb and 6 pallets or crates; above that goes to a coordinator). Everything else stays a
+  quote request with the current flow.
+- **Trade show accessorials must be in the rate** or the price is wrong: convention center or trade
+  show delivery and pickup, limited access, liftgate, appointment or targeted window, inside
+  delivery or pickup, residential, and expected wait time at the marshalling yard where a carrier
+  charges it. Map the form's location type and options to TMS accessorial codes explicitly, and check
+  the list against the DTS LTL accessorials guide before build.
+- **Density and class:** the form must collect what the rate needs (pieces, weight, largest piece
+  dimensions, crate or pallet). If class or density can't be determined, show a range or fall back to
+  a coordinator quote rather than a guess.
+- **What the exhibitor sees:** one or two options (for example lowest price and best transit), total
+  price including fuel and accessorials, estimated transit days, and the note "Estimate based on the
+  details you entered. Final charges can change if pieces, weight, size or access differ." Accept
+  books a request for DTS to confirm and dispatch; it is not an automatic tender to the carrier in
+  version 1. The price shown is saved with the request as the agreed estimate.
+- **What the GSC sees:** never a price (unchanged).
+- **Rate expiry:** estimates are valid for a set number of days (default 7) and for the pickup date
+  entered; after that the exhibitor re-rates.
+- **Outbound from the show:** rate outbound with the convention center pickup and wait time
+  accessorials and the move out date; still require a coordinator to confirm the carrier knows the
+  marshalling yard process before booking.
+
 ## 10. Not in version 1
 
-Online payment (open question on first time exhibitor credit), exhibitor logins, instant or automated
-rates, material handling ordering (that stays the GSC's), rebates or markup, exhibit house accounts,
+Online payment (open question on first time exhibitor credit), exhibitor logins, automatic tender to
+carriers, rates for truckload or anything outside section 9a's limits, material handling ordering (that stays the GSC's), rebates or markup, exhibit house accounts,
 national big show rollouts, international freight, changes to how the TMS books loads, embeds for
 decorator stores, GSC roles and self managed users (after the pilot).
 
@@ -286,6 +324,7 @@ decorator stores, GSC roles and self managed users (after the pilot).
    pilot show on existing screens until slice 7.)
 4. **CRM pull, requests inbox and team alert.**
 5. **Status page, approve quote, edits and cancel, outbound MHA,** status back from TMS data.
+5b. **Instant LTL rates from the TMS** (section 9a), starting with confirming the Hyperion rating API.
 6. **Reminders and the emailed manifest and outbound list** (reusing `lib/gsc-manifest.ts`).
 7. **CRM GSC Shipping Centers screen** with the one panel setup, label settings and stale handling.
 8. **GSC admin site:** auth, allowlist hook and RLS with tests first, then Home, Show board, show day
@@ -325,3 +364,5 @@ each booked request; and a cap on accepted requests for the pilot show.
 5. Whether GSCs see exhibitor email and phone (recommended: company, contact name, booth only).
 6. The permanent domain for kit links before the first kit prints (not dtsone.com).
 7. Pilot request cap.
+8. Which Hyperion rating API and account to use, and the instant rate limits (weight, pieces) for the
+   pilot.
