@@ -262,6 +262,8 @@ export type SuggestShipment = {
   booked_on: string;
   show_name: string | null;
   billed_amount: number | null;
+  /** 'tms' or 'ship_center'. Shipping Center loads never earn partner credit. */
+  source?: string;
 };
 
 export type CreditSuggestion = SuggestShipment & { client: string; reason: string };
@@ -277,6 +279,7 @@ export function creditSuggestions(clients: SuggestClient[], shipments: SuggestSh
   const out: CreditSuggestion[] = [];
   for (const s of shipments) {
     if (s.partner_id || s.cancelled_at || s.status === "quoted" || !s.exhibitor_id) continue;
+    if (s.source === "ship_center") continue;
     const c = byExhibitor.get(s.exhibitor_id);
     if (!c || s.booked_on < c.linked_on) continue;
     out.push({ ...s, client: c.company_name, reason: `${c.company_name} is their client` });

@@ -18,6 +18,7 @@ applied migration, recovered from `supabase_migrations.schema_migrations`, named
 | `tradeshow_start_call_done` | 0039 |
 | `tradeshow_0040_partners` to `tradeshow_0045_public_sync_runs` | 0040 to 0045 |
 | `tradeshow_0044b_ar_status_null_amount` | the `nullif` change folded into 0044 |
+| `PENDING_tradeshow_0046_ship_shows.sql` (not applied yet) | 0046, GSC Shipping Center slice 2. Renamed to its applied version once it runs |
 
 The export side (`tradeshow_public` views, `show_series`, `show_public_logistics`, `public_export()`)
 lives in `dts-sage/trade-show/crm/migrations`, not here.

@@ -629,6 +629,35 @@ export type Database = {
           },
         ]
       }
+      partner_code_history: {
+        Row: {
+          old_code: string
+          partner_id: string
+          retired_at: string
+          retired_by: string | null
+        }
+        Insert: {
+          old_code: string
+          partner_id: string
+          retired_at?: string
+          retired_by?: string | null
+        }
+        Update: {
+          old_code?: string
+          partner_id?: string
+          retired_at?: string
+          retired_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_code_history_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_rebate_lines: {
         Row: {
           billed: number
@@ -915,6 +944,9 @@ export type Database = {
       }
       partners: {
         Row: {
+          label_settings: Json
+          ship_email: string | null
+          ship_phone: string | null
           code: string | null
           commission_basis: string | null
           incentive_model: string | null
@@ -949,6 +981,9 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          label_settings?: Json
+          ship_email?: string | null
+          ship_phone?: string | null
           code?: string | null
           commission_basis?: string | null
           incentive_model?: string | null
@@ -983,6 +1018,9 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          label_settings?: Json
+          ship_email?: string | null
+          ship_phone?: string | null
           code?: string | null
           commission_basis?: string | null
           incentive_model?: string | null
@@ -1132,8 +1170,72 @@ export type Database = {
         }
         Relationships: []
       }
+      ship_shows: {
+        Row: {
+          coordinator_mobile: string | null
+          coordinator_name: string | null
+          created_at: string
+          created_by: string | null
+          enabled: boolean
+          id: string
+          manifest_email: string
+          outbound_email: boolean
+          partner_id: string
+          request_cap: number | null
+          show_id: string
+          transit_days: number
+          updated_at: string
+        }
+        Insert: {
+          coordinator_mobile?: string | null
+          coordinator_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          id?: string
+          manifest_email?: string
+          outbound_email?: boolean
+          partner_id: string
+          request_cap?: number | null
+          show_id: string
+          transit_days?: number
+          updated_at?: string
+        }
+        Update: {
+          coordinator_mobile?: string | null
+          coordinator_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          id?: string
+          manifest_email?: string
+          outbound_email?: boolean
+          partner_id?: string
+          request_cap?: number | null
+          show_id?: string
+          transit_days?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ship_shows_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ship_shows_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shipments: {
         Row: {
+          source: string
           partner_credit_source: string | null
           partner_credited_at: string | null
           partner_credited_by: string | null
@@ -1203,6 +1305,7 @@ export type Database = {
           weight: number | null
         }
         Insert: {
+          source?: string
           partner_credit_source?: string | null
           partner_credited_at?: string | null
           partner_credited_by?: string | null
@@ -1272,6 +1375,7 @@ export type Database = {
           weight?: number | null
         }
         Update: {
+          source?: string
           partner_credit_source?: string | null
           partner_credited_at?: string | null
           partner_credited_by?: string | null
