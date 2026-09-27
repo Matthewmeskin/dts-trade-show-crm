@@ -372,3 +372,65 @@ export function advanceStage(current: string, to: Stage): Stage | null {
   if (from < 0 || next < 0) return null;
   return next > from ? to : null;
 }
+
+// ---------------------------------------------------------------------------
+// Partner terms and the stack check
+// ---------------------------------------------------------------------------
+
+/** The plan's starting rebate range to test, as a share of gross margin. */
+export const REBATE_TEST_RANGE = [10, 20] as const;
+/** What DTS must keep on every deal after rebate and rep commission. */
+export const STACK_FLOOR_DOLLARS = 30;
+export const STACK_FLOOR_SHARE = 0.5;
+
+export type StackCheck = {
+  rebate: number;
+  commission: number;
+  dtsKeeps: number;
+  keepsShare: number;
+  /** Keeps at least $30 AND at least half the margin. */
+  ok: boolean;
+  reasons: string[];
+};
+
+/**
+ * "Rebate plus rep commission must still leave DTS at least $30 or 50% of the
+ * margin." Read strictly: DTS must keep both - $30 and half - so a thin load
+ * and a big rebate each fail on their own. Commission is on the margin before
+ * or after the rebate, whichever the partner agreement says.
+ */
+export function stackCheck(input: {
+  margin: number;
+  rebatePct: number;
+  commissionPct: number;
+  commissionBasis: "before_rebate" | "after_rebate";
+}): StackCheck {
+  const margin = Math.max(0, input.margin);
+  const rebate = round2((margin * Math.max(0, input.rebatePct)) / 100);
+  const base = input.commissionBasis === "after_rebate" ? margin - rebate : margin;
+  const commission = round2((Math.max(0, base) * Math.max(0, input.commissionPct)) / 100);
+  const dtsKeeps = round2(margin - rebate - commission);
+  const keepsShare = margin > 0 ? dtsKeeps / margin : 0;
+  const reasons: string[] = [];
+  if (dtsKeeps < STACK_FLOOR_DOLLARS) reasons.push(`DTS keeps $${dtsKeeps.toFixed(2)}, under the $${STACK_FLOOR_DOLLARS} floor.`);
+  if (keepsShare < STACK_FLOOR_SHARE) reasons.push(`DTS keeps ${Math.round(keepsShare * 100)}% of the margin, under 50%.`);
+  return { rebate, commission, dtsKeeps, keepsShare, ok: reasons.length === 0, reasons };
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** A starting code from the company name: "Pacific Exhibit Services, Inc." → "pacific-exhibit-services". */
+export function suggestCode(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/\b(inc|llc|ltd|co|corp|corporation|company)\b\.?/g, " ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40)
+    .replace(/-+$/g, "");
+}
+
+export const PARTNER_CODE_SHAPE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+export const PUBLIC_SITE = "https://www.dtsone.com";
+export const cobrandUrl = (showSlug: string, code: string) => `${PUBLIC_SITE}/trade-show/shipping/${showSlug}/with/${code}`;

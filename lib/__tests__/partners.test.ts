@@ -167,3 +167,35 @@ test("call times typed in Pacific are stored as the right instant, DST included"
   assert.equal(isoToPacificWall("2026-10-06T17:00:00.000Z"), "2026-10-06T10:00");
   assert.match(formatPacificDateTime("2026-10-06T17:00:00.000Z"), /Oct 6, 10:00\sAM PT/);
 });
+
+test("stack check: DTS keeps at least $30 and half the margin", async () => {
+  const { stackCheck } = await import("../partners");
+  // $200 margin, 15% rebate, 20% commission before rebate: 30 + 40 = 70 out, keeps 130.
+  const a = stackCheck({ margin: 200, rebatePct: 15, commissionPct: 20, commissionBasis: "before_rebate" });
+  assert.equal(a.rebate, 30);
+  assert.equal(a.commission, 40);
+  assert.equal(a.dtsKeeps, 130);
+  assert.equal(a.ok, true);
+  // After the rebate, commission is on 170.
+  const b = stackCheck({ margin: 200, rebatePct: 15, commissionPct: 20, commissionBasis: "after_rebate" });
+  assert.equal(b.commission, 34);
+  assert.equal(b.dtsKeeps, 136);
+  // A thin load fails the $30 floor even at a fine percentage.
+  const thin = stackCheck({ margin: 50, rebatePct: 10, commissionPct: 20, commissionBasis: "before_rebate" });
+  assert.equal(thin.dtsKeeps, 35);
+  assert.equal(thin.ok, true);
+  const thinner = stackCheck({ margin: 40, rebatePct: 10, commissionPct: 20, commissionBasis: "before_rebate" });
+  assert.equal(thinner.ok, false);
+  assert.match(thinner.reasons[0], /\$30/);
+  // A big rebate fails the 50% rule on any load.
+  const greedy = stackCheck({ margin: 1000, rebatePct: 30, commissionPct: 25, commissionBasis: "before_rebate" });
+  assert.equal(greedy.ok, false);
+  assert.match(greedy.reasons.join(" "), /50%/);
+});
+
+test("partner codes from company names", async () => {
+  const { suggestCode, PARTNER_CODE_SHAPE } = await import("../partners");
+  assert.equal(suggestCode("Pacific Exhibit Services, Inc."), "pacific-exhibit-services");
+  assert.equal(suggestCode("A&B Expo Co."), "a-and-b-expo");
+  assert.ok(PARTNER_CODE_SHAPE.test(suggestCode("  Weird!!  Name  LLC ")));
+});

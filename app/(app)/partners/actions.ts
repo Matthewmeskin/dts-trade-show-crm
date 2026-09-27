@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity";
 import { pacificWallToIso } from "@/lib/format";
+import { nudgePublicSync } from "@/lib/public-sync";
 import type { TablesInsert, TablesUpdate } from "@/lib/database.types";
 import {
   CALL_STATUSES,
@@ -631,4 +632,103 @@ export async function markReportSent(fd: FormData) {
   });
   touchPaths(id);
   revalidatePath(`/partners/${id}/report`);
+}
+
+// ---------------------------------------------------------------------------
+// Cobranded show pages and partner terms
+// ---------------------------------------------------------------------------
+
+/**
+ * The partner's code, public name and logo, and whether cobranding is on.
+ * Only these (plus type and website) ever reach the public site, through the
+ * partner export; turning cobranding off takes the partner's pages down on the
+ * next sync, and their kit links fall back to the plain show pages.
+ */
+export async function saveCobrand(_prev: PartnerState, fd: FormData): Promise<PartnerState> {
+  const id = str(fd, "partner_id");
+  if (!id) return { error: "Missing partner." };
+  const code = (str(fd, "code") ?? "").toLowerCase() || null;
+  const public_name = str(fd, "public_name");
+  const logo_url = str(fd, "logo_url");
+  const cobrand_active = fd.get("cobrand_active") != null;
+  const fieldErrors: Record<string, string> = {};
+  if (code && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(code)) fieldErrors.code = "Lowercase letters, numbers and single hyphens.";
+  if (code && (code.length < 3 || code.length > 40)) fieldErrors.code = "3 to 40 characters.";
+  if (logo_url && !/^https:\/\//i.test(logo_url)) fieldErrors.logo_url = "The logo has to be an https:// link.";
+  if (cobrand_active && !code) fieldErrors.code = "Cobranding needs a code.";
+  if (cobrand_active && !public_name) fieldErrors.public_name = "Cobranding needs the name exhibitors will see.";
+  if (Object.keys(fieldErrors).length) return { error: "Please fix the highlighted fields.", fieldErrors };
+
+  const supabase = await createClient();
+  const { data: before } = await supabase.from("partners").select("code, cobrand_active").eq("id", id).maybeSingle();
+  // A code in a printed kit is hard to take back. Changing it once pages are
+  // live breaks those links (they fall back to the plain page), so say so.
+  if (before?.code && code !== before.code && before.cobrand_active && fd.get("confirm_code_change") == null) {
+    return {
+      error: `Links already sent with "${before.code}" will stop showing this partner's branding. Tick "Change the code anyway" to confirm.`,
+      fieldErrors: { code: "Changing a live code breaks kit links." },
+    };
+  }
+  const { error } = await supabase
+    .from("partners")
+    .update({ code, public_name, logo_url, cobrand_active })
+    .eq("id", id);
+  if (error) {
+    return /partners_code_unique|duplicate key/i.test(error.message)
+      ? { error: "Another partner already has that code.", fieldErrors: { code: "Already taken." } }
+      : { error: error.message };
+  }
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "partner",
+    entityId: id,
+    summary: cobrand_active ? `Cobranding on (code ${code})` : "Cobranding off",
+  });
+  nudgePublicSync();
+  touchPaths(id);
+  return { error: null, ok: true };
+}
+
+export async function setShowCobranded(fd: FormData) {
+  const id = str(fd, "id");
+  const partner_id = str(fd, "partner_id");
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.from("partner_shows").update({ cobranded: str(fd, "cobranded") === "true" }).eq("id", id);
+  nudgePublicSync();
+  touchPaths(partner_id);
+}
+
+/** Rebate or markup terms. Internal only - never exported. */
+export async function saveTerms(_prev: PartnerState, fd: FormData): Promise<PartnerState> {
+  const id = str(fd, "partner_id");
+  if (!id) return { error: "Missing partner." };
+  const incentive_model = str(fd, "incentive_model");
+  const commission_basis = str(fd, "commission_basis");
+  const num = (k: string) => {
+    const v = str(fd, k);
+    if (v == null) return null;
+    const n = Number(v.replace(/[%\s]/g, ""));
+    return Number.isFinite(n) ? n : NaN;
+  };
+  const rebate_pct = num("rebate_pct");
+  const markup_pct = num("markup_pct");
+  if (incentive_model && !["rebate", "markup"].includes(incentive_model)) return { error: "Pick rebate or markup." };
+  if (commission_basis && !["before_rebate", "after_rebate"].includes(commission_basis)) return { error: "Pick when commission is figured." };
+  if (Number.isNaN(rebate_pct) || (rebate_pct != null && (rebate_pct < 0 || rebate_pct > 100))) return { error: "Rebate is a percent of margin, 0 to 100." };
+  if (Number.isNaN(markup_pct) || (markup_pct != null && (markup_pct < 0 || markup_pct > 500))) return { error: "Markup is a percent, 0 to 500." };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("partners")
+    .update({ incentive_model, rebate_pct, markup_pct, commission_basis, terms_note: str(fd, "terms_note") })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "partner",
+    entityId: id,
+    summary: `Terms: ${incentive_model ?? "not set"}${incentive_model === "rebate" && rebate_pct != null ? ` ${rebate_pct}% of margin` : ""}${incentive_model === "markup" && markup_pct != null ? ` ${markup_pct}% markup` : ""}`,
+  });
+  touchPaths(id);
+  return { error: null, ok: true };
 }

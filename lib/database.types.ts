@@ -631,6 +631,7 @@ export type Database = {
       }
       partner_shows: {
         Row: {
+          cobranded: boolean
           client_count: number | null
           created_at: string
           id: string
@@ -640,6 +641,7 @@ export type Database = {
           show_id: string
         }
         Insert: {
+          cobranded?: boolean
           client_count?: number | null
           created_at?: string
           id?: string
@@ -649,6 +651,7 @@ export type Database = {
           show_id: string
         }
         Update: {
+          cobranded?: boolean
           client_count?: number | null
           created_at?: string
           id?: string
@@ -775,6 +778,15 @@ export type Database = {
       }
       partners: {
         Row: {
+          code: string | null
+          commission_basis: string | null
+          incentive_model: string | null
+          logo_url: string | null
+          markup_pct: number | null
+          public_name: string | null
+          rebate_pct: number | null
+          terms_note: string | null
+          cobrand_active: boolean
           admin_id: string | null
           archived: boolean
           city: string | null
@@ -800,6 +812,15 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          code?: string | null
+          commission_basis?: string | null
+          incentive_model?: string | null
+          logo_url?: string | null
+          markup_pct?: number | null
+          public_name?: string | null
+          rebate_pct?: number | null
+          terms_note?: string | null
+          cobrand_active?: boolean
           admin_id?: string | null
           archived?: boolean
           city?: string | null
@@ -825,6 +846,15 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          code?: string | null
+          commission_basis?: string | null
+          incentive_model?: string | null
+          logo_url?: string | null
+          markup_pct?: number | null
+          public_name?: string | null
+          rebate_pct?: number | null
+          terms_note?: string | null
+          cobrand_active?: boolean
           admin_id?: string | null
           archived?: boolean
           city?: string | null

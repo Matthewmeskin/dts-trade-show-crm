@@ -14,6 +14,7 @@ import {
   labelOf,
   loopState,
   metaOf,
+  cobrandUrl,
   suggestQualification,
   weekStart,
   type PartnerType,
@@ -25,10 +26,12 @@ import {
   removePartnerShow,
   setClientPilot,
   setPartnerStatus,
+  setShowCobranded,
   setShowPilot,
 } from "../actions";
 import { loadPartnerReport } from "../report-data";
 import { AddClientForm, ReportSettingsForm } from "./client-panels";
+import { CobrandForm, CopyLink, TermsForm } from "./cobrand-panels";
 import { StageBadge, TierBadge, loadPeople } from "../parts";
 import { AddContactForm, AddShowForm, BookCallForm, CloseCallForm, SignalForm, TouchForm } from "./panels";
 import { DraftTouch } from "./draft-touch";
@@ -60,7 +63,7 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
       loadPeople(supabase),
       supabase
         .from("partner_shows")
-        .select("id, show_id, client_count, notes, is_pilot, shows(show_name, show_start_date, show_end_date)")
+        .select("id, show_id, client_count, notes, is_pilot, cobranded, shows(show_name, show_start_date, show_end_date, series_id)")
         .eq("partner_id", id),
       supabase.from("contacts").select("id, first_name, last_name, title, email, phone").eq("partner_id", id).order("created_at"),
       supabase
@@ -93,6 +96,14 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
     (a, b) => Number(b.in_pilot) - Number(a.in_pilot) || (a.exhibitors?.company_name ?? "").localeCompare(b.exhibitors?.company_name ?? ""),
   );
   const report = reportData?.report;
+
+  // Which linked shows have a public page, so the cobranded links can say
+  // whether they'll actually land on this partner's branding yet.
+  const seriesIds = [...new Set((links ?? []).map((l) => l.shows?.series_id).filter((x): x is string => !!x))];
+  const { data: seriesRows } = seriesIds.length
+    ? await supabase.from("show_series").select("id, slug, is_public").in("id", seriesIds)
+    : { data: [] as { id: string; slug: string; is_public: boolean }[] };
+  const seriesBy = new Map((seriesRows ?? []).map((x) => [x.id, x]));
   const reportSentThisWeek = !!partner.last_report_sent_at && (dayOf(partner.last_report_sent_at) ?? "") >= weekStart(today);
 
   const names = new Map(people.map((p) => [p.id, p.name]));
@@ -457,6 +468,83 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
                   : "Never sent."}{" "}
                 The CRM writes it; you check it and send it.
               </p>
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader title="Cobranded show pages" icon="external" />
+            <div className="space-y-4 p-5">
+              <p className="text-xs text-slate-500">
+                For GSCs, organizers and builders who put our show page in their exhibitor kit: the same verified page with
+                their name and logo, and their code on the quote button so every quote from it is credited to them.
+              </p>
+              <CobrandForm
+                partnerId={id}
+                name={partner.name}
+                code={partner.code}
+                publicName={partner.public_name}
+                logoUrl={partner.logo_url}
+                active={partner.cobrand_active}
+              />
+              {linked.length ? (
+                <ul className="divide-y divide-slate-100 border-t border-slate-100 text-sm">
+                  {linked.map((l) => {
+                    const ser = l.shows?.series_id ? seriesBy.get(l.shows.series_id) : undefined;
+                    const live = !!(partner.cobrand_active && partner.code && l.cobranded && ser?.is_public);
+                    return (
+                      <li key={l.id} className="space-y-1 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-slate-800">{l.shows!.show_name}</span>
+                          <form action={setShowCobranded}>
+                            <input type="hidden" name="id" value={l.id} />
+                            <input type="hidden" name="partner_id" value={id} />
+                            <input type="hidden" name="cobranded" value={l.cobranded ? "false" : "true"} />
+                            <button
+                              type="submit"
+                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${l.cobranded ? "bg-sky-700 text-white" : "text-slate-400 hover:text-slate-700"}`}
+                            >
+                              {l.cobranded ? "Cobranded" : "Cobrand this show"}
+                            </button>
+                          </form>
+                        </div>
+                        {l.cobranded ? (
+                          <div className="text-xs text-slate-500">
+                            {!ser ? (
+                              "This show isn't attached to a public show page yet (Show page tab)."
+                            ) : !ser.is_public ? (
+                              "Its show page isn't published yet — the link starts working once it's verified and published."
+                            ) : !partner.code ? (
+                              "Set a code above to get the link."
+                            ) : (
+                              <span className="flex flex-wrap items-center gap-2">
+                                <span className="break-all">{cobrandUrl(ser.slug, partner.code)}</span>
+                                <CopyLink url={cobrandUrl(ser.slug, partner.code)} />
+                                {!live ? <span className="text-amber-700">Turn cobranding on to go live.</span> : null}
+                              </span>
+                            )}
+                          </div>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="text-xs text-slate-400">Link the shows they service under Shows first.</p>
+              )}
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader title="Terms" icon="documents" />
+            <div className="p-5">
+              <TermsForm
+                partnerId={id}
+                model={partner.incentive_model}
+                rebatePct={partner.rebate_pct}
+                markupPct={partner.markup_pct}
+                basis={partner.commission_basis}
+                note={partner.terms_note}
+              />
             </div>
           </Card>
 
