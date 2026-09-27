@@ -39,14 +39,10 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    // The partner growth plan: builders, GSCs and organizers who control
-    // freight for many exhibitors. The worklist is the sales admin's morning.
-    title: "Partners",
-    items: [
-      { label: "Partners", href: "/partners", icon: "users", exclude: ["/partners/worklist", "/partners/playbook"] },
-      { label: "Worklist", href: "/partners/worklist", icon: "bell" },
-      { label: "Playbook", href: "/partners/playbook", icon: "documents" },
-    ],
+    // The partner growth plan. One entry: the list, the admin's worklist, the
+    // playbook and import are tabs on the Partners page, not separate items.
+    title: "Sales",
+    items: [{ label: "Partners", href: "/partners", icon: "users" }],
   },
   {
     title: "Directory",
@@ -83,4 +79,6 @@ export const NAV_ITEMS: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
 export const NAV_EXTRA: NavItem[] = [
   { label: "Quotes", href: "/quotes", icon: "documents" },
   { label: "Sales Calendar", href: "/shows/sales", icon: "calendar" },
+  { label: "Partner worklist", href: "/partners/worklist", icon: "bell" },
+  { label: "Partner playbook", href: "/partners/playbook", icon: "documents" },
 ];
