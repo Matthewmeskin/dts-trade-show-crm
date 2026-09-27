@@ -402,6 +402,19 @@ export function LogisticsForm({
         {state.ok ? (
           <span className="text-sm text-emerald-600">Saved.</span>
         ) : null}
+        {!ready ? (
+          <span className="text-xs text-slate-500">
+            Verify unlocks when these are done: {blockers.map((b) => b.message.replace(/\.$/, "").toLowerCase()).join("; ")}.
+            {blockers.some((b) => b.fix === "show") ? (
+              <>
+                {" "}
+                <a href={`/shows/${showId}/edit`} target="_blank" rel="noreferrer" className="text-dts-blue hover:underline">
+                  Edit the show ↗
+                </a>
+              </>
+            ) : null}
+          </span>
+        ) : null}
         {state.error ? (
           <span className="text-sm text-dts-maroon">{state.error}</span>
         ) : null}
