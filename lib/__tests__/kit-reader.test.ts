@@ -163,3 +163,49 @@ test("compareFacts catches a different street", () => {
   );
   assert.equal(f.status, "differs");
 });
+
+test("kit addresses split into the show form's parts, or not at all", async () => {
+  const { splitKitAddress } = await import("../kit-reader");
+  assert.deepEqual(
+    splitKitAddress("Exhibitor Name / Booth #, C/O Freeman, 6555 W Sunset Rd, Suite 100, Las Vegas, NV 89118"),
+    { state: "NV", zip: "89118", city: "Las Vegas", street1: "6555 W Sunset Rd", street2: "Suite 100", care_of: "C/O Freeman", name: "Exhibitor Name / Booth #" },
+  );
+  assert.deepEqual(splitKitAddress("C/O GES, 7000 Lindell Rd, Las Vegas, NV 89118-4700, USA"), {
+    country: "USA", state: "NV", zip: "89118-4700", city: "Las Vegas", street1: "7000 Lindell Rd", care_of: "C/O GES",
+  });
+  assert.equal(splitKitAddress("Las Vegas Convention Center, West Hall"), null);
+  assert.equal(splitKitAddress("Freeman Warehouse, Las Vegas, NV 89118"), null); // no street: don't guess
+});
+
+test("the kit fills only the show's empty fields, and a filled address is left alone", async () => {
+  const { kitFillForShow, encodeKitFacts, decodeKitFacts } = await import("../kit-reader");
+  const facts = {
+    show_start_date: { value: "2026-09-14", where: "p. 2" },
+    show_end_date: { value: "2026-09-19", where: "p. 2" },
+    advance_warehouse_address: { value: "C/O Freeman, 1000 Dock Rd, Chicago, IL 60608", where: "p. 9" },
+    direct_to_show_address: { value: "McCormick Place, 2301 S King Dr, Chicago, IL 60616", where: "p. 10" },
+    decorator: { value: "Freeman", where: "p. 1" },
+  };
+  const fill = kitFillForShow(facts, {
+    show_start_date: null,
+    show_end_date: "2026-09-20", // someone entered this already
+    advance_warehouse_street1: null,
+    advance_warehouse_address: null,
+    direct_to_show_street1: "2301 S Lake Shore Dr",
+    decorator: "",
+  });
+  assert.deepEqual(fill.values, {
+    show_start_date: "2026-09-14",
+    advance_warehouse_care_of: "C/O Freeman",
+    advance_warehouse_street1: "1000 Dock Rd",
+    advance_warehouse_city: "Chicago",
+    advance_warehouse_state: "IL",
+    advance_warehouse_zip: "60608",
+    decorator: "Freeman",
+  });
+  assert.deepEqual(fill.filled.map((f) => f.label), ["Show opens", "Advance warehouse address", "General service contractor"]);
+  // Round trip through the link, with the same checks as a fresh reading.
+  assert.deepEqual(decodeKitFacts(encodeKitFacts(facts)), facts);
+  assert.equal(decodeKitFacts("not-base64-json"), null);
+  assert.deepEqual(decodeKitFacts(encodeKitFacts({ show_start_date: { value: "Sept 14", where: "" } })), {});
+});

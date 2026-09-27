@@ -308,3 +308,118 @@ function sameDock(a: string, b: string): boolean {
   const [za, zb] = [zip(a), zip(b)];
   return !za || !zb || za === zb;
 }
+
+// ---------------------------------------------------------------------------
+// Carrying the kit's dates and addresses to the show's edit form
+//
+// The reader never writes the show record. It hands the edit form the kit's
+// values for the fields that are still EMPTY there; the coordinator reads
+// them against the kit and saves (or doesn't). A field that already has a
+// value is never offered, so nothing a person entered gets overwritten.
+// ---------------------------------------------------------------------------
+
+export type AddressParts = {
+  name?: string;
+  care_of?: string;
+  street1?: string;
+  street2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
+};
+
+/**
+ * "Name, C/O agent, street, city, ST zip" (the shape the reader is asked for)
+ * into the parts the show form has. Null when it can't find a city, state and
+ * ZIP at the end - better an empty field than a street in the city box.
+ */
+export function splitKitAddress(line: string): AddressParts | null {
+  const parts = line.split(",").map((p) => p.trim()).filter(Boolean);
+  const out: AddressParts = {};
+  if (parts.length && /^(usa?|united states( of america)?)$/i.test(parts[parts.length - 1])) {
+    out.country = "USA";
+    parts.pop();
+  }
+  const tail = parts.pop() ?? "";
+  const m = tail.match(/^([A-Za-z]{2})\.?\s+(\d{5}(?:-\d{4})?)$/);
+  if (!m || parts.length < 2) return null;
+  out.state = m[1].toUpperCase();
+  out.zip = m[2];
+  out.city = parts.pop()!;
+  const streetAt = parts.findIndex((p) => /^\d/.test(p));
+  if (streetAt < 0) return null;
+  out.street1 = parts[streetAt];
+  const after = parts.slice(streetAt + 1);
+  if (after.length) out.street2 = after.join(", ");
+  const before = parts.slice(0, streetAt);
+  const co = before.find((p) => /^c\s*\/\s*o\b/i.test(p));
+  if (co) out.care_of = co;
+  const name = before.filter((p) => p !== co).join(", ");
+  if (name) out.name = name;
+  return out;
+}
+
+const ADDRESS_PREFIX: Partial<Record<KitShowFact, "advance_warehouse" | "direct_to_show" | "marshalling_yard">> = {
+  advance_warehouse_address: "advance_warehouse",
+  direct_to_show_address: "direct_to_show",
+  marshalling_yard_address: "marshalling_yard",
+};
+
+export type KitFill = {
+  /** Show columns to prefill on the edit form. */
+  values: Record<string, string>;
+  /** What was filled, for the banner: label, value, and where in the kit. */
+  filled: { label: string; value: string; where: string }[];
+  /** Found in the kit but not filled, and why. */
+  skipped: { label: string; value: string; why: string }[];
+};
+
+/**
+ * The kit's facts for the show's empty fields. `show` is the show row (or
+ * the columns of it that matter); anything already filled is left alone.
+ */
+export function kitFillForShow(facts: KitReading["facts"], show: Record<string, unknown>): KitFill {
+  const empty = (k: string) => show[k] == null || String(show[k]).trim() === "";
+  const values: Record<string, string> = {};
+  const filled: KitFill["filled"] = [];
+  const skipped: KitFill["skipped"] = [];
+  for (const field of KIT_SHOW_FACTS) {
+    const f = facts[field];
+    if (!f) continue;
+    const label = FIELD_LABELS[field];
+    const prefix = ADDRESS_PREFIX[field];
+    if (prefix) {
+      if (!empty(`${prefix}_street1`) || !empty(`${prefix}_address`)) continue;
+      const parts = splitKitAddress(f.value);
+      if (!parts) {
+        skipped.push({ label, value: f.value, why: "Couldn't split it into street, city, state and ZIP. Enter it by hand." });
+        continue;
+      }
+      for (const [k, v] of Object.entries(parts)) if (v) values[`${prefix}_${k}`] = v;
+      filled.push({ label, value: f.value, where: f.where });
+      continue;
+    }
+    if (!empty(field)) continue;
+    values[field] = f.value;
+    filled.push({ label, value: f.value, where: f.where });
+  }
+  return { values, filled, skipped };
+}
+
+/** The facts, packed for a link to the edit form (browser and server alike). */
+export function encodeKitFacts(facts: KitReading["facts"]): string {
+  return JSON.stringify(facts);
+}
+
+export function decodeKitFacts(s: string | null | undefined): KitReading["facts"] | null {
+  if (!s) return null;
+  try {
+    const raw = JSON.parse(s) as unknown;
+    // Same checks as a fresh reading: known fields, dates shaped like dates.
+    const r = parseKitReading({ facts: raw, logistics: {}, warnings: [], kit_year: "" });
+    return r ? r.facts : null;
+  } catch {
+    return null;
+  }
+}

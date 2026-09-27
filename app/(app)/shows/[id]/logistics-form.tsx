@@ -159,9 +159,9 @@ export function LogisticsForm({
                 <span>
                   {b.message}
                   {b.fix === "show" ? (
-                    <span className="ml-1 text-slate-400">
-                      (edit this on the Overview tab)
-                    </span>
+                    <a href={`/shows/${showId}/edit`} target="_blank" rel="noreferrer" className="ml-1 text-dts-blue hover:underline">
+                      (edit the show ↗)
+                    </a>
                   ) : null}
                 </span>
               </li>

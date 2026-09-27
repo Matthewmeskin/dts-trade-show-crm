@@ -6,6 +6,7 @@ import { Icon } from "@/components/icons";
 import {
   FIELD_LABELS,
   compareFacts,
+  encodeKitFacts,
   type KitLogisticsField,
   type KitReading,
   type KitShowFact,
@@ -73,6 +74,11 @@ export function KitReaderPanel({ showId, showYear, defaultUrl, crmFacts, onRead,
     !busy && ((mode === "url" && /^https?:\/\//i.test(url)) || (mode === "text" && text.trim().length > 40) || (mode === "file" && !!file));
 
   const facts = result ? compareFacts(result.reading.facts, crmFacts) : [];
+  // The kit's dates and addresses the show record doesn't have yet.
+  const missing = facts.filter((f) => f.status === "missing");
+  const missingFacts = missing.length
+    ? Object.fromEntries(missing.map((f) => [f.field, result!.reading.facts[f.field]!]))
+    : null;
   const filled = result?.fills.filter((f) => f.outcome === "filled").length ?? 0;
   const wrongYear =
     result?.reading.kit_year && showYear && !result.reading.kit_year.includes(String(showYear))
@@ -228,9 +234,24 @@ export function KitReaderPanel({ showId, showYear, defaultUrl, crmFacts, onRead,
                 Dates and addresses — compare with the Overview tab
               </h5>
               <p className="mb-1.5 text-xs text-slate-400">
-                These live on the show record, so the reader doesn&apos;t change them. Fix any mismatch on the
-                Overview tab.
+                These live on the show record, so the reader doesn&apos;t change them here.
               </p>
+              {missingFacts ? (
+                <a
+                  href={`/shows/${showId}/edit?kit=${encodeURIComponent(encodeKitFacts(missingFacts))}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mb-2 inline-flex items-center gap-1.5 rounded-lg bg-dts-maroon px-3 py-1.5 text-xs font-medium text-white hover:bg-dts-maroon-dark"
+                >
+                  Put the {Object.keys(missingFacts).length} missing on the show&apos;s edit form ↗
+                </a>
+              ) : null}
+              {missingFacts ? (
+                <p className="mb-2 text-xs text-slate-400">
+                  Opens in a new tab with only the empty fields filled in; you check them and save there. Save this
+                  tab&apos;s draft too.
+                </p>
+              ) : null}
               <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white text-xs">
                 {facts.map((f) => (
                   <li key={f.field} className="grid gap-1 p-2.5 sm:grid-cols-[11rem_1fr]">
