@@ -180,6 +180,30 @@ every confirmation and status page offers "Create a free account to manage your 
   show keeps the GSC's branding; the account area itself is branded "DTS Show Shipping."
 - RLS on every table by company membership; tests prove one company cannot see another's data.
 
+**Tracking (guest status page and accounts).** Each booked leg shows tracking from the existing
+Hyperion sync: carrier, PRO, milestones (picked up, in transit, out for delivery, delivered to the
+warehouse or show, outbound picked up, delivered), estimated delivery when the carrier provides it,
+and POD once available. Email or text notifications on pickup, delivery and any exception, with the
+exhibitor choosing which. Copy stays broker safe: show what the carrier reports, never promise
+arrival times.
+
+**Everyday freight marketing (consent based).** The request form and account signup include an
+unchecked box: "Email me about shipping for my everyday freight, not just shows" with a one line
+description. Rules:
+- Transactional emails (confirmations, quotes, tracking, reminders) are always sent and never carry
+  marketing. Marketing only goes to people who checked the box, with a working unsubscribe, the DTS
+  mailing address, and CAN-SPAM compliance.
+- Record consent with time, source (show and GSC) and the exact wording shown. Consenting contacts
+  are copied to the CRM (not kept only in the public project), so the 180 day purge of exhibitor
+  contact data on the public project does not remove them; non consenting contacts are never copied
+  for marketing.
+- Never send marketing from the cold outreach domains (dtsshowfreight.com, shipwithdts.com).
+- The GSC is told plainly in the pilot agreement that DTS may market everyday freight to exhibitors
+  who opt in, and DTS does not market anything that competes with the GSC's services (material
+  handling, rentals, labor).
+- Exhibitors who ship with DTS get a short "ship your everyday freight with the same team" note in
+  the delivered email for their outbound leg only if they opted in.
+
 **Reminders (email, in the show's timezone):** booth still TBD; inbound but no outbound (7 and 2 days
 before move out); quote waiting for approval; checklist before pickup and before move out ("labels
 on every piece, BOL from us in hand").
@@ -379,7 +403,8 @@ decorator stores, GSC roles and self managed users (after the pilot).
 7. **CRM GSC Shipping Centers screen** with the one panel setup, label settings and stale handling.
 8. **GSC admin site:** auth, allowlist hook and RLS with tests first, then Home, Show board, show day
    marks, Nudge, Settings; invites from the CRM.
-9. **Exhibitor accounts:** sign up, company membership, guest requests attached by verified email,
+9. **Tracking notifications and marketing consent** (opt in capture, consent record, copy to CRM,
+   unsubscribe), then **Exhibitor accounts:** sign up, company membership, guest requests attached by verified email,
    "My shipments for this show," with tenant isolation tests. Tables designed for Phase 2 (9b).
 
 ## 12. Show week plan (write it into the plan; staff will live by it)
@@ -418,5 +443,7 @@ each booked request; and a cap on accepted requests for the pilot show.
 5. Whether GSCs see exhibitor email and phone (recommended: company, contact name, booth only).
 6. The permanent domain for kit links before the first kit prints (not dtsone.com).
 7. Pilot request cap.
+9. Which marketing tool receives opted in contacts (CRM list, HubSpot or other) and who owns the
+   everyday freight follow up.
 8. Which Hyperion rating API and account to use, and the instant rate limits (weight, pieces) for the
    pilot.
