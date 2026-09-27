@@ -65,17 +65,47 @@ The GSC pays nothing and DTS earns on the freight it moves.
 | GSC manifest | `lib/gsc-manifest.ts`, `app/(app)/partners/[id]/manifest` | Built from DTS shipments today. Version 1 feeds it from orders. |
 | Shipments | `tradeshow.shipments` | Where booked freight lives, synced with the TMS (Hyperion). |
 
+## 4a. Two products, kept apart on purpose
+
+The same app will hold two different things. Keep them clearly separate so nobody (staff, GSCs or
+exhibitors) confuses them.
+
+| | Public show pages (exists) | GSC Shipping Center (new) |
+| --- | --- | --- |
+| What it is | DTS branded shipping guides for big national shows like FABTECH, for search traffic | A shipping ordering portal a GSC runs its own shows through |
+| Who it is for | Any exhibitor searching Google | Exhibitors at one GSC's shows, sent by the GSC's kit |
+| Branding | DTS | The GSC (DTS shown only as "Shipping arranged by DTS") |
+| Main action | Get a freight quote | Order outbound and inbound shipping, labels, BOL, status |
+| Indexed by search | Yes | No (noindex, not in the sitemap) |
+| URL space | `/trade-show/shipping/...` | `/ship/...` (its own route group and layout) |
+| Staff area in the CRM | Show pages | GSC Shipping Centers |
+
+Rules that follow from this:
+- **Separate route group and layout** in `trade-show/web`: `app/(ship)/ship/...` with its own
+  minimal header (GSC logo and name, show name, "Shipping arranged by DTS" in the footer). Do not
+  reuse the dtsone.com site header, menus, search or quote bar there. Shared building blocks
+  (date formatting, address blocks, the logistics facts) can live in `lib/` and `components/`.
+- **A show can be in either or both.** A GSC show does not need a public SEO page to be live in the
+  Shipping Center, and a public page does not need a GSC. Enabling a show in a GSC's Shipping
+  Center requires verified logistics (same Verify rules), not a published series. Model this as its
+  own link (for example a `ship_shows` table: GSC, show, portal slug, enabled) rather than reusing
+  the SEO page's publish flag.
+- **Separate CRM areas.** "Show pages" stays the SEO publishing queue. "GSC Shipping Centers" is
+  its own nav item for GSCs, their shows, orders and users. Do not add GSC controls to the Show
+  pages screen or SEO controls to the GSC screen.
+- The existing cobranded SEO page (`/trade-show/shipping/[slug]/with/[code]/`) stays as is for
+  partners who just want a branded info page. The Shipping Center does not build on it.
+
 ## 5. The exhibitor experience (make this dead simple)
 
 **Entry points**
-- GSC landing page: `/trade-show/shipping/gsc/[code]/`. The GSC's name and logo, then their upcoming
-  shows as cards (show name, dates, city, "Order shipping" button). This is the one link a GSC puts
-  in every kit.
-- Show page for that GSC: existing `/trade-show/shipping/[slug]/with/[code]/`. Keep the verified
-  facts. Replace the quote section with a large "Order shipping for [Show]" button and a short
-  "What to do and by when" checklist at the top.
+- GSC landing page: `/ship/[gsc-code]/`. The GSC's name and logo, then their upcoming shows as cards
+  (show name, dates, city, "Order shipping" button). This is the one link a GSC puts in every kit.
+- Show home: `/ship/[gsc-code]/[show-slug]/`. A short "What to do and by when" checklist at the top
+  (warehouse deadline, direct window, move out and carrier check in), the addresses, and a large
+  "Order shipping" button. Built from the same verified logistics as the public pages.
 
-**Order form** at `/trade-show/shipping/[slug]/with/[code]/order/`. One page, three steps, mobile
+**Order form** at `/ship/[gsc-code]/[show-slug]/order/`. One page, three steps, mobile
 first, no login, finishable in about three minutes. Save progress in the browser so a refresh does
 not lose it.
 
@@ -113,7 +143,7 @@ and PRO when booked, and the label and BOL downloads again.
 
 **What the GSC's exhibitors see:** the landing page and cobranded show pages (above).
 
-**GSC admin site** at `/trade-show/shipping/gsc-admin/` (in `trade-show/web`), for the GSC's own
+**GSC admin site** at `/ship/admin/` (in the same `(ship)` route group of `trade-show/web`), for the GSC's own
 exhibitor services and warehouse staff. This is how the GSC runs its shows with us, so it has to feel
 like their own tool, not a DTS report.
 
@@ -196,7 +226,7 @@ to how the TMS books loads.
    again on arrival, never trusted as verified data. Confirm this with Matthew in step 1.
 5. **CRM Orders inbox and alerts.**
 6. **Status page and reminder emails.**
-7. **GSC landing page** and the show page checklist and button.
+7. **GSC landing page and show home** under `/ship`, with its own layout.
 8. **CRM GSC Shipping Centers screen** with the one panel show setup.
 9. **Manifest and outbound list fed from orders** (emailed).
 10. **GSC admin site:** auth and RLS first (with SQL tests proving a GSC user cannot read another
@@ -226,5 +256,8 @@ to how the TMS books loads.
 4. Whether exhibitors can choose "I have my own carrier for inbound" and still use DTS for outbound
    (recommended yes).
 5. Logo hosting for GSC branding (public storage bucket on the public project is fine).
+7. Where the Shipping Center is served. Recommended: its own subdomain, `ship.dtsone.com`, pointed at
+   the `dts-trade-show-web` Vercel project, so it never mixes with the dtsone.com site or its SEO.
+   Fallback: `dtsone.com/ship/...` through a rewrite in `dts-website` like the show pages use.
 6. How much of the exhibitor's contact info a GSC should see (recommended: company, contact name and
    booth; email and phone only if Matthew approves, since the GSC already has them from registration).
