@@ -96,41 +96,40 @@ export type KitReading = {
   kit_year: string;
 };
 
-const entry = {
-  type: "object",
-  properties: {
-    value: { type: "string" },
-    where: { type: "string" },
-  },
-  required: ["value", "where"],
-  additionalProperties: false,
-} as const;
-
-const objectOf = (keys: readonly string[]) => ({
-  type: "object",
-  properties: Object.fromEntries(keys.map((k) => [k, entry])),
-  required: [...keys],
-  additionalProperties: false,
-});
-
-/** Structured-output schema. Empty value means "the kit does not say". */
+/**
+ * Structured-output schema: a flat list of what the kit states. It was one
+ * required {value, where} object per field (24 of them), and the API refused
+ * that as too large a grammar to compile. A list with the field name as a
+ * plain string compiles small; parseKitReading drops any name it doesn't know.
+ */
 export const KIT_SCHEMA = {
   type: "object",
   properties: {
     kit_year: { type: "string" },
-    logistics: objectOf(KIT_LOGISTICS_FIELDS),
-    facts: objectOf(KIT_SHOW_FACTS),
+    found: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          field: { type: "string" },
+          value: { type: "string" },
+          where: { type: "string" },
+        },
+        required: ["field", "value", "where"],
+        additionalProperties: false,
+      },
+    },
     warnings: { type: "array", items: { type: "string" } },
   },
-  required: ["kit_year", "logistics", "facts", "warnings"],
+  required: ["kit_year", "found", "warnings"],
   additionalProperties: false,
 } as const;
 
 export const KIT_SYSTEM_PROMPT = `You read trade show exhibitor kits (exhibitor manuals, shipping and material handling pages, "Quick Facts" sheets) for Diversified Transportation Services, a freight broker that books exhibitor freight to and from shows. A coordinator will check every value you give against the kit before anything is published, so accuracy and honesty about gaps matter far more than filling every field.
 
 Rules:
-- Only report what the kit actually states. If the kit does not say, return an empty string for value and where. Never guess, never fill from general knowledge of the show or venue, never carry over a prior year.
-- For every value, "where" says where in the kit to check it: page number or section heading, plus a short quote of at most 20 words. The coordinator uses it to find the line.
+- found: one entry per field the kit actually states, with "field" set to one of these names exactly: ${[...KIT_LOGISTICS_FIELDS, ...KIT_SHOW_FACTS].join(", ")}. Leave a field out entirely if the kit does not say. Never guess, never fill from general knowledge of the show or venue, never carry over a prior year.
+- For every entry, "where" says where in the kit to check it: page number or section heading, plus a short quote of at most 20 words. The coordinator uses it to find the line.
 - Dates: YYYY-MM-DD. Times: 24-hour HH:MM, local to the show.
 - timezone: one of ${TIMEZONES.map((t) => t.value).join(", ")} - the zone of the show city. Give it only if the kit names the city or venue; "where" should point at that.
 - advance_cutoff_local / direct_cutoff_local / carrier_check_in_cutoff_local: only the time of day the kit gives for that deadline. The date goes in facts.
@@ -157,8 +156,23 @@ export function parseKitReading(raw: unknown): KitReading | null {
     }
     return out;
   };
-  const logistics = pick(r.logistics, KIT_LOGISTICS_FIELDS);
-  const facts = pick(r.facts, KIT_SHOW_FACTS);
+  // The flat list the schema asks for, folded back into logistics and facts.
+  // (A nested reading - the shape before the schema was flattened - still parses.)
+  let logSrc: unknown = r.logistics;
+  let factSrc: unknown = r.facts;
+  if (Array.isArray(r.found)) {
+    const byField: Record<string, { value: unknown; where: unknown }> = {};
+    for (const f of r.found as { field?: unknown; value?: unknown; where?: unknown }[]) {
+      if (!f || typeof f.field !== "string") continue;
+      const key = f.field.trim();
+      // First mention wins; a repeat is usually the same line quoted twice.
+      if (!byField[key] && typeof f.value === "string" && f.value.trim()) byField[key] = { value: f.value, where: f.where };
+    }
+    logSrc = byField;
+    factSrc = byField;
+  }
+  const logistics = pick(logSrc, KIT_LOGISTICS_FIELDS);
+  const facts = pick(factSrc, KIT_SHOW_FACTS);
 
   // Drop anything the form or the database would refuse rather than half-fill it.
   if (logistics.timezone && !TIMEZONES.some((t) => t.value === logistics.timezone!.value)) {

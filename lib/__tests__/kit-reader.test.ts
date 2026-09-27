@@ -24,9 +24,31 @@ test("the reader can never fill our own notes or the verification fields", () =>
   }
 });
 
-test("the schema requires every field so structured output always answers each one", () => {
-  assert.deepEqual(KIT_SCHEMA.properties.logistics.required, [...KIT_LOGISTICS_FIELDS]);
-  assert.deepEqual(KIT_SCHEMA.properties.facts.required, [...KIT_SHOW_FACTS]);
+test("the schema stays a flat list, small enough for the API to compile", () => {
+  // 24 required nested objects came back as "compiled grammar is too large".
+  assert.deepEqual(KIT_SCHEMA.required, ["kit_year", "found", "warnings"]);
+  assert.deepEqual(KIT_SCHEMA.properties.found.items.required, ["field", "value", "where"]);
+  assert.ok(JSON.stringify(KIT_SCHEMA).length < 800);
+});
+
+test("the flat list folds back into logistics and facts; unknown fields and our own notes are dropped", () => {
+  const r = parseKitReading({
+    kit_year: "2026",
+    found: [
+      { field: "advance_cutoff_local", value: "3:30 PM", where: "p. 12, Warehouse" },
+      { field: "move_in_start", value: "2026-11-01", where: "p. 3, Schedule" },
+      { field: "advance_warehouse_address", value: "Sample Warehouse, 100 Dock Rd, Las Vegas, NV 89118", where: "p. 12" },
+      { field: "dts_public_notes", value: "Should never land", where: "" },
+      { field: "made_up_field", value: "x", where: "" },
+      { field: "move_in_start", value: "2026-11-05", where: "a repeat" },
+      { field: "gsc_url", value: "", where: "" },
+    ],
+    warnings: [],
+  })!;
+  assert.deepEqual(r.logistics, { advance_cutoff_local: { value: "15:30", where: "p. 12, Warehouse" } });
+  assert.equal(r.facts.move_in_start?.value, "2026-11-01");
+  assert.match(r.facts.advance_warehouse_address!.value, /100 Dock Rd/);
+  assert.ok(!("dts_public_notes" in r.logistics));
 });
 
 test("empty values mean the kit didn't say, and are dropped", () => {
