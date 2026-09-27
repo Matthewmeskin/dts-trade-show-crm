@@ -81,6 +81,11 @@ exhibitors) confuses them.
 | Staff area in the CRM | Show pages | GSC Shipping Centers |
 
 Rules that follow from this:
+- **Where it is served (decided):** for now, the `dts-trade-show-web` Vercel project's own URL
+  (for example `https://dts-trade-show-web.vercel.app/ship/...`). Do not use dtsone.com, do not add
+  a rewrite in `dts-website`, and do not add dtsone.com links, canonicals or sitemap entries for any
+  `/ship` page. Read the base URL from one env var (for example `SHIP_BASE_URL`) so a real domain
+  can be swapped in later without code changes.
 - **Separate route group and layout** in `trade-show/web`: `app/(ship)/ship/...` with its own
   minimal header (GSC logo and name, show name, "Shipping arranged by DTS" in the footer). Do not
   reuse the dtsone.com site header, menus, search or quote bar there. Shared building blocks
@@ -256,8 +261,5 @@ to how the TMS books loads.
 4. Whether exhibitors can choose "I have my own carrier for inbound" and still use DTS for outbound
    (recommended yes).
 5. Logo hosting for GSC branding (public storage bucket on the public project is fine).
-7. Where the Shipping Center is served. Recommended: its own subdomain, `ship.dtsone.com`, pointed at
-   the `dts-trade-show-web` Vercel project, so it never mixes with the dtsone.com site or its SEO.
-   Fallback: `dtsone.com/ship/...` through a rewrite in `dts-website` like the show pages use.
 6. How much of the exhibitor's contact info a GSC should see (recommended: company, contact name and
    booth; email and phone only if Matthew approves, since the GSC already has them from registration).
