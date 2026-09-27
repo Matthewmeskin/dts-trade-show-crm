@@ -1,4 +1,4 @@
-# GSC Shipping Center, Version 1: Build Spec for Claude Code
+# GSC Shipping Center, Version 1 (and Phase 2 My Shows): Build Spec for Claude Code
 
 Owner: Matthew Meskin (DTS). Written Sept 26, 2026, revised the same night after an independent
 audit against the code and the market research. Read this whole file before writing any code.
@@ -165,6 +165,21 @@ downloads. Until a leg is booked the exhibitor can edit booth, pieces, weight, d
 contact, or cancel. After booking it becomes "Request a change," which alerts the coordinator and
 notes carrier charges may apply.
 
+**Exhibitor accounts (optional, version 1).** The guest flow above stays the fastest path, but
+every confirmation and status page offers "Create a free account to manage your shipments."
+- Sign up with email magic link (password optional). Accounts live in the DTS Trade Show project,
+  never in DTS Database. Exhibitor signup is open (unlike GSC logins) but needs email verification,
+  Turnstile, and rate limits.
+- An account belongs to a company; a company can have several users (the exhibit manager, a
+  coordinator, their exhibit house). Requests made as a guest with the same verified email attach to
+  the account after sign in.
+- **My shipments for this show:** every request and leg for the show, status, carrier and PRO once
+  booked, labels, BOL and MHA downloads, approve quotes, edit or cancel before booking, get an
+  instant rate (section 9a), and add another shipment.
+- Account pages use the same `(ship)` layout. When the exhibitor arrived through a GSC link, that
+  show keeps the GSC's branding; the account area itself is branded "DTS Show Shipping."
+- RLS on every table by company membership; tests prove one company cannot see another's data.
+
 **Reminders (email, in the show's timezone):** booth still TBD; inbound but no outbound (7 and 2 days
 before move out); quote waiting for approval; checklist before pickup and before move out ("labels
 on every piece, BOL from us in hand").
@@ -306,10 +321,45 @@ instead of it.
   accessorials and the move out date; still require a coordinator to confirm the carrier knows the
   marshalling yard process before booking.
 
+## 9b. Phase 2: My Shows (the exhibitor show manager)
+
+Once the pilot works, the same exhibitor account grows into an ExhibitDay style tool for managing
+every show a company exhibits at, centered on freight. This is how a GSC's exhibitors keep using DTS
+at their other shows. Do not start Phase 2 until Matthew approves it after the pilot; design the
+version 1 account tables so Phase 2 needs no rework.
+
+What it does
+- **Show calendar:** the company's shows for the year. Add a show from the DTS show database
+  (deadlines, addresses and GSC filled in from verified data) or add a show we don't have (the
+  company enters it; it goes to a CRM queue for DTS to verify and add to the database).
+- **Per show plan:** auto generated checklist and deadlines from verified logistics (warehouse
+  deadline, direct window, targeted move in, move out, carrier check in), in the show's timezone,
+  with reminders. Tasks with owners for the company's team.
+- **Shipping for every show:** request or instant rate inbound and outbound for any show, whether or
+  not a GSC Shipping Center exists for it. Non GSC shows use DTS branding. Shows with a Shipping
+  Center route the request through it so the GSC still gets its manifest.
+- **Documents per show:** labels, BOLs, MHA forms, the exhibitor kit link, and their own uploads.
+- **Booth and freight profile:** saved pickup addresses, typical pieces and weights (for example
+  "10x20 crate set, 6 crates, 2,400 lb"), dock and liftgate notes, so a new request takes seconds.
+- **Year view:** shows, shipments and freight spend by show, exportable.
+
+Data (public project, all RLS by company)
+- `exhibitor_companies`, `company_members(user_id, company_id, role)`, `company_shows` (company,
+  show edition or custom show, booth, status), `company_tasks`, `freight_profiles`, and requests
+  keyed to company and edition.
+- Custom shows entered by exhibitors are never published and never treated as verified until DTS
+  verifies them in the CRM.
+
+Not in Phase 2: budgets beyond freight, lead capture, booth design, staffing schedules, hotel and
+travel, or anything that is not about getting to and from the show.
+
+Build order after approval: calendar and add show, per show checklist and reminders, shipping for
+non GSC shows, freight profiles, documents, year view.
+
 ## 10. Not in version 1
 
-Online payment (open question on first time exhibitor credit), exhibitor logins, automatic tender to
-carriers, rates for truckload or anything outside section 9a's limits, material handling ordering (that stays the GSC's), rebates or markup, exhibit house accounts,
+Online payment (open question on first time exhibitor credit), Phase 2 My Shows (section 9b),
+automatic tender to carriers, rates for truckload or anything outside section 9a's limits, material handling ordering (that stays the GSC's), rebates or markup, exhibit house accounts,
 national big show rollouts, international freight, changes to how the TMS books loads, embeds for
 decorator stores, GSC roles and self managed users (after the pilot).
 
@@ -329,6 +379,8 @@ decorator stores, GSC roles and self managed users (after the pilot).
 7. **CRM GSC Shipping Centers screen** with the one panel setup, label settings and stale handling.
 8. **GSC admin site:** auth, allowlist hook and RLS with tests first, then Home, Show board, show day
    marks, Nudge, Settings; invites from the CRM.
+9. **Exhibitor accounts:** sign up, company membership, guest requests attached by verified email,
+   "My shipments for this show," with tenant isolation tests. Tables designed for Phase 2 (9b).
 
 ## 12. Show week plan (write it into the plan; staff will live by it)
 
@@ -354,6 +406,8 @@ each booked request; and a cap on accepted requests for the pilot show.
 - Security: `anon` cannot read requests; spam and oversized input are rejected; no secrets in either
   repo; the updated `anon_surface.sql` and advisors pass.
 - A staff member takes a GSC from "added" to "show enabled" in one screen without help.
+- An exhibitor can create an account after a request and manage all their shipments for that show in
+  one place, and company data is isolated by tests.
 
 ## 14. Open questions for Matthew (raise in the plan, do not guess)
 
