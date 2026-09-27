@@ -437,9 +437,129 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
               <AddContactForm partnerId={id} />
             </div>
           </Card>
+
+          <Card>
+            <CardHeader title="Signals" icon="bell" />
+            <div className="space-y-4 p-5">
+              <SignalForm partnerId={id} shows={showOptions} />
+              {(signals ?? []).length ? (
+                <ul className="divide-y divide-slate-100 text-sm">
+                  {(signals ?? []).map((s) => (
+                    <li key={s.id} className="flex items-start justify-between gap-2 py-2">
+                      <div className={s.worked_at ? "text-slate-400" : ""}>
+                        <div className="font-medium">{labelOf(SIGNAL_TYPES, s.signal_type)}</div>
+                        <div className="text-xs">
+                          {formatShortDate(s.occurred_on)}
+                          {s.shows?.show_name ? ` · ${s.shows.show_name}` : ""}
+                          {s.note ? ` · ${s.note}` : ""}
+                        </div>
+                      </div>
+                      <form action={markSignalWorked}>
+                        <input type="hidden" name="id" value={s.id} />
+                        <input type="hidden" name="partner_id" value={id} />
+                        {s.worked_at ? <input type="hidden" name="undo" value="true" /> : null}
+                        <button type="submit" className="whitespace-nowrap text-xs font-medium text-slate-400 hover:text-slate-700">
+                          {s.worked_at ? "Reopen" : "Mark worked"}
+                        </button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader title="Touches" icon="clock" />
+            <div className="p-5">
+              {(touches ?? []).length ? (
+                <ul className="space-y-2.5 text-sm">
+                  {(touches ?? []).map((t) => (
+                    <li key={t.id}>
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                        <span className="font-medium text-slate-700">{labelOf(CHANNELS, t.channel)}</span>
+                        {t.reached ? <Badge className="bg-emerald-50 text-emerald-700">Reached</Badge> : null}
+                        <span>
+                          {formatShortDate(dayOf(t.occurred_at))}
+                          {t.created_by ? ` · ${names.get(t.created_by) ?? ""}` : ""}
+                        </span>
+                      </div>
+                      {t.note ? <p className="whitespace-pre-line text-slate-700">{t.note}</p> : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-400">No touches yet.</p>
+              )}
+            </div>
+          </Card>
         </div>
 
         <div className="space-y-5">
+          <Card>
+            <CardHeader title="Log a touch" icon="enter" />
+            <div className="p-5">
+              <TouchForm
+                partnerId={id}
+                openSignals={openSignals.map((s) => ({
+                  id: s.id,
+                  label: `${labelOf(SIGNAL_TYPES, s.signal_type)} (${formatShortDate(s.occurred_on)})`,
+                }))}
+              />
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader title="First touch" icon="sparkles" />
+            <div className="p-5">
+              <DraftTouch
+                partnerId={id}
+                shows={upcomingLinked.map((l) => ({
+                  id: l.show_id,
+                  label: `${l.shows!.show_name} — ${formatShortDate(l.shows!.show_start_date)}`,
+                }))}
+                email={firstEmail}
+              />
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Weekly client report"
+              icon="documents"
+              action={
+                <Link href={`/partners/${id}/report`} className="text-xs font-medium text-dts-maroon hover:underline">
+                  Open this week&apos;s →
+                </Link>
+              }
+            />
+            <div className="space-y-3 p-5">
+              {report && clientList.length ? (
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className={`rounded-lg border px-2 py-1.5 ${report.counts.outboundGaps ? "border-dts-maroon/30 bg-dts-maroon/5" : "border-slate-200"}`}>
+                    <div className={`text-lg font-semibold ${report.counts.outboundGaps ? "text-dts-maroon" : "text-slate-900"}`}>
+                      {report.counts.outboundGaps}
+                    </div>
+                    <div className="text-xs text-slate-500">Outbound not booked</div>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 px-2 py-1.5">
+                    <div className="text-lg font-semibold text-slate-900">{report.counts.inMotion + report.counts.outboundBooked}</div>
+                    <div className="text-xs text-slate-500">Moving now</div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">Link their clients below and their freight shows up here.</p>
+              )}
+              <ReportSettingsForm partnerId={id} reportTo={partner.report_to} active={partner.report_active} />
+              <p className="text-xs text-slate-400">
+                {partner.last_report_sent_at
+                  ? `${reportSentThisWeek ? "Sent this week" : "Last sent"} ${formatPacificDateTime(partner.last_report_sent_at)}.`
+                  : "Never sent."}{" "}
+                The CRM writes it; you check it and send it.
+              </p>
+            </div>
+          </Card>
+
           {partner.partner_type === "gsc" ? (
             <Card>
               <CardHeader
@@ -478,38 +598,56 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
 
           <Card>
             <CardHeader
-              title="Weekly client report"
-              icon="documents"
+              title="Credit and rebates"
+              icon="reports"
               action={
-                <Link href={`/partners/${id}/report`} className="text-xs font-medium text-dts-maroon hover:underline">
-                  Open this week&apos;s →
+                <Link href={`/partners/${id}/rebates`} className="text-xs font-medium text-dts-maroon hover:underline">
+                  Rebate statements →
                 </Link>
               }
             />
-            <div className="space-y-3 p-5">
-              {report && clientList.length ? (
-                <div className="grid grid-cols-2 gap-2 text-center">
-                  <div className={`rounded-lg border px-2 py-1.5 ${report.counts.outboundGaps ? "border-dts-maroon/30 bg-dts-maroon/5" : "border-slate-200"}`}>
-                    <div className={`text-lg font-semibold ${report.counts.outboundGaps ? "text-dts-maroon" : "text-slate-900"}`}>
-                      {report.counts.outboundGaps}
-                    </div>
-                    <div className="text-xs text-slate-500">Outbound not booked</div>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 px-2 py-1.5">
-                    <div className="text-lg font-semibold text-slate-900">{report.counts.inMotion + report.counts.outboundBooked}</div>
-                    <div className="text-xs text-slate-500">Moving now</div>
-                  </div>
+            <div className="space-y-3 p-5 text-sm">
+              <p className="text-slate-600">
+                {credit.creditedCount} load{credit.creditedCount === 1 ? "" : "s"} credited to them.
+                {partner.incentive_model === "rebate" && partner.rebate_pct
+                  ? ` They earn ${partner.rebate_pct}% of gross margin once each invoice is paid.`
+                  : " No rebate terms set yet."}
+              </p>
+              {credit.suggestions.length ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-500">
+                    Booked by their clients since each client was linked, and not credited to anyone. Untick any that
+                    didn&apos;t come through them.
+                  </p>
+                  <CreditSuggestionsForm
+                    partnerId={id}
+                    rows={credit.suggestions.slice(0, 50).map((x) => ({
+                      id: x.id,
+                      label: `${x.tms_reference_id ?? "No load #"} · ${x.client}`,
+                      detail: [x.show_name, `booked ${formatShortDate(x.booked_on)}`, x.status].filter(Boolean).join(" · "),
+                    }))}
+                  />
                 </div>
               ) : (
-                <p className="text-xs text-slate-500">Link their clients below and their freight shows up here.</p>
+                <p className="text-xs text-slate-400">
+                  Nothing to credit from their clients. Loads that came in on their partner code are credited from the
+                  shipment page (the office email names the code).
+                </p>
               )}
-              <ReportSettingsForm partnerId={id} reportTo={partner.report_to} active={partner.report_active} />
-              <p className="text-xs text-slate-400">
-                {partner.last_report_sent_at
-                  ? `${reportSentThisWeek ? "Sent this week" : "Last sent"} ${formatPacificDateTime(partner.last_report_sent_at)}.`
-                  : "Never sent."}{" "}
-                The CRM writes it; you check it and send it.
-              </p>
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader title="Terms" icon="documents" />
+            <div className="p-5">
+              <TermsForm
+                partnerId={id}
+                model={partner.incentive_model}
+                rebatePct={partner.rebate_pct}
+                markupPct={partner.markup_pct}
+                basis={partner.commission_basis}
+                note={partner.terms_note}
+              />
             </div>
           </Card>
 
@@ -572,144 +710,6 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
                 </ul>
               ) : (
                 <p className="text-xs text-slate-400">Link the shows they service under Shows first.</p>
-              )}
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title="Terms" icon="documents" />
-            <div className="p-5">
-              <TermsForm
-                partnerId={id}
-                model={partner.incentive_model}
-                rebatePct={partner.rebate_pct}
-                markupPct={partner.markup_pct}
-                basis={partner.commission_basis}
-                note={partner.terms_note}
-              />
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader
-              title="Credit and rebates"
-              icon="reports"
-              action={
-                <Link href={`/partners/${id}/rebates`} className="text-xs font-medium text-dts-maroon hover:underline">
-                  Rebate statements →
-                </Link>
-              }
-            />
-            <div className="space-y-3 p-5 text-sm">
-              <p className="text-slate-600">
-                {credit.creditedCount} load{credit.creditedCount === 1 ? "" : "s"} credited to them.
-                {partner.incentive_model === "rebate" && partner.rebate_pct
-                  ? ` They earn ${partner.rebate_pct}% of gross margin once each invoice is paid.`
-                  : " No rebate terms set yet."}
-              </p>
-              {credit.suggestions.length ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-slate-500">
-                    Booked by their clients since each client was linked, and not credited to anyone. Untick any that
-                    didn&apos;t come through them.
-                  </p>
-                  <CreditSuggestionsForm
-                    partnerId={id}
-                    rows={credit.suggestions.slice(0, 50).map((x) => ({
-                      id: x.id,
-                      label: `${x.tms_reference_id ?? "No load #"} · ${x.client}`,
-                      detail: [x.show_name, `booked ${formatShortDate(x.booked_on)}`, x.status].filter(Boolean).join(" · "),
-                    }))}
-                  />
-                </div>
-              ) : (
-                <p className="text-xs text-slate-400">
-                  Nothing to credit from their clients. Loads that came in on their partner code are credited from the
-                  shipment page (the office email names the code).
-                </p>
-              )}
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title="First touch" icon="sparkles" />
-            <div className="p-5">
-              <DraftTouch
-                partnerId={id}
-                shows={upcomingLinked.map((l) => ({
-                  id: l.show_id,
-                  label: `${l.shows!.show_name} — ${formatShortDate(l.shows!.show_start_date)}`,
-                }))}
-                email={firstEmail}
-              />
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title="Log a touch" icon="enter" />
-            <div className="p-5">
-              <TouchForm
-                partnerId={id}
-                openSignals={openSignals.map((s) => ({
-                  id: s.id,
-                  label: `${labelOf(SIGNAL_TYPES, s.signal_type)} (${formatShortDate(s.occurred_on)})`,
-                }))}
-              />
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title="Signals" icon="bell" />
-            <div className="space-y-4 p-5">
-              <SignalForm partnerId={id} shows={showOptions} />
-              {(signals ?? []).length ? (
-                <ul className="divide-y divide-slate-100 text-sm">
-                  {(signals ?? []).map((s) => (
-                    <li key={s.id} className="flex items-start justify-between gap-2 py-2">
-                      <div className={s.worked_at ? "text-slate-400" : ""}>
-                        <div className="font-medium">{labelOf(SIGNAL_TYPES, s.signal_type)}</div>
-                        <div className="text-xs">
-                          {formatShortDate(s.occurred_on)}
-                          {s.shows?.show_name ? ` · ${s.shows.show_name}` : ""}
-                          {s.note ? ` · ${s.note}` : ""}
-                        </div>
-                      </div>
-                      <form action={markSignalWorked}>
-                        <input type="hidden" name="id" value={s.id} />
-                        <input type="hidden" name="partner_id" value={id} />
-                        {s.worked_at ? <input type="hidden" name="undo" value="true" /> : null}
-                        <button type="submit" className="whitespace-nowrap text-xs font-medium text-slate-400 hover:text-slate-700">
-                          {s.worked_at ? "Reopen" : "Mark worked"}
-                        </button>
-                      </form>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title="Touches" icon="clock" />
-            <div className="p-5">
-              {(touches ?? []).length ? (
-                <ul className="space-y-2.5 text-sm">
-                  {(touches ?? []).map((t) => (
-                    <li key={t.id}>
-                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-                        <span className="font-medium text-slate-700">{labelOf(CHANNELS, t.channel)}</span>
-                        {t.reached ? <Badge className="bg-emerald-50 text-emerald-700">Reached</Badge> : null}
-                        <span>
-                          {formatShortDate(dayOf(t.occurred_at))}
-                          {t.created_by ? ` · ${names.get(t.created_by) ?? ""}` : ""}
-                        </span>
-                      </div>
-                      {t.note ? <p className="whitespace-pre-line text-slate-700">{t.note}</p> : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-slate-400">No touches yet.</p>
               )}
             </div>
           </Card>
