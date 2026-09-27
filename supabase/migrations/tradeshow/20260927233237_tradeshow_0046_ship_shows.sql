@@ -1,7 +1,5 @@
--- DTS Trade Show CRM - 0046 Shipping Center shows, permanent partner codes, shipment source.
--- tradeshow variant of ../0046_ship_shows.sql, for DTS Database (qshciqxpkirlkmrwucnk).
--- NOT YET APPLIED: renamed to <applied version>_tradeshow_0046_ship_shows.sql once it runs.
--- Touches only the tradeshow schema.
+-- Applied to DTS Database (qshciqxpkirlkmrwucnk) as migration 20260927233237 "tradeshow_0046_ship_shows".
+-- Recovered verbatim from supabase_migrations.schema_migrations (md5 of the statement: 255a062394003da76a465d275283d1f1). Do not edit: this is the record of what ran.
 
 -- ---------------------------------------------------------------------------
 -- Which edition each GSC runs through its Shipping Center

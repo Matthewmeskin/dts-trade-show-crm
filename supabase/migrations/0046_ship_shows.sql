@@ -17,7 +17,7 @@
 -- The export views that carry this to the public project are in
 -- dts-sage/trade-show/crm/migrations (008, 009), applied after this one.
 --
--- Applied to DTS Database as the tradeshow variant in ./tradeshow/.
+-- Applied to DTS Database 2026-09-27 as the tradeshow variant in ./tradeshow/.
 -- =============================================================================
 
 do $$
