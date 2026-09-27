@@ -33,6 +33,7 @@ import { DOCUMENT_TYPE_META } from "@/lib/documents";
 import { DebriefForm } from "./debrief-form";
 import { LogisticsForm } from "./logistics-form";
 import { OverviewKitFill } from "./overview-kit-fill";
+import { showPageUrl } from "@/lib/partners";
 import { SeriesPanel } from "./series-panel";
 import {
   STATUS_META,
@@ -1167,8 +1168,7 @@ async function LogisticsTab({ showId }: { showId: string }) {
   // Where the page is served: the show site's own address until dtsone.com
   // points at the new website, the same page after. The sync pushes a verify
   // within seconds, the schedule within 15 minutes.
-  const siteOrigin = (process.env.TRADE_SHOW_SITE_URL || "https://www.dtsone.com").replace(/\/+$/, "");
-  const pageUrl = series?.slug ? `${siteOrigin}/trade-show/shipping/${series.slug}/` : null;
+  const pageUrl = series?.slug ? showPageUrl(series.slug) : null;
 
   return (
     <div className="space-y-5">

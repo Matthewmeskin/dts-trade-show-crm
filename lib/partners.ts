@@ -432,5 +432,16 @@ export function suggestCode(name: string): string {
 }
 
 export const PARTNER_CODE_SHAPE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-export const PUBLIC_SITE = "https://www.dtsone.com";
-export const cobrandUrl = (showSlug: string, code: string) => `${PUBLIC_SITE}/trade-show/shipping/${showSlug}/with/${code}`;
+/**
+ * Where people open the public show pages. Until dtsone.com points at the new
+ * website it serves the old WordPress site, so links go to the show site's own
+ * address (TRADE_SHOW_SITE_URL). On cutover day set PUBLIC_SHOW_ORIGIN to
+ * https://www.dtsone.com on the CRM's Vercel project and every link, copy
+ * button and preview in the CRM switches over.
+ */
+export function publicShowOrigin(): string {
+  return (process.env.PUBLIC_SHOW_ORIGIN || process.env.TRADE_SHOW_SITE_URL || "https://www.dtsone.com").replace(/\/+$/, "");
+}
+export const showPageUrl = (showSlug: string, origin = publicShowOrigin()) => `${origin}/trade-show/shipping/${showSlug}/`;
+export const cobrandUrl = (showSlug: string, code: string, origin = publicShowOrigin()) =>
+  `${origin}/trade-show/shipping/${showSlug}/with/${code}/`;
