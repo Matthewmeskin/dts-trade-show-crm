@@ -25,7 +25,7 @@ pays nothing; DTS earns on the freight it moves. Rebates are off the table.
 - What a GSC values most, in order: a manifest by booth before move in, freight that arrives labeled
   for the right booth, outbound booked with the MHA done before the show closes. Then a clean
   experience for their exhibitors under their own name.
-- Full research: `reports/GSC shipping portal opportunity.md`.
+- Full research: `docs/research/GSC shipping portal opportunity.md` in this repo.
 
 ## 3. Hard rules
 
