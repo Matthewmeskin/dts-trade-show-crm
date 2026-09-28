@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { partnerToolsOn } from "@/lib/app-settings";
 import { Badge, Card, CardHeader, PageHeader } from "@/components/ui";
 import { formatCurrency, formatDate, formatPacificDateTime, todayYMD } from "@/lib/format";
 import {
@@ -40,6 +41,8 @@ export default async function RebatesPage({
   const { id } = await params;
   const sp = await searchParams;
   const supabase = await createClient();
+  // Partner growth tooling: gone unless an admin has it on (lib/app-settings.ts).
+  if (!(await partnerToolsOn(supabase))) notFound();
   const today = todayYMD();
 
   const { data: claims } = await supabase.auth.getClaims();

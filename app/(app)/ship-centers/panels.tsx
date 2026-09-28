@@ -41,14 +41,18 @@ export function DetailsForm({
   suggestedCode,
   hasCode,
   values,
+  uploadReady = false,
 }: {
   partnerId: string;
   suggestedCode: string;
   hasCode: boolean;
+  /** Vercel Blob is set up, so a logo file can be uploaded. */
+  uploadReady?: boolean;
   values: { code: string | null; public_name: string | null; ship_phone: string | null; ship_email: string | null; logo_url: string | null };
 }) {
   const [state, action] = useActionState(saveShipCenter, empty);
-  const err = state.fieldErrors ?? {};
+  const [fileError, setFileError] = useState<string | null>(null);
+  const err: Record<string, string | undefined> = { ...(state.fieldErrors ?? {}), ...(fileError ? { logo_url: fileError } : {}) };
   return (
     <form action={action} className="space-y-4 p-5">
       <input type="hidden" name="partner_id" value={partnerId} />
@@ -74,9 +78,36 @@ export function DetailsForm({
       <Field label="Email for exhibitors" htmlFor="ship_email" error={err.ship_email}>
         <input id="ship_email" name="ship_email" type="email" defaultValue={values.ship_email ?? ""} className={inputClass} />
       </Field>
-      <Field label="Logo link" htmlFor="logo_url" error={err.logo_url} hint="An https:// link to their logo image.">
-        <input id="logo_url" name="logo_url" defaultValue={values.logo_url ?? ""} className={inputClass} />
-      </Field>
+      {uploadReady ? (
+        <Field label="Logo" htmlFor="logo_file" error={err.logo_url} hint="PNG, JPEG or WebP, under 500 KB. We resize and re-save it as a PNG.">
+          <div className="flex flex-wrap items-center gap-3">
+            {values.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element -- their current logo, any host
+              <img src={values.logo_url} alt="" className="h-10 w-auto max-w-[160px] rounded border border-slate-200 bg-white object-contain p-1" />
+            ) : null}
+            <input
+              id="logo_file"
+              name="logo_file"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="text-sm"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                // Checked here too: a big file never reaches the server.
+                if (f && f.size > 500 * 1024) {
+                  setFileError("Keep the logo under 500 KB.");
+                  e.target.value = "";
+                } else setFileError(null);
+              }}
+            />
+          </div>
+          <input type="hidden" name="logo_url" value={values.logo_url ?? ""} />
+        </Field>
+      ) : (
+        <Field label="Logo link" htmlFor="logo_url" error={err.logo_url} hint="An https:// link to their logo image. Upload comes once Vercel Blob is set up.">
+          <input id="logo_url" name="logo_url" defaultValue={values.logo_url ?? ""} className={inputClass} />
+        </Field>
+      )}
       <div className="flex items-center gap-3">
         <SubmitButton pendingLabel="Saving…">{hasCode ? "Save" : "Save and start"}</SubmitButton>
         {state.error ? <p className="text-sm text-dts-maroon">{state.error}</p> : null}

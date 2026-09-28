@@ -22,10 +22,11 @@ const TABS = [
   { key: "import", label: "Import", href: "/partners/import" },
 ] as const;
 
-export function PartnersNav({ active }: { active: (typeof TABS)[number]["key"] }) {
+/** The worklist is partner growth tooling: shown only when an admin has it on (lib/app-settings.ts). */
+export function PartnersNav({ active, tools = false }: { active: (typeof TABS)[number]["key"]; tools?: boolean }) {
   return (
     <nav className="mb-5 flex gap-1 border-b border-slate-200">
-      {TABS.map((t) => (
+      {TABS.filter((t) => tools || t.key !== "worklist").map((t) => (
         <Link
           key={t.key}
           href={t.href}

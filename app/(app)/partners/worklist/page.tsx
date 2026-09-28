@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { partnerToolsOn } from "@/lib/app-settings";
 import { Badge, Card, CardHeader, EmptyState, PageHeader } from "@/components/ui";
 import { dayOf, daysUntil, formatDate, formatPacificDateTime, formatShortDate, todayYMD } from "@/lib/format";
 import { shiftDays } from "@/lib/sales";
@@ -19,6 +21,8 @@ export const dynamic = "force-dynamic";
 export default async function WorklistPage({ searchParams }: { searchParams: Promise<{ mine?: string }> }) {
   const { mine } = await searchParams;
   const supabase = await createClient();
+  // Partner growth tooling: gone unless an admin has it on (lib/app-settings.ts).
+  if (!(await partnerToolsOn(supabase))) notFound();
   const today = todayYMD();
   const { data: claims } = await supabase.auth.getClaims();
   const me = claims?.claims?.sub ?? "";
