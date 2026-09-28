@@ -7,7 +7,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * bearer secret for the TMS ingest) and must return JSON — never a redirect
  * to the login page.
  */
-const PUBLIC_PREFIXES = ["/login", "/auth", "/api"];
+const PUBLIC_PREFIXES = ["/login", "/auth", "/api", "/reset-password"];
 
 // Next.js 16 "proxy" convention: a NAMED `proxy` export (not a default export).
 export async function proxy(request: NextRequest) {

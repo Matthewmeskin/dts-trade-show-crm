@@ -7,7 +7,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * routes, a bearer secret for the TMS ingest) and must return JSON — never a
  * redirect to the login page.
  */
-const PUBLIC_PREFIXES = ["/login", "/auth", "/api"];
+const PUBLIC_PREFIXES = ["/login", "/auth", "/api", "/reset-password"];
 
 /**
  * Refreshes the Supabase auth session on every request and redirects

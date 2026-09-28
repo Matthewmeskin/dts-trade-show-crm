@@ -109,7 +109,14 @@ export function Sidebar({
       </nav>
 
       <div className="border-t border-white/15 p-3">
-        <div className="flex items-center gap-3 rounded-lg px-2 py-2">
+        <Link
+          href="/account"
+          onClick={onNavigate}
+          title="Account · change password"
+          className={`flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-white/10 ${
+            pathname.startsWith("/account") ? "bg-white/10" : ""
+          }`}
+        >
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-xs font-semibold text-white">
             {initials}
           </div>
@@ -124,7 +131,7 @@ export function Sidebar({
               Admin
             </span>
           ) : null}
-        </div>
+        </Link>
         <form action={signOut}>
           <button
             type="submit"
