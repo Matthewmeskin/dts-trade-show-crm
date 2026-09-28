@@ -350,50 +350,48 @@ instead of it.
   accessorials and the move out date; still require a coordinator to confirm the carrier knows the
   marshalling yard process before booking.
 
-## 9c. Behind the scenes: rate audit, customer setup and load linking
+## 9c. Behind the scenes: approve, load, payment, confirm (decided by Matthew, Sept 27)
 
-The exhibitor should never see DTS's internal steps. They see three moments: an instant estimate,
-one Approve click, and a "Confirmed" message with pickup details. Everything below happens on the
-DTS side, and the product's job is to make each step fast for staff.
+The exhibitor sees three moments: an instant estimate, one Approve click (with card setup), and a
+"Confirmed" message with pickup details. DTS's steps happen behind that.
 
-**1. Rate audit (every instant estimate is checked before booking)**
-- The estimate is saved with everything that produced it: inputs, carrier, service, accessorial codes,
-  billed amount, timestamp.
-- Automatic checks run the moment the exhibitor approves and sort requests into two lanes:
-  - **Clean** (one click confirm): carrier on the staff list, standard service, no hazmat, weight and
-    dimensions consistent with the piece type (density within a sane range), address type matches the
-    accessorials, show site accessorial (TSDE or TSPK) present, estimate under 24 hours old.
-  - **Needs review** (coordinator looks): any failed check, residential or limited access, over the
-    instant limits, or a re-rate that moves the price by more than a set percent (default 5).
-- Confirm re-pulls the rate from Hyperion. If the confirmed price is within the tolerance, DTS honors
-  the estimate. If it is higher beyond the tolerance, the exhibitor gets the new price and approves
-  again; they are never booked at a price they did not approve.
-- The exhibitor sees: "Estimate approved. A DTS coordinator is confirming your pickup." Then
-  "Confirmed" by email and on the status page. Target: same business hour for Clean, same business
-  day for Needs review (Matthew to confirm).
+**On Approve (automatic, seconds):**
+1. **Create the load in Hyperion right away**, in a pending or quoted status only (never tendered or
+   dispatched to a carrier), under the Shipping Center billing customer (71098) until the real
+   customer exists. Put the request's public reference (for example SC-7K3Q-X9PM) in the load's
+   customer reference or PO field and save the returned load number on the request leg. From here the
+   existing Hyperion sync finds and links the load by load number; nobody matches loads by hand.
+2. **Send the exhibitor to payment setup:** save a card (for example Stripe SetupIntent, card saved
+   for later use, not charged). Use save, not a hold: authorizations expire in about 7 days and
+   inbound pickups can be weeks out. Customers DTS already bills on terms skip this step. If they
+   leave without finishing card setup, the load stays pending and the status page and a reminder ask
+   them to finish.
+3. The exhibitor sees: "Approved. We are confirming your pickup and price. Your card will not be
+   charged until we confirm."
 
-**2. Customer setup (who DTS bills)**
-- Two different things: the exhibitor's optional portal account (self serve, section 6) and the
-  billing customer in Hyperion. The exhibitor never has to "create an account" to ship.
-- On approval, the CRM matches the company to an existing Hyperion customer by name, domain and
-  address. If found, it attaches. If not, it prepares the new customer record from the request data
-  (company, billing contact, address, email) so staff create it in Hyperion with no retyping. If
-  Hyperion exposes a create customer API, use it behind a staff click; otherwise show a copy ready
-  block. Confirm with Hyperion (open question 10).
-- First time payment (open question 4) decides the rest: recommended for the pilot, card on approval
-  for new customers (authorize at approval, charge after delivery) and normal terms for customers DTS
-  already bills. A credit application only when a company asks for terms.
+**DTS confirms (coordinator, from the requests inbox):**
+4. **Audit the rate.** Automatic checks sort the request into Clean (one click confirm: carrier on the
+   staff list, standard service, no hazmat, sane density, accessorials match the address type, show
+   site accessorial present, estimate under 24 hours old) or Needs review. Confirm re-pulls the rate;
+   within tolerance (default 5 percent) DTS honors the estimate. Above it, the exhibitor sees the new
+   price and approves again; never charge a price they did not approve.
+5. **Create the customer profile.** The CRM matches the company to an existing Hyperion customer or
+   prepares a new one from the request data; staff create it (by API if Hyperion has one, else a copy
+   ready block), then move the load from the Shipping Center customer to the real customer.
+6. **Book the carrier** in Hyperion as normal. The exhibitor gets "Confirmed" with carrier, pickup
+   window, BOL and labels.
 
-**3. Linking loads to the request and the portal (no manual matching)**
-- Every request has a public reference (for example SC-7K3Q-X9PM). When staff book the load in
-  Hyperion, they put that reference in the load's customer reference or PO field.
-- The existing Hyperion to CRM sync reads that field and links the load to the request leg
-  automatically; staff do not type the load number, carrier or PRO anywhere. If the reference is
-  missing, the inbox shows the request as "Booked, not linked" with a one click match list of recent
-  loads for that customer and lane.
-- Once linked, tracking, BOL, POD and the MHA flow to the exhibitor's status page and account, and
-  to the GSC's manifest, with no further staff work.
-- Confirm which Hyperion field the sync can read for the reference (open question 11).
+**Charging:** charge the saved card after delivery for the confirmed amount (or on confirmation, per
+Matthew). If a carrier invoice adds accessorials later, the exhibitor is notified before any extra
+charge, per the terms they accepted.
+
+**Cancellations:** before confirmation, cancel voids the pending Hyperion load and nothing is charged.
+After confirmation, "Request a change" goes to the coordinator.
+
+**Rule change to note:** this writes to Hyperion (create load, later update customer), which the
+Sept 1 standing rule ("new Hyperion integrations use side effect free routes only") does not allow.
+Matthew approved this exception for Shipping Center loads only. Keep the write in the CRM server,
+log every call, use Hyperion's test mode until the pilot, and never tender or dispatch automatically.
 
 ## 9b. Phase 2: My Shows (the exhibitor show manager)
 
@@ -507,9 +505,9 @@ each booked request; and a cap on accepted requests for the pilot show.
 7. Pilot request cap.
 9. Which marketing tool receives opted in contacts (CRM list, HubSpot or other) and who owns the
    everyday freight follow up.
-10. Whether Hyperion has a create customer API, and the matching rules for existing customers.
-11. Which Hyperion load field carries the request reference (customer reference or PO) and that the
-    tracking sync returns it.
+10. Hyperion APIs for create load (pending status), update a load's customer, void a load, and
+    create customer; and which load field carries the request reference.
+11. Payment processor (Stripe recommended) and whether to charge on confirmation or after delivery.
 12. Target times for confirming Clean and Needs review requests, and the re-rate tolerance (default 5
     percent).
 8. Which Hyperion rating API and account to use, and the instant rate limits (weight, pieces) for the
