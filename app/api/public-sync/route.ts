@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { runPublicSync, type SyncTrigger } from "@/lib/public-sync";
 import { pullShipRequests } from "@/lib/ship-pull";
 import { pushShipStatus } from "@/lib/ship-push";
+import { runShipMail } from "@/lib/ship-mailer";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -16,7 +17,9 @@ export const maxDuration = 120;
  * The same run pulls confirmed GSC Shipping Center requests into the CRM's
  * inbox (lib/ship-pull.ts). The two are independent: one failing never stops
  * the other. After the pull, each leg's status goes back to the exhibitor's
- * status page (lib/ship-push.ts), so it pushes against what was just pulled.
+ * status page (lib/ship-push.ts), so it pushes against what was just pulled;
+ * then the Shipping Center's scheduled email (lib/ship-mailer.ts): the GSC's
+ * manifest and outbound list, and the exhibitor reminders.
  */
 function matches(provided: string, secret: string | undefined): boolean {
   if (!secret) return false;
@@ -33,12 +36,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
   const trigger: SyncTrigger = fromCron ? "schedule" : "manual";
-  const [result, [pull, push]] = await Promise.all([
+  const [result, [pull, push, mail]] = await Promise.all([
     runPublicSync(trigger),
-    pullShipRequests().then(async (p) => [p, await pushShipStatus()] as const),
+    pullShipRequests().then(async (p) => [p, await pushShipStatus(), await runShipMail()] as const),
   ]);
   if (!result.ok) console.error("[public-sync]", trigger, result.error);
   if (!pull.ok) console.error("[ship-pull]", trigger, pull.error);
   if (!push.ok) console.error("[ship-push]", trigger, push.error);
-  return NextResponse.json({ ...result, pull, push }, { status: result.ok && pull.ok && push.ok ? 200 : 500 });
+  if (!mail.ok) console.error("[ship-mail]", trigger, mail.error);
+  // A reminder that did not send is retried next run; it does not fail the sync.
+  return NextResponse.json({ ...result, pull, push, mail }, { status: result.ok && pull.ok && push.ok ? 200 : 500 });
 }

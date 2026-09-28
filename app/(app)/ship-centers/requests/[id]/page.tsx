@@ -46,7 +46,7 @@ export default async function ShipRequestPage({ params }: { params: Promise<{ id
   const legIds = legs.map((l) => l.id);
   const { data: claims } = await supabase.auth.getClaims();
   const meId = (claims?.claims?.sub as string | undefined) ?? null;
-  const [{ data: quotes }, { data: loads }, { data: people }, { data: changes }] = await Promise.all([
+  const [{ data: quotes }, { data: loads }, { data: people }, { data: changes }, { data: mails }] = await Promise.all([
     legIds.length
       ? supabase.from("ship_quotes").select("leg_id, amount, sent_via, sent_at, sent_by, note").in("leg_id", legIds).order("sent_at", { ascending: false })
       : Promise.resolve({ data: [] as { leg_id: string; amount: number; sent_via: string; sent_at: string; sent_by: string | null; note: string | null }[] }),
@@ -55,6 +55,7 @@ export default async function ShipRequestPage({ params }: { params: Promise<{ id
       : Promise.resolve({ data: [] as { id: string; ship_leg_id: string | null; tms_reference_id: string | null; pro_number: string | null; status: string; carriers: { carrier_name: string } | null }[] }),
     supabase.from("profiles").select("id, full_name, phone"),
     supabase.from("ship_change_requests").select("*").eq("request_id", id).order("requested_at"),
+    supabase.from("ship_email_log").select("kind, subject, ok, sent_at").eq("request_id", id).order("sent_at", { ascending: false }).limit(20),
   ]);
   const openChanges = (changes ?? []).filter((c) => !c.handled_at);
   const nameOf = new Map((people ?? []).map((p) => [p.id, p.full_name ?? "Someone"]));
@@ -260,6 +261,22 @@ export default async function ShipRequestPage({ params }: { params: Promise<{ id
               ) : null}
             </div>
           </Card>
+          {mails?.length ? (
+            <Card>
+              <CardHeader title="Reminders sent" icon="clock" />
+              <ul className="divide-y divide-slate-100 text-xs">
+                {mails.map((m) => (
+                  <li key={`${m.sent_at}-${m.kind}`} className="px-5 py-2">
+                    <span className="block text-sm text-slate-800">{m.subject}</span>
+                    <span className="text-slate-500">
+                      {formatPacificDateTime(m.sent_at)}
+                      {m.ok === false ? " · did not send" : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
           {!r.closed ? (
             <Card className="px-5 py-4">
               <CloseForm requestId={r.id} />
