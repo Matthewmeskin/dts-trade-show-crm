@@ -7,6 +7,8 @@ import { Pagination } from "@/components/pagination";
 import { dayOf, formatDate, formatShortDate, todayYMD } from "@/lib/format";
 import { PARTNER_TYPES, STAGES, TIERS, labelOf } from "@/lib/partners";
 import { PartnersNav, StageBadge, TierBadge, WeeklyStrip, loadWeeklyNumbers } from "./parts";
+import { partnerToolsOn } from "@/lib/app-settings";
+import { PartnerToolsSwitch } from "./tools-switch";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +44,8 @@ export default async function PartnersPage({ searchParams }: { searchParams: Pro
   if (stage) query = query.eq("stage", stage);
   if (owner) query = query.or(`admin_id.eq.${owner},rep_id.eq.${owner}`);
 
-  const [{ data: partners }, { data: profiles }, { data: links }, { data: signals }, { data: touches }, week] =
+  const { data: claims } = await supabase.auth.getClaims();
+  const [{ data: partners }, { data: profiles }, { data: links }, { data: signals }, { data: touches }, week, tools] =
     await Promise.all([
       query.limit(2000),
       supabase.from("profiles").select("id, full_name, email").order("full_name"),
@@ -50,7 +53,10 @@ export default async function PartnersPage({ searchParams }: { searchParams: Pro
       supabase.from("partner_signals").select("partner_id").is("worked_at", null).limit(5000),
       supabase.from("partner_touches").select("partner_id, occurred_at").order("occurred_at", { ascending: false }).limit(5000),
       loadWeeklyNumbers(supabase),
+      partnerToolsOn(supabase),
     ]);
+  const { data: meRow } = await supabase.from("profiles").select("role").eq("id", claims?.claims?.sub ?? "").maybeSingle();
+  const isAdmin = meRow?.role === "admin";
 
   const people = new Map((profiles ?? []).map((p) => [p.id, p.full_name || p.email || "—"]));
   const nextShow = new Map<string, { name: string; start: string; clients: number | null }>();
@@ -96,8 +102,8 @@ export default async function PartnersPage({ searchParams }: { searchParams: Pro
           </Link>
         }
       />
-      <PartnersNav active="list" />
-      <WeeklyStrip n={week} />
+      <PartnersNav active="list" tools={tools} />
+      {tools ? <WeeklyStrip n={week} /> : null}
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-500">
@@ -261,6 +267,7 @@ export default async function PartnersPage({ searchParams }: { searchParams: Pro
           {archived === "1" ? "Back to the list" : "Show archived"}
         </Link>
       </p>
+      {isAdmin ? <PartnerToolsSwitch on={tools} /> : null}
     </div>
   );
 }
