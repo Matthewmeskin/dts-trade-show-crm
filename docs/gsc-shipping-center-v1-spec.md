@@ -130,6 +130,13 @@ pays nothing; DTS earns on the freight it moves. Rebates are off the table.
   shipping" button. The coordinator's name and mobile for move out day. `BrokerRole` and
   `DrayageNotice` (material handling is billed by the GSC, not DTS).
 
+**"When should I ship?" on the show home.** The exhibitor enters their pickup zip and sees, in plain
+words: "To reach the advance warehouse by [deadline], plan to ship by about [date]" and "To deliver
+direct to show on [window], plan to ship by about [date]," plus the return trip timing after move out.
+Built from the verified deadlines and an estimated transit time for that lane (from the instant rate
+transit when available, else a conservative default per distance band), always labeled as an estimate.
+One tap carries the zip and dates into the request form.
+
 **Request form** at `.../[year]/request/`. One page, clear steps, mobile first, no login, about three
 minutes. Progress saved in the browser; the last entry is remembered for the next show, with a "This
 is a shared computer" option that clears it after submit. Address autocomplete if a browser key is
