@@ -1,7 +1,5 @@
--- PENDING: not applied. The exact SQL to run on DTS Database (qshciqxpkirlkmrwucnk) as migration
--- "tradeshow_0049_ship_status", after tradeshow_0047_ship_intake, once Matthew has seen it and point
--- in time recovery is confirmed. After it runs, rename this file to its applied version.
--- Same as ../0049_ship_status.sql with public -> tradeshow and no payables guard.
+-- Applied to DTS Database (qshciqxpkirlkmrwucnk) as migration 20260928042453 "tradeshow_0049_ship_status".
+-- Recovered verbatim from supabase_migrations.schema_migrations (md5 of the statement: 04dfe5ca4a1281ca6709a313e468dc9f). Do not edit: this is the record of what ran.
 
 alter table tradeshow.ship_request_inbox
   add column exhibitor_version     integer not null default 1,
