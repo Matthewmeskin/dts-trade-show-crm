@@ -367,7 +367,12 @@ The exhibitor sees three moments: an instant estimate, one Approve click (with c
    leave without finishing card setup, the load stays pending and the status page and a reminder ask
    them to finish.
 3. The exhibitor sees: "Approved. We are confirming your pickup and price. Your card will not be
-   charged until we confirm."
+   charged until we confirm." They get the same message by email.
+3a. **DTS is alerted at the same moment:** an email (and optionally SMS or Teams) to the team inbox
+   and the assigned coordinator, with the request, lane, estimate, Clean or Needs review, and a link
+   straight to it in the inbox. If an approval is not confirmed within the target time, it escalates
+   to the backup coordinator. Approvals after hours get an automatic "we will confirm first thing in
+   the morning" line in the exhibitor's email.
 
 **DTS confirms (coordinator, from the requests inbox):**
 4. **Audit the rate.** Automatic checks sort the request into Clean (one click confirm: carrier on the
