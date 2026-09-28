@@ -19,7 +19,7 @@ applied migration, recovered from `supabase_migrations.schema_migrations`, named
 | `tradeshow_0040_partners` to `tradeshow_0045_public_sync_runs` | 0040 to 0045 |
 | `tradeshow_0044b_ar_status_null_amount` | the `nullif` change folded into 0044 |
 | `tradeshow_0046_ship_shows` | 0046, GSC Shipping Center slice 2 (Sept 27 2026) |
-| `PENDING_tradeshow_0047_ship_intake.sql` (not applied) | 0047, GSC Shipping Center slice 4: the requests inbox. Renamed to its applied version once it runs |
+| `tradeshow_0047_ship_intake` | 0047, GSC Shipping Center slice 4: the requests inbox (Sept 28 2026) |
 | `PENDING_tradeshow_0049_ship_status.sql` (not applied) | 0049, GSC Shipping Center slice 5: exhibitor versions, pushed statuses, change requests. After 0047 |
 
 The export side (`tradeshow_public` views, `show_series`, `show_public_logistics`, `public_export()`)
