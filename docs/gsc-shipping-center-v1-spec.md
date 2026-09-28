@@ -130,6 +130,13 @@ pays nothing; DTS earns on the freight it moves. Rebates are off the table.
   shipping" button. The coordinator's name and mobile for move out day. `BrokerRole` and
   `DrayageNotice` (material handling is billed by the GSC, not DTS).
 
+**"When should I ship?" on the show home.** The exhibitor enters their pickup zip and sees, in plain
+words: "To reach the advance warehouse by [deadline], plan to ship by about [date]" and "To deliver
+direct to show on [window], plan to ship by about [date]," plus the return trip timing after move out.
+Built from the verified deadlines and an estimated transit time for that lane (from the instant rate
+transit when available, else a conservative default per distance band), always labeled as an estimate.
+One tap carries the zip and dates into the request form.
+
 **Request form** at `.../[year]/request/`. One page, clear steps, mobile first, no login, about three
 minutes. Progress saved in the browser; the last entry is remembered for the next show, with a "This
 is a shared computer" option that clears it after submit. Address autocomplete if a browser key is
@@ -350,6 +357,54 @@ instead of it.
   accessorials and the move out date; still require a coordinator to confirm the carrier knows the
   marshalling yard process before booking.
 
+## 9c. Behind the scenes: approve, load, payment, confirm (decided by Matthew, Sept 27)
+
+The exhibitor sees three moments: an instant estimate, one Approve click (with card setup), and a
+"Confirmed" message with pickup details. DTS's steps happen behind that.
+
+**On Approve (automatic, seconds):**
+1. **Create the load in Hyperion right away**, in a pending or quoted status only (never tendered or
+   dispatched to a carrier), under the Shipping Center billing customer (71098) until the real
+   customer exists. Put the request's public reference (for example SC-7K3Q-X9PM) in the load's
+   customer reference or PO field and save the returned load number on the request leg. From here the
+   existing Hyperion sync finds and links the load by load number; nobody matches loads by hand.
+2. **Send the exhibitor to payment setup:** save a card (for example Stripe SetupIntent, card saved
+   for later use, not charged). Use save, not a hold: authorizations expire in about 7 days and
+   inbound pickups can be weeks out. Customers DTS already bills on terms skip this step. If they
+   leave without finishing card setup, the load stays pending and the status page and a reminder ask
+   them to finish.
+3. The exhibitor sees: "Approved. We are confirming your pickup and price. Your card will not be
+   charged until we confirm." They get the same message by email.
+3a. **DTS is alerted at the same moment:** an email (and optionally SMS or Teams) to the team inbox
+   and the assigned coordinator, with the request, lane, estimate, Clean or Needs review, and a link
+   straight to it in the inbox. If an approval is not confirmed within the target time, it escalates
+   to the backup coordinator. Approvals after hours get an automatic "we will confirm first thing in
+   the morning" line in the exhibitor's email.
+
+**DTS confirms (coordinator, from the requests inbox):**
+4. **Audit the rate.** Automatic checks sort the request into Clean (one click confirm: carrier on the
+   staff list, standard service, no hazmat, sane density, accessorials match the address type, show
+   site accessorial present, estimate under 24 hours old) or Needs review. Confirm re-pulls the rate;
+   within tolerance (default 5 percent) DTS honors the estimate. Above it, the exhibitor sees the new
+   price and approves again; never charge a price they did not approve.
+5. **Create the customer profile.** The CRM matches the company to an existing Hyperion customer or
+   prepares a new one from the request data; staff create it (by API if Hyperion has one, else a copy
+   ready block), then move the load from the Shipping Center customer to the real customer.
+6. **Book the carrier** in Hyperion as normal. The exhibitor gets "Confirmed" with carrier, pickup
+   window, BOL and labels.
+
+**Charging:** charge the saved card after delivery for the confirmed amount (or on confirmation, per
+Matthew). If a carrier invoice adds accessorials later, the exhibitor is notified before any extra
+charge, per the terms they accepted.
+
+**Cancellations:** before confirmation, cancel voids the pending Hyperion load and nothing is charged.
+After confirmation, "Request a change" goes to the coordinator.
+
+**Rule change to note:** this writes to Hyperion (create load, later update customer), which the
+Sept 1 standing rule ("new Hyperion integrations use side effect free routes only") does not allow.
+Matthew approved this exception for Shipping Center loads only. Keep the write in the CRM server,
+log every call, use Hyperion's test mode until the pilot, and never tender or dispatch automatically.
+
 ## 9b. Phase 2: My Shows (the exhibitor show manager)
 
 Once the pilot works, the same exhibitor account grows into an ExhibitDay style tool for managing
@@ -413,7 +468,8 @@ decorator stores, GSC roles and self managed users (after the pilot).
    with `submit_request_signed`, Turnstile, rate limits and the confirm email.
 4. **CRM pull, requests inbox and team alert.**
 5. **Status page, approve quote, edits and cancel, outbound MHA,** status back from TMS data.
-5b. **Instant LTL rates from the TMS** (section 9a), starting with confirming the Hyperion rating API.
+5b. **Instant LTL rates from the TMS** (section 9a), with the audit lanes, customer matching and
+    automatic load linking in section 9c.
 6. **Reminders and the emailed manifest and outbound list** (reusing `lib/gsc-manifest.ts`).
 7. **Stale logistics handling** in the GSC Shipping Centers area (day 50 reconfirm task, alerts,
    disabling labels and the warehouse option on stale shows).
@@ -461,5 +517,10 @@ each booked request; and a cap on accepted requests for the pilot show.
 7. Pilot request cap.
 9. Which marketing tool receives opted in contacts (CRM list, HubSpot or other) and who owns the
    everyday freight follow up.
+10. Hyperion APIs for create load (pending status), update a load's customer, void a load, and
+    create customer; and which load field carries the request reference.
+11. Payment processor (Stripe recommended) and whether to charge on confirmation or after delivery.
+12. Target times for confirming Clean and Needs review requests, and the re-rate tolerance (default 5
+    percent).
 8. Which Hyperion rating API and account to use, and the instant rate limits (weight, pieces) for the
    pilot.

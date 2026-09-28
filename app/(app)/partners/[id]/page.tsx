@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { partnerToolsOn } from "@/lib/app-settings";
 import { Badge, Card, CardHeader, PageHeader } from "@/components/ui";
 import { dayOf, formatDate, formatDateRange, formatPacificDateTime, formatShortDate, todayYMD } from "@/lib/format";
 import {
@@ -47,6 +48,7 @@ const fullName = (c: { first_name: string | null; last_name: string | null }) =>
 export default async function PartnerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
+  const tools = await partnerToolsOn(supabase);
   const today = todayYMD();
 
   const { data: partner } = await supabase.from("partners").select("*").eq("id", id).maybeSingle();
@@ -265,74 +267,76 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
             </div>
           </Card>
 
-          <Card>
-            <CardHeader title="Calls" icon="calendar" />
-            <div className="space-y-4 p-5">
-              <BookCallForm
-                partnerId={id}
-                suggestion={suggestion}
-                reps={people}
-                defaultRepId={partner.rep_id}
-                contacts={(contacts ?? []).map((c) => ({ id: c.id, name: `${fullName(c)}${c.title ? `, ${c.title}` : ""}` }))}
-                defaults={{
-                  signal: latestSignal
-                    ? `${labelOf(SIGNAL_TYPES, latestSignal.signal_type)}${latestSignal.note ? ` — ${latestSignal.note}` : ""}`
-                    : "",
-                  showsNote,
-                  clientCount: partner.client_count,
-                  pain: partner.shipping_pain ?? "",
-                }}
-              />
-              {(calls ?? []).length ? (
-                <ul className="divide-y divide-slate-100">
-                  {(calls ?? []).map((c) => {
-                    const loop = loopState(c, now);
-                    const outcome = metaOf(OUTCOMES, c.outcome);
-                    return (
-                      <li key={c.id} className="py-3 text-sm">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-slate-900">{formatPacificDateTime(c.scheduled_at)}</span>
-                          <span className="text-slate-500">with {names.get(c.rep_id) ?? "—"}</span>
-                          {c.status === "held" && outcome ? (
-                            <Badge className={outcome.badge}>Held · {outcome.label}</Badge>
-                          ) : c.status !== "booked" ? (
-                            <Badge className="bg-slate-100 text-slate-500">{labelOf(CALL_STATUSES, c.status)}</Badge>
-                          ) : loop === "overdue" ? (
-                            <Badge className="bg-dts-maroon/10 text-dts-maroon">Outcome overdue</Badge>
-                          ) : loop === "due" ? (
-                            <Badge className="bg-amber-100 text-amber-800">Outcome due</Badge>
-                          ) : (
-                            <Badge className="bg-violet-100 text-violet-800">Booked</Badge>
-                          )}
-                        </div>
-                        <dl className="mt-1.5 grid gap-x-4 gap-y-0.5 text-xs text-slate-600 sm:grid-cols-[7rem_1fr]">
-                          <dt className="text-slate-400">Signal</dt>
-                          <dd>{c.signal}</dd>
-                          <dt className="text-slate-400">Shows</dt>
-                          <dd>{c.shows_note}</dd>
-                          <dt className="text-slate-400">Clients</dt>
-                          <dd>{c.client_count ?? "—"}</dd>
-                          <dt className="text-slate-400">Shipping pain</dt>
-                          <dd>{c.shipping_pain}</dd>
-                          {c.outcome_note ? (
-                            <>
-                              <dt className="text-slate-400">Outcome note</dt>
-                              <dd>{c.outcome_note}</dd>
-                            </>
-                          ) : null}
-                          <dt className="text-slate-400">Booked by</dt>
-                          <dd>{c.booked_by ? names.get(c.booked_by) : "—"}</dd>
-                        </dl>
-                        {loop === "due" || loop === "overdue" ? <CloseCallForm callId={c.id} partnerId={id} /> : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <p className="text-sm text-slate-400">No calls booked yet.</p>
-              )}
-            </div>
-          </Card>
+          {tools ? (
+            <Card>
+              <CardHeader title="Calls" icon="calendar" />
+              <div className="space-y-4 p-5">
+                <BookCallForm
+                  partnerId={id}
+                  suggestion={suggestion}
+                  reps={people}
+                  defaultRepId={partner.rep_id}
+                  contacts={(contacts ?? []).map((c) => ({ id: c.id, name: `${fullName(c)}${c.title ? `, ${c.title}` : ""}` }))}
+                  defaults={{
+                    signal: latestSignal
+                      ? `${labelOf(SIGNAL_TYPES, latestSignal.signal_type)}${latestSignal.note ? ` — ${latestSignal.note}` : ""}`
+                      : "",
+                    showsNote,
+                    clientCount: partner.client_count,
+                    pain: partner.shipping_pain ?? "",
+                  }}
+                />
+                {(calls ?? []).length ? (
+                  <ul className="divide-y divide-slate-100">
+                    {(calls ?? []).map((c) => {
+                      const loop = loopState(c, now);
+                      const outcome = metaOf(OUTCOMES, c.outcome);
+                      return (
+                        <li key={c.id} className="py-3 text-sm">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-slate-900">{formatPacificDateTime(c.scheduled_at)}</span>
+                            <span className="text-slate-500">with {names.get(c.rep_id) ?? "—"}</span>
+                            {c.status === "held" && outcome ? (
+                              <Badge className={outcome.badge}>Held · {outcome.label}</Badge>
+                            ) : c.status !== "booked" ? (
+                              <Badge className="bg-slate-100 text-slate-500">{labelOf(CALL_STATUSES, c.status)}</Badge>
+                            ) : loop === "overdue" ? (
+                              <Badge className="bg-dts-maroon/10 text-dts-maroon">Outcome overdue</Badge>
+                            ) : loop === "due" ? (
+                              <Badge className="bg-amber-100 text-amber-800">Outcome due</Badge>
+                            ) : (
+                              <Badge className="bg-violet-100 text-violet-800">Booked</Badge>
+                            )}
+                          </div>
+                          <dl className="mt-1.5 grid gap-x-4 gap-y-0.5 text-xs text-slate-600 sm:grid-cols-[7rem_1fr]">
+                            <dt className="text-slate-400">Signal</dt>
+                            <dd>{c.signal}</dd>
+                            <dt className="text-slate-400">Shows</dt>
+                            <dd>{c.shows_note}</dd>
+                            <dt className="text-slate-400">Clients</dt>
+                            <dd>{c.client_count ?? "—"}</dd>
+                            <dt className="text-slate-400">Shipping pain</dt>
+                            <dd>{c.shipping_pain}</dd>
+                            {c.outcome_note ? (
+                              <>
+                                <dt className="text-slate-400">Outcome note</dt>
+                                <dd>{c.outcome_note}</dd>
+                              </>
+                            ) : null}
+                            <dt className="text-slate-400">Booked by</dt>
+                            <dd>{c.booked_by ? names.get(c.booked_by) : "—"}</dd>
+                          </dl>
+                          {loop === "due" || loop === "overdue" ? <CloseCallForm callId={c.id} partnerId={id} /> : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-400">No calls booked yet.</p>
+                )}
+              </div>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader title="Shows they work" icon="shows" />
@@ -533,42 +537,44 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
             </div>
           </Card>
 
-          <Card>
-            <CardHeader
-              title="Weekly client report"
-              icon="documents"
-              action={
-                <Link href={`/partners/${id}/report`} className="text-xs font-medium text-dts-maroon hover:underline">
-                  Open this week&apos;s →
-                </Link>
-              }
-            />
-            <div className="space-y-3 p-5">
-              {report && clientList.length ? (
-                <div className="grid grid-cols-2 gap-2 text-center">
-                  <div className={`rounded-lg border px-2 py-1.5 ${report.counts.outboundGaps ? "border-dts-maroon/30 bg-dts-maroon/5" : "border-slate-200"}`}>
-                    <div className={`text-lg font-semibold ${report.counts.outboundGaps ? "text-dts-maroon" : "text-slate-900"}`}>
-                      {report.counts.outboundGaps}
+          {tools ? (
+            <Card>
+              <CardHeader
+                title="Weekly client report"
+                icon="documents"
+                action={
+                  <Link href={`/partners/${id}/report`} className="text-xs font-medium text-dts-maroon hover:underline">
+                    Open this week&apos;s →
+                  </Link>
+                }
+              />
+              <div className="space-y-3 p-5">
+                {report && clientList.length ? (
+                  <div className="grid grid-cols-2 gap-2 text-center">
+                    <div className={`rounded-lg border px-2 py-1.5 ${report.counts.outboundGaps ? "border-dts-maroon/30 bg-dts-maroon/5" : "border-slate-200"}`}>
+                      <div className={`text-lg font-semibold ${report.counts.outboundGaps ? "text-dts-maroon" : "text-slate-900"}`}>
+                        {report.counts.outboundGaps}
+                      </div>
+                      <div className="text-xs text-slate-500">Outbound not booked</div>
                     </div>
-                    <div className="text-xs text-slate-500">Outbound not booked</div>
+                    <div className="rounded-lg border border-slate-200 px-2 py-1.5">
+                      <div className="text-lg font-semibold text-slate-900">{report.counts.inMotion + report.counts.outboundBooked}</div>
+                      <div className="text-xs text-slate-500">Moving now</div>
+                    </div>
                   </div>
-                  <div className="rounded-lg border border-slate-200 px-2 py-1.5">
-                    <div className="text-lg font-semibold text-slate-900">{report.counts.inMotion + report.counts.outboundBooked}</div>
-                    <div className="text-xs text-slate-500">Moving now</div>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-slate-500">Link their clients below and their freight shows up here.</p>
-              )}
-              <ReportSettingsForm partnerId={id} reportTo={partner.report_to} active={partner.report_active} />
-              <p className="text-xs text-slate-400">
-                {partner.last_report_sent_at
-                  ? `${reportSentThisWeek ? "Sent this week" : "Last sent"} ${formatPacificDateTime(partner.last_report_sent_at)}.`
-                  : "Never sent."}{" "}
-                The CRM writes it; you check it and send it.
-              </p>
-            </div>
-          </Card>
+                ) : (
+                  <p className="text-xs text-slate-500">Link their clients below and their freight shows up here.</p>
+                )}
+                <ReportSettingsForm partnerId={id} reportTo={partner.report_to} active={partner.report_active} />
+                <p className="text-xs text-slate-400">
+                  {partner.last_report_sent_at
+                    ? `${reportSentThisWeek ? "Sent this week" : "Last sent"} ${formatPacificDateTime(partner.last_report_sent_at)}.`
+                    : "Never sent."}{" "}
+                  The CRM writes it; you check it and send it.
+                </p>
+              </div>
+            </Card>
+          ) : null}
 
           {partner.partner_type === "gsc" ? (
             <Card>
@@ -606,145 +612,151 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
             </Card>
           ) : null}
 
-          <Card>
-            <CardHeader
-              title="Credit and rebates"
-              icon="reports"
-              action={
-                <Link href={`/partners/${id}/rebates`} className="text-xs font-medium text-dts-maroon hover:underline">
-                  Rebate statements →
-                </Link>
-              }
-            />
-            <div className="space-y-3 p-5 text-sm">
-              <p className="text-slate-600">
-                {credit.creditedCount} load{credit.creditedCount === 1 ? "" : "s"} credited to them.
-                {partner.incentive_model === "rebate" && partner.rebate_pct
-                  ? ` They earn ${partner.rebate_pct}% of gross margin once each invoice is paid.`
-                  : " No rebate terms set yet."}
-              </p>
-              {credit.suggestions.length ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-slate-500">
-                    Booked by their clients since each client was linked, and not credited to anyone. Untick any that
-                    didn&apos;t come through them.
-                  </p>
-                  <CreditSuggestionsForm
-                    partnerId={id}
-                    rows={credit.suggestions.slice(0, 50).map((x) => ({
-                      id: x.id,
-                      label: `${x.tms_reference_id ?? "No load #"} · ${x.client}`,
-                      detail: [x.show_name, `booked ${formatShortDate(x.booked_on)}`, x.status].filter(Boolean).join(" · "),
-                    }))}
-                  />
-                </div>
-              ) : (
-                <p className="text-xs text-slate-400">
-                  Nothing to credit from their clients. Loads that came in on their partner code are credited from the
-                  shipment page (the office email names the code).
+          {tools ? (
+            <Card>
+              <CardHeader
+                title="Credit and rebates"
+                icon="reports"
+                action={
+                  <Link href={`/partners/${id}/rebates`} className="text-xs font-medium text-dts-maroon hover:underline">
+                    Rebate statements →
+                  </Link>
+                }
+              />
+              <div className="space-y-3 p-5 text-sm">
+                <p className="text-slate-600">
+                  {credit.creditedCount} load{credit.creditedCount === 1 ? "" : "s"} credited to them.
+                  {partner.incentive_model === "rebate" && partner.rebate_pct
+                    ? ` They earn ${partner.rebate_pct}% of gross margin once each invoice is paid.`
+                    : " No rebate terms set yet."}
                 </p>
-              )}
-            </div>
-          </Card>
+                {credit.suggestions.length ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-slate-500">
+                      Booked by their clients since each client was linked, and not credited to anyone. Untick any that
+                      didn&apos;t come through them.
+                    </p>
+                    <CreditSuggestionsForm
+                      partnerId={id}
+                      rows={credit.suggestions.slice(0, 50).map((x) => ({
+                        id: x.id,
+                        label: `${x.tms_reference_id ?? "No load #"} · ${x.client}`,
+                        detail: [x.show_name, `booked ${formatShortDate(x.booked_on)}`, x.status].filter(Boolean).join(" · "),
+                      }))}
+                    />
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">
+                    Nothing to credit from their clients. Loads that came in on their partner code are credited from the
+                    shipment page (the office email names the code).
+                  </p>
+                )}
+              </div>
+            </Card>
+          ) : null}
 
-          <Card>
-            <CardHeader title="Terms" icon="documents" />
-            <div className="p-5">
-              <TermsForm
-                partnerId={id}
-                model={partner.incentive_model}
-                rebatePct={partner.rebate_pct}
-                markupPct={partner.markup_pct}
-                basis={partner.commission_basis}
-                note={partner.terms_note}
-              />
-            </div>
-          </Card>
+          {tools ? (
+            <Card>
+              <CardHeader title="Terms" icon="documents" />
+              <div className="p-5">
+                <TermsForm
+                  partnerId={id}
+                  model={partner.incentive_model}
+                  rebatePct={partner.rebate_pct}
+                  markupPct={partner.markup_pct}
+                  basis={partner.commission_basis}
+                  note={partner.terms_note}
+                />
+              </div>
+            </Card>
+          ) : null}
 
-          <Card>
-            <CardHeader title="Cobranded show pages" icon="external" />
-            <div className="space-y-4 p-5">
-              <p className="text-xs text-slate-500">
-                For GSCs, organizers and builders who put our show page in their exhibitor kit: the same verified page with
-                their name and logo, and their code on the quote button so every quote from it is credited to them.
-              </p>
-              <CobrandForm
-                partnerId={id}
-                name={partner.name}
-                code={partner.code}
-                publicName={partner.public_name}
-                logoUrl={partner.logo_url}
-                active={partner.cobrand_active}
-              />
-              {linked.length ? (
-                <ul className="divide-y divide-slate-100 border-t border-slate-100 text-sm">
-                  {linked.map((l) => {
-                    const ser = l.shows?.series_id ? seriesBy.get(l.shows.series_id) : undefined;
-                    const live = !!(partner.cobrand_active && partner.code && l.cobranded && ser?.is_public);
-                    return (
-                      <li key={l.id} className="space-y-1 py-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium text-slate-800">{l.shows!.show_name}</span>
-                          <form action={setShowCobranded}>
-                            <input type="hidden" name="id" value={l.id} />
-                            <input type="hidden" name="partner_id" value={id} />
-                            <input type="hidden" name="cobranded" value={l.cobranded ? "false" : "true"} />
-                            <button
-                              type="submit"
-                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${l.cobranded ? "bg-sky-700 text-white" : "text-slate-400 hover:text-slate-700"}`}
-                            >
-                              {l.cobranded ? "Cobranded" : "Cobrand this show"}
-                            </button>
-                          </form>
-                        </div>
-                        {l.cobranded ? (
-                          <div className="text-xs text-slate-500">
-                            {!ser ? (
-                              <>
-                                This show has no public page yet.{" "}
-                                <Link href={`/shows/${l.show_id}?tab=logistics`} className="text-sky-700 hover:underline">
-                                  Set it up on its Show page tab →
-                                </Link>
-                              </>
-                            ) : !ser.is_public ? (
-                              <>
-                                Its show page isn&apos;t published yet — the link starts working once it&apos;s verified and
-                                published.{" "}
-                                <Link href={`/shows/${l.show_id}?tab=logistics`} className="text-sky-700 hover:underline">
-                                  Show page tab →
-                                </Link>
-                              </>
-                            ) : !partner.code ? (
-                              "Set a code above to get the link."
-                            ) : (
-                              <span className="flex flex-wrap items-center gap-2">
-                                {live ? (
-                                  <a
-                                    href={cobrandUrl(ser.slug, partner.code)}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="break-all font-medium text-sky-700 hover:underline"
-                                  >
-                                    {cobrandUrl(ser.slug, partner.code)} ↗
-                                  </a>
-                                ) : (
-                                  <span className="break-all">{cobrandUrl(ser.slug, partner.code)}</span>
-                                )}
-                                <CopyLink url={cobrandUrl(ser.slug, partner.code)} />
-                                {!live ? <span className="text-amber-700">Turn cobranding on to go live.</span> : null}
-                              </span>
-                            )}
+          {tools ? (
+            <Card>
+              <CardHeader title="Cobranded show pages" icon="external" />
+              <div className="space-y-4 p-5">
+                <p className="text-xs text-slate-500">
+                  For GSCs, organizers and builders who put our show page in their exhibitor kit: the same verified page with
+                  their name and logo, and their code on the quote button so every quote from it is credited to them.
+                </p>
+                <CobrandForm
+                  partnerId={id}
+                  name={partner.name}
+                  code={partner.code}
+                  publicName={partner.public_name}
+                  logoUrl={partner.logo_url}
+                  active={partner.cobrand_active}
+                />
+                {linked.length ? (
+                  <ul className="divide-y divide-slate-100 border-t border-slate-100 text-sm">
+                    {linked.map((l) => {
+                      const ser = l.shows?.series_id ? seriesBy.get(l.shows.series_id) : undefined;
+                      const live = !!(partner.cobrand_active && partner.code && l.cobranded && ser?.is_public);
+                      return (
+                        <li key={l.id} className="space-y-1 py-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-slate-800">{l.shows!.show_name}</span>
+                            <form action={setShowCobranded}>
+                              <input type="hidden" name="id" value={l.id} />
+                              <input type="hidden" name="partner_id" value={id} />
+                              <input type="hidden" name="cobranded" value={l.cobranded ? "false" : "true"} />
+                              <button
+                                type="submit"
+                                className={`rounded-full px-2 py-0.5 text-xs font-medium ${l.cobranded ? "bg-sky-700 text-white" : "text-slate-400 hover:text-slate-700"}`}
+                              >
+                                {l.cobranded ? "Cobranded" : "Cobrand this show"}
+                              </button>
+                            </form>
                           </div>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <p className="text-xs text-slate-400">Link the shows they service under Shows first.</p>
-              )}
-            </div>
-          </Card>
+                          {l.cobranded ? (
+                            <div className="text-xs text-slate-500">
+                              {!ser ? (
+                                <>
+                                  This show has no public page yet.{" "}
+                                  <Link href={`/shows/${l.show_id}?tab=logistics`} className="text-sky-700 hover:underline">
+                                    Set it up on its Show page tab →
+                                  </Link>
+                                </>
+                              ) : !ser.is_public ? (
+                                <>
+                                  Its show page isn&apos;t published yet — the link starts working once it&apos;s verified and
+                                  published.{" "}
+                                  <Link href={`/shows/${l.show_id}?tab=logistics`} className="text-sky-700 hover:underline">
+                                    Show page tab →
+                                  </Link>
+                                </>
+                              ) : !partner.code ? (
+                                "Set a code above to get the link."
+                              ) : (
+                                <span className="flex flex-wrap items-center gap-2">
+                                  {live ? (
+                                    <a
+                                      href={cobrandUrl(ser.slug, partner.code)}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="break-all font-medium text-sky-700 hover:underline"
+                                    >
+                                      {cobrandUrl(ser.slug, partner.code)} ↗
+                                    </a>
+                                  ) : (
+                                    <span className="break-all">{cobrandUrl(ser.slug, partner.code)}</span>
+                                  )}
+                                  <CopyLink url={cobrandUrl(ser.slug, partner.code)} />
+                                  {!live ? <span className="text-amber-700">Turn cobranding on to go live.</span> : null}
+                                </span>
+                              )}
+                            </div>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-slate-400">Link the shows they service under Shows first.</p>
+                )}
+              </div>
+            </Card>
+          ) : null}
         </div>
       </div>
     </div>

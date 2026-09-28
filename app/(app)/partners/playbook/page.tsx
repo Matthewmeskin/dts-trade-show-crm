@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { partnerToolsOn } from "@/lib/app-settings";
 import { Card, CardHeader, EmptyState, PageHeader } from "@/components/ui";
 import { SimpleMarkdown } from "@/components/simple-markdown";
 import { formatDate, dayOf } from "@/lib/format";
@@ -14,6 +15,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function PlaybookPage() {
   const supabase = await createClient();
+  const tools = await partnerToolsOn(supabase);
   const { data: claims } = await supabase.auth.getClaims();
   const [{ data: sections }, { data: me }, people] = await Promise.all([
     supabase.from("playbook_sections").select("*").order("sort"),
@@ -30,7 +32,7 @@ export default async function PlaybookPage() {
         title="Partner playbook"
         description="What we say, who we book, and how we hold ourselves to it. The sales admin works from this every day."
       />
-      <PartnersNav active="playbook" />
+      <PartnersNav active="playbook" tools={tools} />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-5">
