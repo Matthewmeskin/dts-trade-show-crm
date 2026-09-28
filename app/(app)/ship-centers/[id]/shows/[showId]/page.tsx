@@ -5,6 +5,7 @@ import { Badge, PageHeader } from "@/components/ui";
 import { todayYMD } from "@/lib/format";
 import { effectiveStatus } from "@/lib/logistics";
 import { gscNameFor, shipPath, shipShowStatus } from "@/lib/ship-center";
+import { blobConfigured } from "@/lib/logo-upload";
 import { SetupForm } from "./setup-form";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ export default async function ShipShowSetupPage({
   const [{ data: gsc }, { data: show }, { data: ship }, { data: logistics }, { data: venues }, { data: me }] = await Promise.all([
     supabase.from("partners").select("id, name, public_name, code").eq("id", id).maybeSingle(),
     supabase.from("shows").select("*").eq("id", showId).maybeSingle(),
-    supabase.from("ship_shows").select("enabled, coordinator_name, coordinator_mobile, manifest_email, outbound_email").eq("partner_id", id).eq("show_id", showId).maybeSingle(),
+    supabase.from("ship_shows").select("enabled, coordinator_name, coordinator_mobile, manifest_email, outbound_email, floor_plan_url, dock_map_url").eq("partner_id", id).eq("show_id", showId).maybeSingle(),
     supabase.from("show_public_logistics").select("*").eq("show_id", showId).maybeSingle(),
     supabase.from("venues").select("id, venue_name, city, state").order("venue_name").limit(1000),
     supabase.from("profiles").select("role").eq("id", claims?.claims?.sub ?? "").maybeSingle(),
@@ -99,6 +100,7 @@ export default async function ShipShowSetupPage({
           manifestEmail: ship.manifest_email,
           outboundEmail: ship.outbound_email,
         }}
+        maps={{ floorPlanUrl: ship.floor_plan_url, dockMapUrl: ship.dock_map_url, uploadReady: blobConfigured() }}
         venues={(venues ?? []).map((v) => ({ id: v.id, venue_name: v.venue_name, label: [v.venue_name, [v.city, v.state].filter(Boolean).join(", ")].filter(Boolean).join(" · ") }))}
       />
     </div>

@@ -112,7 +112,7 @@ export async function runShipMail(now: Date = new Date()): Promise<MailResult> {
   try {
     const { data: ships, error } = await sb
       .from("ship_shows")
-      .select(`partner_id, show_id, manifest_email, outbound_email, partners(name, public_name, code, ship_email, ship_manifest_to), shows(${SHOW_FIELDS})`)
+      .select(`partner_id, show_id, manifest_email, outbound_email, dock_map_url, partners(name, public_name, code, ship_email, ship_manifest_to), shows(${SHOW_FIELDS})`)
       .eq("enabled", true);
     if (error) throw new Error(error.message);
     const { data: staff } = await sb.from("profiles").select("id, full_name, email");
@@ -193,6 +193,7 @@ export async function runShipMail(now: Date = new Date()): Promise<MailResult> {
             pieces: first?.pieces ?? null,
             onsiteName: outbound?.onsite_contact_name ?? null,
             onsiteMobile: outbound?.onsite_contact_mobile ?? null,
+            dockMapUrl: ss.dock_map_url,
             staffName: staffer?.full_name ?? null,
             phone: OFFICE_PHONE,
           });

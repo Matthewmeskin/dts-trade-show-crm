@@ -31,12 +31,25 @@ export const SHOW_EXPORT_SIG = "539191084e0eed1a285e2cb5b5e4b97a";
  */
 export const SHOW_EXPORT_SIG_BEFORE_FLAGS = "69e2b14b62548958d3acd661eaf52c24";
 export const PARTNER_EXPORT_SIG = "0f6087d487a0bcffd359f1d01ddf095d";
-export const SHIP_EXPORT_SIG = "3aaa83846b0c3d1453f5cc9c306723f4";
+/** The Shipping Center export with the show's maps (export 010). */
+export const SHIP_EXPORT_SIG = "f4e91fa0e83552baeb22d089615f37a0";
+/**
+ * The Shipping Center export before it carried floor_plan_url and dock_map_url
+ * (export 009). Accepted only for a row without those keys, so the CRM and
+ * export 010 can deploy in either order. Remove once 010 is live.
+ */
+export const SHIP_EXPORT_SIG_BEFORE_MAPS = "3aaa83846b0c3d1453f5cc9c306723f4";
 
 /** The signature to expect for this show export: null when there is nothing to check. */
 export function showExportSig(rows: Record<string, unknown>[]): string | null {
   if (!rows.length) return null;
   return "is_public" in rows[0] ? SHOW_EXPORT_SIG : SHOW_EXPORT_SIG_BEFORE_FLAGS;
+}
+
+/** The signature to expect for this Shipping Center export: null when there is nothing to check. */
+export function shipExportSig(rows: Record<string, unknown>[]): string | null {
+  if (!rows.length) return null;
+  return "floor_plan_url" in rows[0] ? SHIP_EXPORT_SIG : SHIP_EXPORT_SIG_BEFORE_MAPS;
 }
 
 export type SyncTrigger = "schedule" | "on_verify" | "manual";
@@ -153,7 +166,7 @@ async function runOnce(trigger: SyncTrigger): Promise<SyncResult> {
         p_secret: process.env.TRADE_SHOW_SYNC_SECRET,
         p_rows: shipRows,
         p_codes: exported.ship_codes ?? [],
-        p_expected_sig: shipRows.length ? SHIP_EXPORT_SIG : null,
+        p_expected_sig: shipExportSig(shipRows),
       });
     }
 

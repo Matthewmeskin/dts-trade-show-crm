@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { put } from "@vercel/blob";
 import { createClient } from "@/lib/supabase/server";
 import { emailList } from "@/lib/ship-quote";
+import { validMapUrl } from "@/lib/ship-maps";
 import { blobConfigured, processLogo } from "@/lib/logo-upload";
 import { logActivity } from "@/lib/activity";
 import { nudgePublicSync } from "@/lib/public-sync";
@@ -341,6 +342,10 @@ export async function saveShipSetup(_prev: ShipState, fd: FormData): Promise<Shi
   for (const [a, b, msg] of backwards) if (d[a] && d[b] && d[b]! < d[a]!) fieldErrors[b] = msg;
   const kit = str(fd, "exhibitor_manual_url");
   if (kit && !/^https?:\/\//i.test(kit)) fieldErrors.exhibitor_manual_url = "Paste the full link, starting with https://";
+  const floor_plan_url = str(fd, "floor_plan_url");
+  const dock_map_url = str(fd, "dock_map_url");
+  if (floor_plan_url && !validMapUrl(floor_plan_url)) fieldErrors.floor_plan_url = "Paste the full link, starting with https://";
+  if (dock_map_url && !validMapUrl(dock_map_url)) fieldErrors.dock_map_url = "Paste the full link, starting with https://";
   const slug = (str(fd, "series_slug") ?? "").toLowerCase() || null;
   if (slug && !isValidSlug(slug)) fieldErrors.series_slug = "Lowercase letters, numbers and single hyphens, like sample-expo.";
   if (Object.keys(fieldErrors).length) return { error: "Check the highlighted fields.", fieldErrors };
@@ -410,16 +415,19 @@ export async function saveShipSetup(_prev: ShipState, fd: FormData): Promise<Shi
   // 4. This GSC's settings for the show.
   const admin = await isAdmin(supabase);
   if (admin) {
-    await supabase
+    const { error: shipErr } = await supabase
       .from("ship_shows")
       .update({
         coordinator_name: str(fd, "coordinator_name"),
         coordinator_mobile: str(fd, "coordinator_mobile"),
         manifest_email: fd.get("manifest_email") === "weekly_then_daily" ? "weekly_then_daily" : "off",
         outbound_email: fd.get("outbound_email") === "on",
+        floor_plan_url,
+        dock_map_url,
       })
       .eq("partner_id", partnerId)
       .eq("show_id", showId);
+    if (shipErr) return { error: shipErr.message };
   }
 
   if (!verify) {
