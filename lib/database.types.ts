@@ -1199,6 +1199,310 @@ export type Database = {
         }
         Relationships: []
       }
+      ship_pull_state: {
+        Row: {
+          id: number
+          last_count: number
+          last_error: string | null
+          last_ok_at: string | null
+          last_run_at: string | null
+        }
+        Insert: {
+          id?: number
+          last_count?: number
+          last_error?: string | null
+          last_ok_at?: string | null
+          last_run_at?: string | null
+        }
+        Update: {
+          id?: number
+          last_count?: number
+          last_error?: string | null
+          last_ok_at?: string | null
+          last_run_at?: string | null
+        }
+        Relationships: []
+      }
+      ship_quotes: {
+        Row: {
+          amount: number
+          id: string
+          leg_id: string
+          note: string | null
+          sent_at: string
+          sent_by: string | null
+          sent_to: string | null
+          sent_via: string
+        }
+        Insert: {
+          amount: number
+          id?: string
+          leg_id: string
+          note?: string | null
+          sent_at?: string
+          sent_by?: string | null
+          sent_to?: string | null
+          sent_via: string
+        }
+        Update: {
+          amount?: number
+          id?: string
+          leg_id?: string
+          note?: string | null
+          sent_at?: string
+          sent_by?: string | null
+          sent_to?: string | null
+          sent_via?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ship_quotes_leg_id_fkey"
+            columns: ["leg_id"]
+            isOneToOne: false
+            referencedRelation: "ship_request_legs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ship_quotes_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ship_request_inbox: {
+        Row: {
+          assigned_to: string | null
+          booth: string | null
+          booth_tbd: boolean
+          closed: string | null
+          closed_at: string | null
+          closed_by: string | null
+          closed_note: string | null
+          company: string | null
+          confirmed_at: string | null
+          contact_name: string | null
+          declared_value: number | null
+          email: string | null
+          id: string
+          marketing_consent: boolean
+          marketing_consent_text: string | null
+          mobile: string | null
+          on_behalf_of: string | null
+          partner_id: string | null
+          problems: string[]
+          public_ref: string
+          public_request_id: string
+          received_at: string
+          show_id: string | null
+          show_snapshot: Json
+          submitted_at: string | null
+          terms_accepted_at: string | null
+          updated_at: string
+          wants_coverage: boolean
+        }
+        Insert: {
+          assigned_to?: string | null
+          booth?: string | null
+          booth_tbd?: boolean
+          closed?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_note?: string | null
+          company?: string | null
+          confirmed_at?: string | null
+          contact_name?: string | null
+          declared_value?: number | null
+          email?: string | null
+          id?: string
+          marketing_consent?: boolean
+          marketing_consent_text?: string | null
+          mobile?: string | null
+          on_behalf_of?: string | null
+          partner_id?: string | null
+          problems?: string[]
+          public_ref: string
+          public_request_id: string
+          received_at?: string
+          show_id?: string | null
+          show_snapshot?: Json
+          submitted_at?: string | null
+          terms_accepted_at?: string | null
+          updated_at?: string
+          wants_coverage?: boolean
+        }
+        Update: {
+          assigned_to?: string | null
+          booth?: string | null
+          booth_tbd?: boolean
+          closed?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_note?: string | null
+          company?: string | null
+          confirmed_at?: string | null
+          contact_name?: string | null
+          declared_value?: number | null
+          email?: string | null
+          id?: string
+          marketing_consent?: boolean
+          marketing_consent_text?: string | null
+          mobile?: string | null
+          on_behalf_of?: string | null
+          partner_id?: string | null
+          problems?: string[]
+          public_ref?: string
+          public_request_id?: string
+          received_at?: string
+          show_id?: string | null
+          show_snapshot?: Json
+          submitted_at?: string | null
+          terms_accepted_at?: string | null
+          updated_at?: string
+          wants_coverage?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ship_request_inbox_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ship_request_inbox_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ship_request_inbox_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ship_request_inbox_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ship_request_legs: {
+        Row: {
+          city: string | null
+          deliver_by: string | null
+          description: string | null
+          direction: string
+          hazmat: boolean
+          id: string
+          inbound_to: string | null
+          inside: boolean
+          largest_h_in: number | null
+          largest_l_in: number | null
+          largest_w_in: number | null
+          liftgate: boolean
+          location_type: string | null
+          onsite_contact_mobile: string | null
+          onsite_contact_name: string | null
+          own_carrier: boolean
+          packaging: string | null
+          pieces: number | null
+          place_name: string | null
+          public_leg_id: string
+          ready_date: string | null
+          request_id: string
+          return_to_warehouse: boolean
+          seq: number
+          stage: string
+          state: string | null
+          street1: string | null
+          street2: string | null
+          updated_at: string
+          weight_lbs: number | null
+          zip: string | null
+        }
+        Insert: {
+          city?: string | null
+          deliver_by?: string | null
+          description?: string | null
+          direction: string
+          hazmat?: boolean
+          id?: string
+          inbound_to?: string | null
+          inside?: boolean
+          largest_h_in?: number | null
+          largest_l_in?: number | null
+          largest_w_in?: number | null
+          liftgate?: boolean
+          location_type?: string | null
+          onsite_contact_mobile?: string | null
+          onsite_contact_name?: string | null
+          own_carrier?: boolean
+          packaging?: string | null
+          pieces?: number | null
+          place_name?: string | null
+          public_leg_id: string
+          ready_date?: string | null
+          request_id: string
+          return_to_warehouse?: boolean
+          seq: number
+          stage?: string
+          state?: string | null
+          street1?: string | null
+          street2?: string | null
+          updated_at?: string
+          weight_lbs?: number | null
+          zip?: string | null
+        }
+        Update: {
+          city?: string | null
+          deliver_by?: string | null
+          description?: string | null
+          direction?: string
+          hazmat?: boolean
+          id?: string
+          inbound_to?: string | null
+          inside?: boolean
+          largest_h_in?: number | null
+          largest_l_in?: number | null
+          largest_w_in?: number | null
+          liftgate?: boolean
+          location_type?: string | null
+          onsite_contact_mobile?: string | null
+          onsite_contact_name?: string | null
+          own_carrier?: boolean
+          packaging?: string | null
+          pieces?: number | null
+          place_name?: string | null
+          public_leg_id?: string
+          ready_date?: string | null
+          request_id?: string
+          return_to_warehouse?: boolean
+          seq?: number
+          stage?: string
+          state?: string | null
+          street1?: string | null
+          street2?: string | null
+          updated_at?: string
+          weight_lbs?: number | null
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ship_request_legs_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "ship_request_inbox"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ship_shows: {
         Row: {
           coordinator_mobile: string | null
@@ -1312,6 +1616,7 @@ export type Database = {
           pieces: number | null
           po_ref: string | null
           pro_number: string | null
+          ship_leg_id: string | null
           shipper_number: string | null
           show_auto_linked: boolean
           show_date: string | null
@@ -1382,6 +1687,7 @@ export type Database = {
           pieces?: number | null
           po_ref?: string | null
           pro_number?: string | null
+          ship_leg_id?: string | null
           shipper_number?: string | null
           show_auto_linked?: boolean
           show_date?: string | null
@@ -1452,6 +1758,7 @@ export type Database = {
           pieces?: number | null
           po_ref?: string | null
           pro_number?: string | null
+          ship_leg_id?: string | null
           shipper_number?: string | null
           show_auto_linked?: boolean
           show_date?: string | null
@@ -1474,6 +1781,13 @@ export type Database = {
           weight?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "shipments_ship_leg_id_fkey"
+            columns: ["ship_leg_id"]
+            isOneToOne: true
+            referencedRelation: "ship_request_legs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "shipments_partner_id_fkey"
             columns: ["partner_id"]
