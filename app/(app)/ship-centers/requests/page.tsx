@@ -16,7 +16,7 @@ const VIEWS = [
 type View = (typeof VIEWS)[number]["key"];
 
 function inView(view: View, s: RequestStanding): boolean {
-  if (view === "open") return s.key === "quote" || s.key === "book";
+  if (view === "open") return s.key === "quote" || s.key === "book" || s.key === "change";
   if (view === "waiting") return s.key === "waiting";
   if (view === "booked") return s.key === "booked";
   return s.key === "closed";
@@ -44,7 +44,7 @@ export default async function ShipRequestsPage({ searchParams }: { searchParams:
   const [{ data: rows }, { data: pull }, { data: people }] = await Promise.all([
     supabase
       .from("ship_request_inbox")
-      .select("id, public_ref, show_snapshot, company, booth, booth_tbd, confirmed_at, received_at, problems, closed, assigned_to, ship_request_legs(stage, own_carrier, direction)")
+      .select("id, public_ref, show_snapshot, company, booth, booth_tbd, confirmed_at, received_at, problems, closed, assigned_to, ship_request_legs(stage, own_carrier, direction), ship_change_requests(handled_at)")
       .order("confirmed_at", { ascending: true })
       .limit(500),
     supabase.from("ship_pull_state").select("last_run_at, last_ok_at, last_error, last_count").eq("id", 1).maybeSingle(),
@@ -52,7 +52,10 @@ export default async function ShipRequestsPage({ searchParams }: { searchParams:
   ]);
   const nameOf = new Map((people ?? []).map((p) => [p.id, p.full_name ?? "Someone"]));
 
-  const all = (rows ?? []).map((r) => ({ ...r, s: standing(r.closed, r.ship_request_legs ?? []) }));
+  const all = (rows ?? []).map((r) => ({
+    ...r,
+    s: standing(r.closed, r.ship_request_legs ?? [], (r.ship_change_requests ?? []).filter((c) => !c.handled_at).length),
+  }));
   const counts = Object.fromEntries(VIEWS.map((v) => [v.key, all.filter((r) => inView(v.key, r.s)).length])) as Record<View, number>;
   // To do: oldest first (it has waited longest). Everything else: newest first.
   const list = all.filter((r) => inView(view, r.s));
@@ -62,7 +65,7 @@ export default async function ShipRequestsPage({ searchParams }: { searchParams:
     <div className="mx-auto max-w-5xl">
       <PageHeader
         title="Shipping Center requests"
-        description="Exhibitor requests from GSC Shipping Centers. Price each shipment, then book it with the load number once the exhibitor approves."
+        description="Exhibitor requests from GSC Shipping Centers. Price each shipment; the exhibitor approves on their status page; book it with the load number."
         breadcrumbs={[{ label: "GSC Shipping Centers", href: "/ship-centers" }]}
         actions={<CheckNowButton />}
       />

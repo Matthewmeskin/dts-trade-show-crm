@@ -43,7 +43,7 @@ export function quoteEmail(q: QuoteEmailInput): { subject: string; text: string 
     q.lines.length > 1 ? `Total: ${money(total)}` : null,
     q.note ? q.note.trim() : null,
     `This covers transportation, arranged by DTS through our carrier network, for the freight as described above: pieces, weight, addresses and services. If any of that changes, the price can change, and we will tell you before anything is booked. Material handling at the show (moving freight between the dock and your booth) is separate and billed by ${q.gscName}.`,
-    "To go ahead, reply to this email and say approved. Nothing is booked until you do.",
+    "To go ahead, approve it on your status page (the link is in the email you got when you confirmed your request), or reply to this email and say approved. Nothing is booked until you do.",
     [q.staffName ? q.staffName : "The DTS trade show team", "DTS (Diversified Transportation Services)", q.staffPhone ?? q.officePhone].join("\n"),
   ].filter(Boolean);
   return { subject, text: parts.join("\n\n") };

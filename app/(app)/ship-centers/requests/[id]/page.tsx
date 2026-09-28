@@ -5,7 +5,7 @@ import { Badge, Card, CardHeader, PageHeader } from "@/components/ui";
 import { formatDate, formatPacificDateTime } from "@/lib/format";
 import { STANDING_TONE, legName, quotable, standing } from "@/lib/ship-intake";
 import { emailConfigured, money } from "@/lib/ship-quote";
-import { assignToMe, cancelLeg } from "../actions";
+import { assignToMe, cancelLeg, markChangeHandled } from "../actions";
 import { BookForm, CloseForm, QuotePanel, type QuoteLeg } from "../panels";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ const LOCATION: Record<string, string> = {
 const STAGE: Record<string, string> = {
   new: "Needs a price",
   quoted: "Quoted",
-  approved: "Approved",
+  approved: "Approved by the exhibitor: book it",
   booked: "Booked",
   cancelled: "Cancelled",
 };
@@ -46,7 +46,7 @@ export default async function ShipRequestPage({ params }: { params: Promise<{ id
   const legIds = legs.map((l) => l.id);
   const { data: claims } = await supabase.auth.getClaims();
   const meId = (claims?.claims?.sub as string | undefined) ?? null;
-  const [{ data: quotes }, { data: loads }, { data: people }] = await Promise.all([
+  const [{ data: quotes }, { data: loads }, { data: people }, { data: changes }] = await Promise.all([
     legIds.length
       ? supabase.from("ship_quotes").select("leg_id, amount, sent_via, sent_at, sent_by, note").in("leg_id", legIds).order("sent_at", { ascending: false })
       : Promise.resolve({ data: [] as { leg_id: string; amount: number; sent_via: string; sent_at: string; sent_by: string | null; note: string | null }[] }),
@@ -54,7 +54,9 @@ export default async function ShipRequestPage({ params }: { params: Promise<{ id
       ? supabase.from("shipments").select("id, ship_leg_id, tms_reference_id, pro_number, status, carriers(carrier_name)").in("ship_leg_id", legIds)
       : Promise.resolve({ data: [] as { id: string; ship_leg_id: string | null; tms_reference_id: string | null; pro_number: string | null; status: string; carriers: { carrier_name: string } | null }[] }),
     supabase.from("profiles").select("id, full_name, phone"),
+    supabase.from("ship_change_requests").select("*").eq("request_id", id).order("requested_at"),
   ]);
+  const openChanges = (changes ?? []).filter((c) => !c.handled_at);
   const nameOf = new Map((people ?? []).map((p) => [p.id, p.full_name ?? "Someone"]));
   const meProfile = (people ?? []).find((p) => p.id === meId);
   const lastQuote = new Map<string, NonNullable<typeof quotes>[number]>();
@@ -63,7 +65,7 @@ export default async function ShipRequestPage({ params }: { params: Promise<{ id
 
   const show = (r.show_snapshot ?? {}) as Record<string, unknown>;
   const inbound = legs.filter((l) => l.direction === "inbound").length;
-  const s = standing(r.closed, legs);
+  const s = standing(r.closed, legs, openChanges.length);
   const toPrice = legs.filter((l) => quotable(l) && (l.stage === "new" || l.stage === "quoted"));
   const quoteLegs: QuoteLeg[] = toPrice.map((l) => ({
     id: l.id,
@@ -108,6 +110,33 @@ export default async function ShipRequestPage({ params }: { params: Promise<{ id
           {r.closed === "rejected" ? "Turned down" : "Cancelled"} {formatPacificDateTime(r.closed_at)}
           {r.closed_by ? ` by ${nameOf.get(r.closed_by)}` : ""}.{r.closed_note ? ` ${r.closed_note}` : ""}
         </div>
+      ) : null}
+
+      {(changes ?? []).length ? (
+        <Card className={`mb-5 ${openChanges.length ? "border-rose-200" : ""}`}>
+          <CardHeader title={openChanges.length ? "The exhibitor asked for a change" : "Change requests"} icon="bell" />
+          <ul className="divide-y divide-slate-100">
+            {(changes ?? []).map((c) => (
+              <li key={c.id} className="space-y-2 px-5 py-3 text-sm">
+                <p className="whitespace-pre-line text-slate-900">{c.message}</p>
+                <p className="text-xs text-slate-500">Sent {formatPacificDateTime(c.requested_at)}</p>
+                {c.handled_at ? (
+                  <p className="text-xs text-emerald-700">
+                    Handled {formatPacificDateTime(c.handled_at)}
+                    {c.handled_by ? ` by ${nameOf.get(c.handled_by)}` : ""}
+                    {c.handled_note ? `: ${c.handled_note}` : ""}
+                  </p>
+                ) : (
+                  <form action={markChangeHandled} className="flex flex-wrap items-center gap-2">
+                    <input type="hidden" name="change_id" value={c.id} />
+                    <input name="handled_note" placeholder="What you did (staff only)" className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm" />
+                    <button className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Mark handled</button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
       ) : null}
 
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
@@ -159,6 +188,7 @@ export default async function ShipRequestPage({ params }: { params: Promise<{ id
                       {q.sent_by ? ` by ${nameOf.get(q.sent_by)}` : ""}
                     </Row>
                   ) : null}
+                  {l.approved_at ? <Row label="Approved">{formatPacificDateTime(l.approved_at)} on their status page</Row> : null}
                   {load ? (
                     <Row label="Load">
                       <Link href={`/shipments/${load.id}`} className="font-mono text-dts-blue hover:underline">

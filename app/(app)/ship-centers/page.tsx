@@ -28,11 +28,14 @@ export default async function ShipCentersPage() {
     supabase
       .from("ship_shows")
       .select("partner_id, show_id, enabled, shows(show_name, show_start_date, show_end_date)"),
-    supabase.from("ship_request_inbox").select("closed, ship_request_legs(stage, own_carrier, direction)").is("closed", null),
+    supabase
+      .from("ship_request_inbox")
+      .select("closed, ship_request_legs(stage, own_carrier, direction), ship_change_requests(handled_at)")
+      .is("closed", null),
   ]);
   const toDo = (open ?? []).filter((r) => {
-    const k = standing(r.closed, r.ship_request_legs ?? []).key;
-    return k === "quote" || k === "book";
+    const k = standing(r.closed, r.ship_request_legs ?? [], (r.ship_change_requests ?? []).filter((c) => !c.handled_at).length).key;
+    return k === "quote" || k === "book" || k === "change";
   }).length;
 
   const showIds = [...new Set((rows ?? []).map((r) => r.show_id))];
@@ -77,7 +80,7 @@ export default async function ShipCentersPage() {
       >
         <span>
           <span className="font-semibold">Exhibitor requests: </span>
-          {toDo ? `${toDo} need${toDo === 1 ? "s" : ""} a price or a booking` : "nothing to do right now"}
+          {toDo ? `${toDo} need${toDo === 1 ? "s" : ""} a price, a booking or a change` : "nothing to do right now"}
         </span>
         <span>Open →</span>
       </Link>
