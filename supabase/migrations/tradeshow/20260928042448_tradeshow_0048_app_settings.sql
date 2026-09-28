@@ -1,7 +1,5 @@
--- PENDING: not applied. The exact SQL to run on DTS Database (qshciqxpkirlkmrwucnk) as migration
--- "tradeshow_0048_app_settings", after Matthew has seen it and point in time recovery is confirmed.
--- After it runs, rename this file to <applied version>_tradeshow_0048_app_settings.sql.
--- Same as ../0048_app_settings.sql with public -> tradeshow and no payables guard.
+-- Applied to DTS Database (qshciqxpkirlkmrwucnk) as migration 20260928042448 "tradeshow_0048_app_settings".
+-- Recovered verbatim from supabase_migrations.schema_migrations (md5 of the statement: e9b9effb7ac81e68aacfc4d25cfe5432). Do not edit: this is the record of what ran.
 
 create table tradeshow.app_settings (
   key         text primary key check (key in ('partner_tools')),

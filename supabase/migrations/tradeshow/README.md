@@ -19,7 +19,7 @@ applied migration, recovered from `supabase_migrations.schema_migrations`, named
 | `tradeshow_0040_partners` to `tradeshow_0045_public_sync_runs` | 0040 to 0045 |
 | `tradeshow_0044b_ar_status_null_amount` | the `nullif` change folded into 0044 |
 | `tradeshow_0046_ship_shows` | 0046, GSC Shipping Center slice 2 (Sept 27 2026) |
-| `PENDING_tradeshow_0048_app_settings.sql` (not applied) | 0048, the admin switch that hides the old partner tooling (spec slice 3). Independent of 0047 |
+| `tradeshow_0048_app_settings` | 0048, GSC Shipping Center slice 3: the app settings table (partner tools switch) (Sept 28 2026) |
 
 The export side (`tradeshow_public` views, `show_series`, `show_public_logistics`, `public_export()`)
 lives in `dts-sage/trade-show/crm/migrations`, not here.
