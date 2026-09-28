@@ -326,6 +326,7 @@ function PanelBody({
           <Fact label="Destination type" value={s.destination_type ? s.destination_type.replace(/_/g, " ") : null} />
           <Fact label="Billed" value={s.billed_amount != null ? formatCurrency(s.billed_amount, { cents: true }) : null} />
           <Fact label="Cost" value={s.cost_amount != null ? formatCurrency(s.cost_amount, { cents: true }) : null} />
+          <Fact label="Booth #" value={s.booth_number} />
           <Fact label="PO reference" value={s.po_ref} />
           <Fact label="Shipper number" value={s.shipper_number} />
           <Fact label="Carrier quote #" value={s.carrier_quote_number} />
