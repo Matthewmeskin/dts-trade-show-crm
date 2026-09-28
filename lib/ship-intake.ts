@@ -1,4 +1,5 @@
-import type { TablesInsert } from "@/lib/database.types";
+import type { TablesInsert, TablesUpdate } from "@/lib/database.types";
+import { stageAfterExhibitor } from "@/lib/ship-status";
 
 /**
  * GSC Shipping Center requests, as the pull receives them from the public
@@ -34,11 +35,20 @@ export type PulledLeg = {
   largest_h_in: number | null;
   description: string | null;
   hazmat: boolean;
+  /** Slice 5: the leg's status on the exhibitor's side, and when they approved. */
+  status?: string;
+  approved_at?: string | null;
 };
+
+export type PulledChange = { id: number; message: string; at: string };
 
 export type PulledRequest = {
   id: string;
   public_ref: string;
+  /** Slice 5: bumps on every exhibitor action; the ack carries it back. */
+  version?: number;
+  status?: "confirmed" | "cancelled";
+  changes?: PulledChange[];
   partner_id: string;
   show_id: string;
   show: Record<string, unknown> | null;
@@ -125,6 +135,60 @@ export function inboxRow(r: PulledRequest, known: Known): TablesInsert<"ship_req
     submitted_at: r.created_at,
     confirmed_at: r.confirmed_at,
     problems: problemsFor(r, known),
+    exhibitor_version: r.version ?? 1,
+    ...(r.status === "cancelled"
+      ? {
+          closed: "cancelled",
+          closed_note: "Cancelled by the exhibitor before anything was booked.",
+          closed_at: new Date().toISOString(),
+          exhibitor_cancelled_at: new Date().toISOString(),
+          pushed_closed: true,
+        }
+      : {}),
+  };
+}
+
+/**
+ * A newer version of a request already in the inbox: what the exhibitor can
+ * change (booth, and cancelling), and the problems recomputed. A request
+ * staff already closed stays as staff left it.
+ */
+export function exhibitorPatch(
+  r: PulledRequest,
+  known: Known,
+  current: { closed: string | null },
+): TablesUpdate<"ship_request_inbox"> {
+  const now = new Date().toISOString();
+  return {
+    booth: r.booth,
+    booth_tbd: r.booth_tbd,
+    exhibitor_version: r.version ?? 1,
+    problems: problemsFor(r, known),
+    ...(r.status === "cancelled" && !current.closed
+      ? {
+          closed: "cancelled",
+          closed_note: "Cancelled by the exhibitor before anything was booked.",
+          closed_at: now,
+          exhibitor_cancelled_at: now,
+          pushed_closed: true,
+        }
+      : {}),
+  };
+}
+
+/** The exhibitor-editable fields of a leg, and its stage after their action. */
+export function legPatch(l: PulledLeg, crmStage: string): TablesUpdate<"ship_request_legs"> {
+  const next = stageAfterExhibitor(crmStage, l.status ?? "requested");
+  return {
+    pieces: l.pieces,
+    weight_lbs: l.weight_lbs,
+    ready_date: l.ready_date,
+    deliver_by: l.deliver_by,
+    onsite_contact_name: l.onsite_contact_name,
+    onsite_contact_mobile: l.onsite_contact_mobile,
+    stage: next.stage,
+    ...(next.approved ? { approved_at: l.approved_at ?? new Date().toISOString() } : {}),
+    ...(next.stage === "new" ? { approved_at: null } : {}),
   };
 }
 
@@ -158,6 +222,7 @@ export function legRows(r: PulledRequest, requestId: string): TablesInsert<"ship
     largest_h_in: l.largest_h_in,
     description: l.description,
     hazmat: l.hazmat,
+    stage: stageAfterExhibitor("new", l.status ?? "requested").stage,
   }));
 }
 
@@ -170,10 +235,11 @@ export type LegLite = { stage: string; own_carrier: boolean; direction: string }
 /** A leg we price: not the exhibitor's own carrier, not cancelled. */
 export const quotable = (l: LegLite) => !l.own_carrier && l.stage !== "cancelled";
 
-export type RequestStanding = { key: "closed" | "quote" | "waiting" | "book" | "booked"; label: string };
+export type RequestStanding = { key: "closed" | "quote" | "waiting" | "book" | "booked" | "change"; label: string };
 
-export function standing(closed: string | null, legs: LegLite[]): RequestStanding {
+export function standing(closed: string | null, legs: LegLite[], openChanges = 0): RequestStanding {
   if (closed) return { key: "closed", label: closed === "rejected" ? "Rejected" : "Cancelled" };
+  if (openChanges) return { key: "change", label: "Change requested" };
   const priced = legs.filter(quotable);
   if (!priced.length) return { key: "booked", label: "Labels only" };
   if (priced.some((l) => l.stage === "new")) return { key: "quote", label: "Needs a quote" };
@@ -189,6 +255,7 @@ export const STANDING_TONE: Record<RequestStanding["key"], string> = {
   waiting: "bg-slate-100 text-slate-700",
   booked: "bg-emerald-100 text-emerald-800",
   closed: "bg-slate-100 text-slate-500",
+  change: "bg-rose-100 text-rose-800",
 };
 
 /** A load number as Hyperion prints it. */

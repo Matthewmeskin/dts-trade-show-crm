@@ -1199,6 +1199,54 @@ export type Database = {
         }
         Relationships: []
       }
+      ship_change_requests: {
+        Row: {
+          handled_at: string | null
+          handled_by: string | null
+          handled_note: string | null
+          id: string
+          message: string
+          public_change_id: number
+          request_id: string
+          requested_at: string
+        }
+        Insert: {
+          handled_at?: string | null
+          handled_by?: string | null
+          handled_note?: string | null
+          id?: string
+          message: string
+          public_change_id: number
+          request_id: string
+          requested_at: string
+        }
+        Update: {
+          handled_at?: string | null
+          handled_by?: string | null
+          handled_note?: string | null
+          id?: string
+          message?: string
+          public_change_id?: number
+          request_id?: string
+          requested_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ship_change_requests_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "ship_request_inbox"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ship_change_requests_handled_by_fkey"
+            columns: ["handled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ship_pull_state: {
         Row: {
           id: number
@@ -1273,6 +1321,9 @@ export type Database = {
       }
       ship_request_inbox: {
         Row: {
+          exhibitor_version: number
+          exhibitor_cancelled_at: string | null
+          pushed_closed: boolean
           assigned_to: string | null
           booth: string | null
           booth_tbd: boolean
@@ -1303,6 +1354,9 @@ export type Database = {
           wants_coverage: boolean
         }
         Insert: {
+          exhibitor_version?: number
+          exhibitor_cancelled_at?: string | null
+          pushed_closed?: boolean
           assigned_to?: string | null
           booth?: string | null
           booth_tbd?: boolean
@@ -1333,6 +1387,9 @@ export type Database = {
           wants_coverage?: boolean
         }
         Update: {
+          exhibitor_version?: number
+          exhibitor_cancelled_at?: string | null
+          pushed_closed?: boolean
           assigned_to?: string | null
           booth?: string | null
           booth_tbd?: boolean
@@ -1395,6 +1452,8 @@ export type Database = {
       }
       ship_request_legs: {
         Row: {
+          approved_at: string | null
+          pushed: Json | null
           city: string | null
           deliver_by: string | null
           description: string | null
@@ -1428,6 +1487,8 @@ export type Database = {
           zip: string | null
         }
         Insert: {
+          approved_at?: string | null
+          pushed?: Json | null
           city?: string | null
           deliver_by?: string | null
           description?: string | null
@@ -1461,6 +1522,8 @@ export type Database = {
           zip?: string | null
         }
         Update: {
+          approved_at?: string | null
+          pushed?: Json | null
           city?: string | null
           deliver_by?: string | null
           description?: string | null

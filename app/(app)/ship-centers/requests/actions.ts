@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity";
 import { pullShipRequests } from "@/lib/ship-pull";
+import { pushShipStatus } from "@/lib/ship-push";
 import { LOAD_NUMBER, legName, quotable, shipmentForLeg } from "@/lib/ship-intake";
 import { OFFICE_PHONE, emailConfigured, legFreight, legRoute, quoteEmail, sendQuoteEmail } from "@/lib/ship-quote";
 import { syncLoadNumber } from "@/lib/tms-sync";
@@ -31,6 +32,11 @@ async function me(supabase: Supabase) {
 function touch(id?: string) {
   revalidatePath("/ship-centers/requests");
   if (id) revalidatePath(`/ship-centers/requests/${id}`);
+}
+
+/** The exhibitor's page catches up now, not at the next 15 minute sync. */
+function tellExhibitor() {
+  after(() => pushShipStatus().then(() => undefined));
 }
 
 async function loadRequest(supabase: Supabase, id: string) {
@@ -141,6 +147,7 @@ export async function sendQuote(_prev: InboxState, fd: FormData): Promise<InboxS
     entityLabel: req.public_ref,
     summary: `Quote ${mode === "email" ? "emailed" : "sent from own mailbox"} for ${priced.length} shipment${priced.length === 1 ? "" : "s"}`,
   });
+  tellExhibitor();
   touch(id);
   return { error: null, ok: true, message: mode === "email" ? `Quote emailed to ${req.email}.` : "Quote recorded." };
 }
@@ -225,7 +232,10 @@ export async function bookLeg(_prev: InboxState, fd: FormData): Promise<InboxSta
     details: { shipment_id: shipmentId },
   });
   // Carrier, PRO and dates from the TMS, once the response has gone.
-  after(() => syncLoadNumber(load).catch(() => false));
+  after(async () => {
+    await syncLoadNumber(load).catch(() => false);
+    await pushShipStatus();
+  });
   touch(req.id);
   revalidatePath("/shipments");
   return { error: null, ok: true, message: `Booked as load ${load}.` };
@@ -242,6 +252,7 @@ export async function cancelLeg(fd: FormData): Promise<void> {
   const { data: leg } = await supabase.from("ship_request_legs").select("id, request_id, stage").eq("id", legId).maybeSingle();
   if (!leg || leg.stage === "booked") return;
   await supabase.from("ship_request_legs").update({ stage: "cancelled" }).eq("id", legId);
+  tellExhibitor();
   touch(leg.request_id);
 }
 
@@ -273,6 +284,27 @@ export async function closeRequest(_prev: InboxState, fd: FormData): Promise<Inb
     summary: how === "rejected" ? "Turned down" : "Cancelled",
     details: note ? { note } : null,
   });
+  tellExhibitor();
   touch(id);
   return { error: null, ok: true, message: how === "rejected" ? "Turned down." : "Cancelled." };
+}
+
+// ---------------------------------------------------------------------------
+// "Request a change" messages from the exhibitor
+// ---------------------------------------------------------------------------
+
+export async function markChangeHandled(fd: FormData): Promise<void> {
+  const changeId = String(fd.get("change_id") ?? "");
+  const note = String(fd.get("handled_note") ?? "").trim() || null;
+  const supabase = await createClient();
+  const who = await me(supabase);
+  if (!who || !changeId) return;
+  const { data: ch } = await supabase
+    .from("ship_change_requests")
+    .update({ handled_at: new Date().toISOString(), handled_by: who.id, handled_note: note })
+    .eq("id", changeId)
+    .is("handled_at", null)
+    .select("request_id")
+    .maybeSingle();
+  if (ch) touch(ch.request_id);
 }

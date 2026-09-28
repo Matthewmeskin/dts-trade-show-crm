@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { publicRpc } from "@/lib/public-sync";
-import { inboxRow, legRows, type Known, type PulledRequest } from "@/lib/ship-intake";
+import { exhibitorPatch, inboxRow, legPatch, legRows, type Known, type PulledRequest } from "@/lib/ship-intake";
 
 /**
  * Bring confirmed GSC Shipping Center requests into the CRM's inbox.
@@ -31,7 +31,7 @@ export async function pullShipRequests(): Promise<PullResult> {
   if (!pullConfigured()) return { ok: true, skipped: true, received: 0, stored: 0 };
   const sb = createAdminClient();
   let received = 0;
-  const stored: string[] = [];
+  const stored: { id: string; version: number }[] = [];
   let error: string | undefined;
 
   try {
@@ -70,7 +70,7 @@ export async function pullShipRequests(): Promise<PullResult> {
         }
         const { data: row, error: readErr } = await sb
           .from("ship_request_inbox")
-          .select("id")
+          .select("id, exhibitor_version, closed")
           .eq("public_request_id", r.id)
           .single();
         if (readErr || !row) {
@@ -85,11 +85,47 @@ export async function pullShipRequests(): Promise<PullResult> {
             continue;
           }
         }
-        stored.push(r.id);
+
+        // A newer version: the exhibitor approved, edited, cancelled or asked
+        // for a change since the CRM last heard.
+        const version = r.version ?? 1;
+        if (version > row.exhibitor_version) {
+          const up = await sb.from("ship_request_inbox").update(exhibitorPatch(r, known, row)).eq("id", row.id);
+          if (up.error) {
+            error = `update of ${r.public_ref}: ${up.error.message}`;
+            continue;
+          }
+          const { data: have } = await sb.from("ship_request_legs").select("id, public_leg_id, stage").eq("request_id", row.id);
+          const byPublic = new Map((have ?? []).map((h) => [h.public_leg_id, h]));
+          let legFailed = false;
+          for (const l of r.legs) {
+            const mine = byPublic.get(l.id);
+            if (!mine) continue;
+            const lu = await sb.from("ship_request_legs").update(legPatch(l, mine.stage)).eq("id", mine.id);
+            if (lu.error) {
+              error = `leg of ${r.public_ref}: ${lu.error.message}`;
+              legFailed = true;
+            }
+          }
+          if (legFailed) continue;
+        }
+        if (r.changes?.length) {
+          const ch = await sb.from("ship_change_requests").upsert(
+            r.changes.map((c) => ({ request_id: row.id, public_change_id: c.id, message: c.message, requested_at: c.at })),
+            { onConflict: "public_change_id", ignoreDuplicates: true },
+          );
+          if (ch.error) {
+            error = `changes of ${r.public_ref}: ${ch.error.message}`;
+            continue;
+          }
+        }
+        stored.push({ id: r.id, version });
       }
 
       if (stored.length) {
-        await publicRpc("ack_requests_signed", { p_secret: process.env.TRADE_SHOW_PULL_SECRET, p_ids: stored });
+        // Acknowledge the version each request had when pulled (slice 5), so
+        // an exhibitor action made since comes back next time.
+        await publicRpc("ack_requests_signed", { p_secret: process.env.TRADE_SHOW_PULL_SECRET, p_acks: stored });
       }
     }
   } catch (e) {
