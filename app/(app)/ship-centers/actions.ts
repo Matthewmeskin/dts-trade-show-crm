@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { put } from "@vercel/blob";
 import { createClient } from "@/lib/supabase/server";
 import { emailList } from "@/lib/ship-quote";
+import { blobConfigured, processLogo } from "@/lib/logo-upload";
 import { logActivity } from "@/lib/activity";
 import { nudgePublicSync } from "@/lib/public-sync";
 import { composeFreightAddress, FREIGHT_ADDRESS_KEYS, type FreightAddressParts } from "@/lib/freight";
@@ -78,8 +80,9 @@ export async function saveShipCenter(_prev: ShipState, fd: FormData): Promise<Sh
   const public_name = str(fd, "public_name");
   const ship_phone = str(fd, "ship_phone");
   const ship_email = str(fd, "ship_email");
-  const logo_url = str(fd, "logo_url");
   const ship_manifest_to = str(fd, "ship_manifest_to");
+  let logo_url = str(fd, "logo_url");
+  const logoFile = fd.get("logo_file");
 
   const fieldErrors: Record<string, string> = {};
   if (!code) fieldErrors.code = "The kit link needs a code.";
@@ -90,6 +93,24 @@ export async function saveShipCenter(_prev: ShipState, fd: FormData): Promise<Sh
   if (ship_manifest_to && emailList(ship_manifest_to).length !== ship_manifest_to.split(/[,;\s]+/).filter(Boolean).length)
     fieldErrors.ship_manifest_to = "One or more addresses, separated by commas.";
   if (Object.keys(fieldErrors).length) return { error: "Check the highlighted fields.", fieldErrors };
+
+  // An uploaded logo wins over the link: checked, re-encoded to PNG, stored in
+  // Vercel Blob under a name nobody can guess, and that address saved.
+  if (logoFile instanceof File && logoFile.size > 0) {
+    if (!blobConfigured()) return { error: "Logo upload is not set up yet. Paste a link instead.", fieldErrors: { logo_url: "Use a link for now." } };
+    const logo = await processLogo(Buffer.from(await logoFile.arrayBuffer()), logoFile.type);
+    if (!logo.ok) return { error: logo.error, fieldErrors: { logo_url: logo.error } };
+    try {
+      const blob = await put(`gsc-logos/${id}.png`, logo.png, {
+        access: "public",
+        contentType: "image/png",
+        addRandomSuffix: true,
+      });
+      logo_url = blob.url;
+    } catch (e) {
+      return { error: `The logo did not upload: ${e instanceof Error ? e.message : "try again"}.` };
+    }
+  }
 
   const supabase = await createClient();
   const { error } = await supabase
