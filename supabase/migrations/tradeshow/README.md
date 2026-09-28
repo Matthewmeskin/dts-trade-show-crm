@@ -21,7 +21,7 @@ applied migration, recovered from `supabase_migrations.schema_migrations`, named
 | `tradeshow_0046_ship_shows` | 0046, GSC Shipping Center slice 2 (Sept 27 2026) |
 | `tradeshow_0047_ship_intake` | 0047, GSC Shipping Center slice 4: the requests inbox (Sept 28 2026) |
 | `tradeshow_0049_ship_status` | 0049, GSC Shipping Center slice 5: exhibitor versions, pushed statuses, change requests (Sept 28 2026) |
-| `PENDING_tradeshow_0050_ship_mail.sql` (not applied) | 0050, GSC Shipping Center slice 6: the email log and where the GSC's manifest goes. After 0049 |
+| `tradeshow_0050_ship_mail` | 0050, GSC Shipping Center slice 6: the email log and where the GSC's manifest goes (Sept 28 2026) |
 
 The export side (`tradeshow_public` views, `show_series`, `show_public_logistics`, `public_export()`)
 lives in `dts-sage/trade-show/crm/migrations`, not here.

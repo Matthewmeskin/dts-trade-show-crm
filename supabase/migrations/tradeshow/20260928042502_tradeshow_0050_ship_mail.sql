@@ -1,7 +1,5 @@
--- PENDING: not applied. The exact SQL to run on DTS Database (qshciqxpkirlkmrwucnk) as migration
--- "tradeshow_0050_ship_mail", after tradeshow_0049_ship_status, once Matthew has seen it and point
--- in time recovery is confirmed. After it runs, rename this file to its applied version.
--- Same as ../0050_ship_mail.sql with public -> tradeshow and no payables guard.
+-- Applied to DTS Database (qshciqxpkirlkmrwucnk) as migration 20260928042502 "tradeshow_0050_ship_mail".
+-- Recovered verbatim from supabase_migrations.schema_migrations (md5 of the statement: 42887ff1bc72b63901390f195c0a76a4). Do not edit: this is the record of what ran.
 
 create table tradeshow.ship_email_log (
   id          uuid primary key default gen_random_uuid(),
