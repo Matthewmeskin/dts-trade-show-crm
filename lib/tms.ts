@@ -238,7 +238,6 @@ export function isRoadshow(item: Record<string, unknown>): boolean {
   return texts.some((t) => t != null && ROADSHOW_RE.test(t));
 }
 
-/** Pull a booth number out of free-text address ("… - Booth #3727, …"). */
 /**
  * The booth the TMS sync may write: only onto a shipment that has none yet. A
  * booth typed in on the shipment (or set from a Shipping Center request) is
@@ -248,12 +247,35 @@ export function boothForSync(incoming: string | null | undefined, stored: string
   return incoming && !stored?.trim() ? incoming : undefined;
 }
 
-function boothFrom(...texts: (string | undefined)[]): string | undefined {
+// One booth: an optional hall letter or two ("N", "W", "SL"), then a number,
+// then anything glued on ("N7025", "N-6648", "5A", "12-345").
+const ONE_BOOTH = "[A-Za-z]{0,3}-?\\d[A-Za-z0-9-]*";
+// "Booth 1203", "Booth #1203", "BOOTH#: 501", "Booth: #: 1820", "Booth: N7025 - North
+// Hall", "Booth No# 3810", "Booth - 617", "booth number 12", and lists: "Booth # 500,502",
+// "Booths #1751", "Booth numbers 22813/22913", "Booth#s: A4101 & 22013".
+// (The same pattern, in Postgres syntax, backfilled older loads on Sept 28 2026.)
+const BOOTH_RE = new RegExp(
+  `\\bbooths?(?:\\s*(?:no\\.?|num(?:ber)?s?\\.?))?[\\s#:.-]*(?:s\\b[\\s:,]*)?(${ONE_BOOTH}(?:\\s*[,&/]\\s*${ONE_BOOTH})*)`,
+  "i",
+);
+
+/**
+ * A booth number out of free text: the stop addresses, or a reference or note
+ * someone typed it into ("… Booth#: 811, Columbus …", "PCI-SIG (booth #3118)").
+ * Needs a digit, so "Booth#: not available", "Booth #LAST 2" and "ALLEGION
+ * BOOTH" give nothing. Lists keep their order, tidied: "500, 502".
+ */
+export function parseBooth(text: string | null | undefined): string | undefined {
+  const m = text?.match(BOOTH_RE);
+  if (!m) return undefined;
+  return m[1].split(/\s*[,&/]\s*/).join(", ").toUpperCase();
+}
+
+/** The first booth found, in the order given (the stops first, then references and notes). */
+export function boothFrom(...texts: (string | null | undefined)[]): string | undefined {
   for (const t of texts) {
-    if (!t) continue;
-    // Require a digit in the token so stray words ("Booth #LAST …") don't match.
-    const m = t.match(/booth\s*#?\s*([A-Za-z0-9-]*\d[A-Za-z0-9-]*)/i);
-    if (m) return m[1];
+    const b = parseBooth(t);
+    if (b) return b;
   }
   return undefined;
 }
@@ -423,7 +445,6 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   set("consignee_state", drop?.state ?? da.state);
   set("consignee_zip", drop?.zip ?? da.zip);
   set("consignee_country", drop?.country);
-  set("booth_number", boothFrom(pickupStr, deliveryStr));
 
   // Trade-show venue context: the show-side stop (the one with the booth or a
   // convention-venue keyword). Raw text is messy on purpose — it's the input
@@ -457,6 +478,13 @@ export function parseLoad(item: Record<string, unknown>): ParsedLoad | null {
   // them, so syncs never clobber notes a coordinator typed.
   set("special_requirements", str(item.special_requirements));
   set("notes", str(item.notes));
+
+  // The booth: from the stops first, then wherever someone typed it on the
+  // load (PO or shipper number, special instructions, notes).
+  set(
+    "booth_number",
+    boothFrom(pickupStr, deliveryStr, fields.po_ref, fields.shipper_number, str(item.special_requirements), str(item.notes)),
+  );
 
   // Hyperion lists DTS (our own brokerage) as the "carrier" on loads that
   // aren't dispatched to an outside carrier yet. That's a placeholder, not a
