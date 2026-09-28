@@ -58,6 +58,7 @@ function operatorFields(fd: FormData) {
     target_delivery_date: str(fd, "target_delivery_date"),
     show_date: str(fd, "show_date"),
     check_in_number: str(fd, "check_in_number"),
+    booth_number: str(fd, "booth_number"),
     po_ref: str(fd, "po_ref"),
     shipper_number: str(fd, "shipper_number"),
     carrier_quote_number: str(fd, "carrier_quote_number"),

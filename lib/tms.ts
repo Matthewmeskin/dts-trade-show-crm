@@ -239,6 +239,15 @@ export function isRoadshow(item: Record<string, unknown>): boolean {
 }
 
 /** Pull a booth number out of free-text address ("… - Booth #3727, …"). */
+/**
+ * The booth the TMS sync may write: only onto a shipment that has none yet. A
+ * booth typed in on the shipment (or set from a Shipping Center request) is
+ * never replaced by one parsed from a stop note.
+ */
+export function boothForSync(incoming: string | null | undefined, stored: string | null | undefined): string | undefined {
+  return incoming && !stored?.trim() ? incoming : undefined;
+}
+
 function boothFrom(...texts: (string | undefined)[]): string | undefined {
   for (const t of texts) {
     if (!t) continue;

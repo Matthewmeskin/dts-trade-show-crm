@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { parseLoad, isRoadshow, shouldRelinkExhibitor, type ParsedLoad } from "@/lib/tms";
+import { boothForSync, parseLoad, isRoadshow, shouldRelinkExhibitor, type ParsedLoad } from "@/lib/tms";
 import { resolveVenueId, resolveShowId, type ShowLite } from "@/lib/tms-link";
 import type { TablesInsert } from "@/lib/database.types";
 
@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
   const existingVenue = new Map<string, string | null>();
   const existingShow = new Map<string, string | null>();
   const existingDirection = new Map<string, string | null>();
+  const existingBooth = new Map<string, string | null>();
   // Whether venue/show are still sync-managed. false = an operator took ownership
   // (or cleared the link), so the sync must not re-link.
   const existingVenueAuto = new Map<string, boolean>();
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
     const { data } = await supabase
       .from("shipments")
       .select(
-        "tms_reference_id, exhibitor_id, tms_customer_id, venue_id, show_id, direction, venue_auto_linked, show_auto_linked",
+        "tms_reference_id, exhibitor_id, tms_customer_id, venue_id, show_id, direction, venue_auto_linked, show_auto_linked, booth_number",
       )
       .in("tms_reference_id", refs);
     for (const r of data ?? [])
@@ -100,6 +101,7 @@ export async function POST(req: NextRequest) {
         existingVenue.set(r.tms_reference_id, r.venue_id);
         existingShow.set(r.tms_reference_id, r.show_id);
         existingDirection.set(r.tms_reference_id, r.direction);
+        existingBooth.set(r.tms_reference_id, r.booth_number);
         existingVenueAuto.set(r.tms_reference_id, r.venue_auto_linked);
         existingShowAuto.set(r.tms_reference_id, r.show_auto_linked);
       }
@@ -192,9 +194,13 @@ export async function POST(req: NextRequest) {
           )
         : undefined;
 
+    // The booth is filled only when the shipment has none (boothForSync).
+    const { booth_number: incomingBooth, ...fields } = p.fields;
+    const booth_number = boothForSync(incomingBooth, existingBooth.get(p.ref));
     const row: TablesInsert<"shipments"> = {
       tms_reference_id: p.ref,
-      ...p.fields,
+      ...fields,
+      ...(booth_number ? { booth_number } : {}),
       ...(carrier_id ? { carrier_id } : {}),
       ...(exhibitor_id && relinkExhibitor ? { exhibitor_id } : {}),
       ...(venue_id ? { venue_id, venue_auto_linked: true } : {}),

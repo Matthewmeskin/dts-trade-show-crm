@@ -106,6 +106,9 @@ export function ShipmentForm({
               ))}
             </select>
           </Field>
+          <Field label="Booth #" htmlFor="booth_number" hint="The exhibitor's booth. Prints on the move-out form.">
+            <input id="booth_number" name="booth_number" defaultValue={d?.booth_number ?? ""} className={inputClass} />
+          </Field>
           <Field label="PO reference" htmlFor="po_ref" hint="Show / exhibitor purchase-order number.">
             <input id="po_ref" name="po_ref" defaultValue={d?.po_ref ?? ""} className={inputClass} />
           </Field>
