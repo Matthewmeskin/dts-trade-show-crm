@@ -35,7 +35,9 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Show pages", href: "/show-pages", icon: "external" },
       // GSC Shipping Centers: a GSC's exhibitor shipping pages. Separate from
       // Show pages on purpose; neither gets the other's controls.
-      { label: "Shipping Centers", href: "/ship-centers", icon: "truck" },
+      { label: "Shipping Centers", href: "/ship-centers", icon: "truck", exclude: ["/ship-centers/requests"] },
+      // Exhibitor requests from those Shipping Centers: price, book, close.
+      { label: "Ship requests", href: "/ship-centers/requests", icon: "bell" },
       // Quotes lives as a tab on Shipments, so light Shipments up there too.
       { label: "Shipments", href: "/shipments", icon: "shipments", match: ["/quotes"] },
       { label: "MHA Check", href: "/mha-check", icon: "truck" },

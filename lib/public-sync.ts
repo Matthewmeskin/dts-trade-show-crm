@@ -74,7 +74,8 @@ export function slugsOf(shows: Row[], partners: Row[]): string[] {
   return [...out];
 }
 
-async function rpc(name: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+/** A signed call to the DTS Trade Show project with the publishable key (the secret goes in the body). */
+export async function publicRpc(name: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
   const res = await fetch(`${process.env.TRADE_SHOW_SUPABASE_URL}/rest/v1/rpc/${name}`, {
     method: "POST",
     headers: {
@@ -130,7 +131,7 @@ async function runOnce(trigger: SyncTrigger): Promise<SyncResult> {
     partnerRows = exported.partners ?? [];
 
     // Shows first: a cobranded page only exists for a show that does.
-    const shows = await rpc("apply_export_signed", {
+    const shows = await publicRpc("apply_export_signed", {
       p_secret: process.env.TRADE_SHOW_SYNC_SECRET,
       p_rows: showRows,
       p_trigger_source: trigger,
@@ -138,7 +139,7 @@ async function runOnce(trigger: SyncTrigger): Promise<SyncResult> {
       // would stop the last show from ever coming down.
       p_expected_sig: showExportSig(showRows),
     });
-    const partners = await rpc("apply_partner_export_signed", {
+    const partners = await publicRpc("apply_partner_export_signed", {
       p_secret: process.env.TRADE_SHOW_SYNC_SECRET,
       p_rows: partnerRows,
       p_expected_sig: partnerRows.length ? PARTNER_EXPORT_SIG : null,
@@ -148,7 +149,7 @@ async function runOnce(trigger: SyncTrigger): Promise<SyncResult> {
     let ship: Record<string, unknown> | undefined;
     const shipRows = exported.ship ?? null;
     if (shipRows) {
-      ship = await rpc("apply_ship_export_signed", {
+      ship = await publicRpc("apply_ship_export_signed", {
         p_secret: process.env.TRADE_SHOW_SYNC_SECRET,
         p_rows: shipRows,
         p_codes: exported.ship_codes ?? [],

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { runPublicSync, type SyncTrigger } from "@/lib/public-sync";
+import { pullShipRequests } from "@/lib/ship-pull";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -10,6 +11,10 @@ export const maxDuration = 120;
  * minutes (vercel.json) with `Authorization: Bearer <CRON_SECRET>`; a person
  * or n8n can also call it with the TMS webhook secret to force a run.
  * A failed run answers 500, so it shows as failed in Vercel's cron log.
+ *
+ * The same run pulls confirmed GSC Shipping Center requests into the CRM's
+ * inbox (lib/ship-pull.ts). The two are independent: one failing never stops
+ * the other.
  */
 function matches(provided: string, secret: string | undefined): boolean {
   if (!secret) return false;
@@ -26,7 +31,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
   const trigger: SyncTrigger = fromCron ? "schedule" : "manual";
-  const result = await runPublicSync(trigger);
+  const [result, pull] = await Promise.all([runPublicSync(trigger), pullShipRequests()]);
   if (!result.ok) console.error("[public-sync]", trigger, result.error);
-  return NextResponse.json(result, { status: result.ok ? 200 : 500 });
+  if (!pull.ok) console.error("[ship-pull]", trigger, pull.error);
+  return NextResponse.json({ ...result, pull }, { status: result.ok && pull.ok ? 200 : 500 });
 }
