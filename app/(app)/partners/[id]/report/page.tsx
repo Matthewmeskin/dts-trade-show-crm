@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { partnerToolsOn } from "@/lib/app-settings";
 import { Card, CardHeader, PageHeader } from "@/components/ui";
 import { dayOf, formatDate, formatPacificDateTime } from "@/lib/format";
 import { weekStart } from "@/lib/partners";
@@ -17,6 +18,8 @@ export const dynamic = "force-dynamic";
 export default async function PartnerReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
+  // Partner growth tooling: gone unless an admin has it on (lib/app-settings.ts).
+  if (!(await partnerToolsOn(supabase))) notFound();
   const { data: partner } = await supabase
     .from("partners")
     .select("name, report_to, report_active, last_report_sent_at")

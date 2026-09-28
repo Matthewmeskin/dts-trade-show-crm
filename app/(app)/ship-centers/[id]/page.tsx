@@ -7,6 +7,7 @@ import { effectiveStatus } from "@/lib/logistics";
 import { gscMatches, gscNameFor, shipPath, shipShowStatus } from "@/lib/ship-center";
 import { setShipShowEnabled } from "../actions";
 import { AddShowPanel, DetailsForm } from "../panels";
+import { blobConfigured } from "@/lib/logo-upload";
 
 export const dynamic = "force-dynamic";
 
@@ -165,6 +166,7 @@ export default async function ShipCenterPage({ params }: { params: Promise<{ id:
           <Card>
             <CardHeader title="Kit link and contact" icon="external" />
             <DetailsForm
+              uploadReady={blobConfigured()}
               partnerId={id}
               suggestedCode={gsc.code ?? name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)}
               hasCode={!!gsc.code}
