@@ -581,42 +581,6 @@ export async function setShowPilot(fd: FormData) {
   touchPaths(partner_id);
 }
 
-/**
- * Pilot switch for the GSC Shipping Center: turn one show on or off for this
- * GSC. Admin only (the database enforces it). Off is enabled = false, never a
- * delete, because exhibitor requests will hang off the row. The CRM's "GSC
- * Shipping Centers" screen (slice 7) replaces this.
- */
-export async function setShipCenter(fd: FormData) {
-  const partner_id = str(fd, "partner_id");
-  const show_id = str(fd, "show_id");
-  if (!partner_id || !show_id) return;
-  const enabled = str(fd, "enabled") === "true";
-  const supabase = await createClient();
-  const { data: existing } = await supabase
-    .from("ship_shows")
-    .select("id")
-    .eq("partner_id", partner_id)
-    .eq("show_id", show_id)
-    .maybeSingle();
-  const { error } = existing
-    ? await supabase.from("ship_shows").update({ enabled }).eq("id", existing.id)
-    : await supabase.from("ship_shows").insert({ partner_id, show_id, enabled });
-  if (error) {
-    console.error("[ship-center] toggle failed:", error.message);
-    return;
-  }
-  await logActivity(supabase, {
-    action: "updated",
-    entityType: "partner",
-    entityId: partner_id,
-    summary: enabled ? "Shipping Center switched on for a show" : "Shipping Center switched off for a show",
-    details: { show_id, enabled },
-  });
-  nudgePublicSync();
-  touchPaths(partner_id);
-}
-
 // ---------------------------------------------------------------------------
 // The weekly pilot report
 // ---------------------------------------------------------------------------

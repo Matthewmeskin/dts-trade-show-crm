@@ -3,7 +3,7 @@
 import { useState, type RefObject } from "react";
 import { inputClass } from "@/components/form";
 import { Icon } from "@/components/icons";
-import { KIT_SHOW_FACTS, kitFillForShow, type KitReading } from "@/lib/kit-reader";
+import { FIELD_LABELS, KIT_SHOW_FACTS, kitFillForShow, type KitReading } from "@/lib/kit-reader";
 
 type VenueOpt = { id: string; venue_name: string };
 
@@ -66,6 +66,17 @@ export function KitFillBar({
         return prefix ? set.has(`${prefix}_street1`) : set.has(f.field);
       })
       .map((f) => `${f.label}: ${f.value}`);
+
+    // Page-only details (timezone, cut-off times, label rules), when this form
+    // has a field for them and it is still empty.
+    for (const [k, v] of Object.entries(reading.logistics)) {
+      const e = el(k);
+      if (!v || !e || e.value || (e instanceof HTMLInputElement && e.type === "checkbox")) continue;
+      e.value = v.value;
+      if (e.value !== v.value) continue; // a select without that option
+      mark(e);
+      filled.push(`${FIELD_LABELS[k as keyof typeof FIELD_LABELS] ?? k}: ${v.value}`);
+    }
 
     // The kit link itself, if the show doesn't have one yet.
     const manual = el("exhibitor_manual_url");
