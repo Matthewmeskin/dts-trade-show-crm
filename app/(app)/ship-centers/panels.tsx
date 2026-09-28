@@ -45,7 +45,7 @@ export function DetailsForm({
   partnerId: string;
   suggestedCode: string;
   hasCode: boolean;
-  values: { code: string | null; public_name: string | null; ship_phone: string | null; ship_email: string | null; logo_url: string | null };
+  values: { code: string | null; public_name: string | null; ship_phone: string | null; ship_email: string | null; logo_url: string | null; ship_manifest_to: string | null };
 }) {
   const [state, action] = useActionState(saveShipCenter, empty);
   const err = state.fieldErrors ?? {};
@@ -73,6 +73,14 @@ export function DetailsForm({
       </Field>
       <Field label="Email for exhibitors" htmlFor="ship_email" error={err.ship_email}>
         <input id="ship_email" name="ship_email" type="email" defaultValue={values.ship_email ?? ""} className={inputClass} />
+      </Field>
+      <Field
+        label="Manifest and outbound list go to"
+        htmlFor="ship_manifest_to"
+        error={err.ship_manifest_to}
+        hint="Their warehouse or show desk. Several addresses with commas. Blank: the exhibitor email above."
+      >
+        <input id="ship_manifest_to" name="ship_manifest_to" defaultValue={values.ship_manifest_to ?? ""} className={inputClass} />
       </Field>
       <Field label="Logo link" htmlFor="logo_url" error={err.logo_url} hint="An https:// link to their logo image.">
         <input id="logo_url" name="logo_url" defaultValue={values.logo_url ?? ""} className={inputClass} />

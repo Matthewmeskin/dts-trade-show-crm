@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { emailList } from "@/lib/ship-quote";
 import { logActivity } from "@/lib/activity";
 import { nudgePublicSync } from "@/lib/public-sync";
 import { composeFreightAddress, FREIGHT_ADDRESS_KEYS, type FreightAddressParts } from "@/lib/freight";
@@ -78,6 +79,7 @@ export async function saveShipCenter(_prev: ShipState, fd: FormData): Promise<Sh
   const ship_phone = str(fd, "ship_phone");
   const ship_email = str(fd, "ship_email");
   const logo_url = str(fd, "logo_url");
+  const ship_manifest_to = str(fd, "ship_manifest_to");
 
   const fieldErrors: Record<string, string> = {};
   if (!code) fieldErrors.code = "The kit link needs a code.";
@@ -85,12 +87,14 @@ export async function saveShipCenter(_prev: ShipState, fd: FormData): Promise<Sh
     fieldErrors.code = "3 to 40 lowercase letters, numbers and single hyphens.";
   if (ship_email && !EMAIL.test(ship_email)) fieldErrors.ship_email = "That doesn't look like an email address.";
   if (logo_url && !/^https:\/\//i.test(logo_url)) fieldErrors.logo_url = "Use an https:// link to the logo image.";
+  if (ship_manifest_to && emailList(ship_manifest_to).length !== ship_manifest_to.split(/[,;\s]+/).filter(Boolean).length)
+    fieldErrors.ship_manifest_to = "One or more addresses, separated by commas.";
   if (Object.keys(fieldErrors).length) return { error: "Check the highlighted fields.", fieldErrors };
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("partners")
-    .update({ code, public_name, ship_phone, ship_email, logo_url })
+    .update({ code, public_name, ship_phone, ship_email, logo_url, ship_manifest_to })
     .eq("id", id);
   if (error) {
     if (/partners_code_unique|duplicate key/i.test(error.message))
@@ -384,7 +388,12 @@ export async function saveShipSetup(_prev: ShipState, fd: FormData): Promise<Shi
   if (admin) {
     await supabase
       .from("ship_shows")
-      .update({ coordinator_name: str(fd, "coordinator_name"), coordinator_mobile: str(fd, "coordinator_mobile") })
+      .update({
+        coordinator_name: str(fd, "coordinator_name"),
+        coordinator_mobile: str(fd, "coordinator_mobile"),
+        manifest_email: fd.get("manifest_email") === "weekly_then_daily" ? "weekly_then_daily" : "off",
+        outbound_email: fd.get("outbound_email") === "on",
+      })
       .eq("partner_id", partnerId)
       .eq("show_id", showId);
   }

@@ -17,7 +17,7 @@ export default async function ShipCenterPage({ params }: { params: Promise<{ id:
 
   const { data: gsc } = await supabase
     .from("partners")
-    .select("id, name, public_name, code, partner_type, ship_phone, ship_email, logo_url")
+    .select("id, name, public_name, code, partner_type, ship_phone, ship_email, logo_url, ship_manifest_to")
     .eq("id", id)
     .maybeSingle();
   if (!gsc) notFound();
@@ -174,6 +174,7 @@ export default async function ShipCenterPage({ params }: { params: Promise<{ id:
                 ship_phone: gsc.ship_phone,
                 ship_email: gsc.ship_email,
                 logo_url: gsc.logo_url,
+                ship_manifest_to: gsc.ship_manifest_to,
               }}
             />
           </Card>

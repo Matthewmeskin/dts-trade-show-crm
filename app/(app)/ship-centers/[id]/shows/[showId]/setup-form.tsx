@@ -102,7 +102,7 @@ export function SetupForm({
   code: string | null;
   show: Tables<"shows">;
   logistics: Tables<"show_public_logistics"> | null;
-  coordinator: { name: string | null; mobile: string | null };
+  coordinator: { name: string | null; mobile: string | null; manifestEmail: string; outboundEmail: boolean };
   venues: { id: string; venue_name: string; label: string }[];
 }) {
   const [state, action] = useActionState(saveShipSetup, { error: null } as ShipState);
@@ -224,6 +224,22 @@ export function SetupForm({
                 </Field>
                 <Field label="Coordinator mobile" htmlFor="coordinator_mobile">
                   <input id="coordinator_mobile" name="coordinator_mobile" defaultValue={coordinator.mobile ?? ""} className={inputClass} />
+                </Field>
+                <Field
+                  label="Email the GSC its inbound manifest"
+                  htmlFor="manifest_email"
+                  hint="Weekly from 45 days out, daily the last week before move in, in the show's morning."
+                >
+                  <select id="manifest_email" name="manifest_email" defaultValue={coordinator.manifestEmail} className={inputClass}>
+                    <option value="off">Off</option>
+                    <option value="weekly_then_daily">On</option>
+                  </select>
+                </Field>
+                <Field label="Email the GSC its outbound list" htmlFor="outbound_email" hint="Daily from the show opening through teardown.">
+                  <select id="outbound_email" name="outbound_email" defaultValue={coordinator.outboundEmail ? "on" : "off"} className={inputClass}>
+                    <option value="off">Off</option>
+                    <option value="on">On</option>
+                  </select>
                 </Field>
               </>
             ) : null}

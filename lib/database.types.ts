@@ -944,6 +944,7 @@ export type Database = {
       }
       partners: {
         Row: {
+          ship_manifest_to: string | null
           label_settings: Json
           ship_email: string | null
           ship_phone: string | null
@@ -981,6 +982,7 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          ship_manifest_to?: string | null
           label_settings?: Json
           ship_email?: string | null
           ship_phone?: string | null
@@ -1018,6 +1020,7 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          ship_manifest_to?: string | null
           label_settings?: Json
           ship_email?: string | null
           ship_phone?: string | null
@@ -1214,6 +1217,80 @@ export type Database = {
             columns: ["handled_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ship_email_log: {
+        Row: {
+          error: string | null
+          id: string
+          key: string
+          kind: string
+          ok: boolean | null
+          partner_id: string | null
+          request_id: string | null
+          sent_at: string
+          sent_by: string | null
+          sent_to: string
+          show_id: string | null
+          subject: string | null
+        }
+        Insert: {
+          error?: string | null
+          id?: string
+          key: string
+          kind: string
+          ok?: boolean | null
+          partner_id?: string | null
+          request_id?: string | null
+          sent_at?: string
+          sent_by?: string | null
+          sent_to: string
+          show_id?: string | null
+          subject?: string | null
+        }
+        Update: {
+          error?: string | null
+          id?: string
+          key?: string
+          kind?: string
+          ok?: boolean | null
+          partner_id?: string | null
+          request_id?: string | null
+          sent_at?: string
+          sent_by?: string | null
+          sent_to?: string
+          show_id?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ship_email_log_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ship_email_log_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "ship_request_inbox"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ship_email_log_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ship_email_log_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
             referencedColumns: ["id"]
           },
         ]

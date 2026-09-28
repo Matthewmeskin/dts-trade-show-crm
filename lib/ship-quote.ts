@@ -73,11 +73,11 @@ export function emailConfigured(): boolean {
 }
 
 /** Send through Resend (the Shipping Center's one email path). Never throws. */
-export async function sendQuoteEmail(
-  to: string,
-  msg: { subject: string; text: string },
+export async function sendShipEmail(
+  to: string | string[],
+  msg: { subject: string; text: string; html?: string },
   opts: { fromName: string; replyTo: string | null },
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; id?: string; error?: string }> {
   if (!emailConfigured()) return { ok: false, error: "Email is not set up in the CRM yet." };
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -85,16 +85,37 @@ export async function sendQuoteEmail(
       headers: { authorization: `Bearer ${process.env.RESEND_API_KEY}`, "content-type": "application/json" },
       body: JSON.stringify({
         from: `${opts.fromName.replace(/["<>]/g, "")} <${process.env.SHIP_EMAIL_FROM}>`,
-        to: [to],
+        to: Array.isArray(to) ? to : [to],
         subject: msg.subject,
         text: msg.text,
+        ...(msg.html ? { html: msg.html } : {}),
         ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
       }),
       signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) return { ok: false, error: `The email service refused it (${res.status}).` };
-    return { ok: true };
+    const body = (await res.json().catch(() => ({}))) as { id?: string };
+    return { ok: true, id: body.id };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "The email did not send." };
   }
+}
+
+export function sendQuoteEmail(
+  to: string,
+  msg: { subject: string; text: string },
+  opts: { fromName: string; replyTo: string | null },
+): Promise<{ ok: boolean; error?: string }> {
+  return sendShipEmail(to, msg, opts);
+}
+
+/** "Acme Expo Shipping (arranged by DTS)" */
+export const fromNameFor = (gscName: string) => `${gscName} Shipping (arranged by DTS)`;
+
+/** Addresses from a "one, two; three" field, checked. */
+export function emailList(raw: string | null | undefined): string[] {
+  return (raw ?? "")
+    .split(/[,;\s]+/)
+    .map((x) => x.trim())
+    .filter((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x));
 }

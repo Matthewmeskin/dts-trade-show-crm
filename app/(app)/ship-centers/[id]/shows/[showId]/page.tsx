@@ -24,7 +24,7 @@ export default async function ShipShowSetupPage({
   const [{ data: gsc }, { data: show }, { data: ship }, { data: logistics }, { data: venues }, { data: me }] = await Promise.all([
     supabase.from("partners").select("id, name, public_name, code").eq("id", id).maybeSingle(),
     supabase.from("shows").select("*").eq("id", showId).maybeSingle(),
-    supabase.from("ship_shows").select("enabled, coordinator_name, coordinator_mobile").eq("partner_id", id).eq("show_id", showId).maybeSingle(),
+    supabase.from("ship_shows").select("enabled, coordinator_name, coordinator_mobile, manifest_email, outbound_email").eq("partner_id", id).eq("show_id", showId).maybeSingle(),
     supabase.from("show_public_logistics").select("*").eq("show_id", showId).maybeSingle(),
     supabase.from("venues").select("id, venue_name, city, state").order("venue_name").limit(1000),
     supabase.from("profiles").select("role").eq("id", claims?.claims?.sub ?? "").maybeSingle(),
@@ -49,12 +49,20 @@ export default async function ShipShowSetupPage({
           { label: name, href: `/ship-centers/${id}` },
         ]}
         actions={
+          <>
+          <Link
+            href={`/ship-centers/${id}/shows/${showId}/manifest`}
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          >
+            GSC manifest
+          </Link>
           <Link
             href={`/shows/${showId}`}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
           >
             Full show record
           </Link>
+          </>
         }
       />
 
@@ -85,7 +93,12 @@ export default async function ShipShowSetupPage({
         code={gsc.code}
         show={show}
         logistics={logistics ?? null}
-        coordinator={{ name: ship.coordinator_name, mobile: ship.coordinator_mobile }}
+        coordinator={{
+          name: ship.coordinator_name,
+          mobile: ship.coordinator_mobile,
+          manifestEmail: ship.manifest_email,
+          outboundEmail: ship.outbound_email,
+        }}
         venues={(venues ?? []).map((v) => ({ id: v.id, venue_name: v.venue_name, label: [v.venue_name, [v.city, v.state].filter(Boolean).join(", ")].filter(Boolean).join(" · ") }))}
       />
     </div>
