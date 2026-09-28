@@ -398,14 +398,25 @@ decorator stores, GSC roles and self managed users (after the pilot).
    email path and the PDF decision. Wait for approval.
 2. **Export and `ship_shows`:** CRM table, export flags and view changes, public side view for the
    Shipping Center, no forced `is_public`, stable partner ids, code history.
-3. **Shipping Center shell, show home and request form with labels,** in the new `(ship)` layout,
-   with `submit_request_signed`, Turnstile, rate limits and the confirm email. (Matthew can enable the
-   pilot show on existing screens until slice 7.)
+3. **CRM "GSC Shipping Centers" area first (moved up from slice 7, Sept 27).** Matthew cannot run
+   this from the Partners page, so the Partners page is not part of the Shipping Center workflow at
+   all. Build a separate nav item, "GSC Shipping Centers," that is the only place staff touch this
+   product: add a GSC (name, logo, code, phone, email), add their shows, the one panel "Set up show"
+   (kit reader, check, "Verify and enable in Shipping Center"), label settings, links and Preview.
+   Remove the "Add to Shipping Center" switch from the partner page (its data stays in `ship_shows`).
+   A GSC in this area can be a new record or an existing partner row, but staff never need to open
+   Partners to use it. Keep it plain: one list, one GSC screen, one next step per show.
+   **Also hide the old partner tooling** that is not part of this plan (partner worklist, booked
+   calls, weekly client report, rebate statements, cobranded SEO page controls) behind an admin
+   setting that is off by default. Hide, do not delete: no tables, data or migrations are removed.
+3b. **Shipping Center shell, show home and request form with labels,** in the new `(ship)` layout,
+   with `submit_request_signed`, Turnstile, rate limits and the confirm email.
 4. **CRM pull, requests inbox and team alert.**
 5. **Status page, approve quote, edits and cancel, outbound MHA,** status back from TMS data.
 5b. **Instant LTL rates from the TMS** (section 9a), starting with confirming the Hyperion rating API.
 6. **Reminders and the emailed manifest and outbound list** (reusing `lib/gsc-manifest.ts`).
-7. **CRM GSC Shipping Centers screen** with the one panel setup, label settings and stale handling.
+7. **Stale logistics handling** in the GSC Shipping Centers area (day 50 reconfirm task, alerts,
+   disabling labels and the warehouse option on stale shows).
 8. **GSC admin site:** auth, allowlist hook and RLS with tests first, then Home, Show board, show day
    marks, Nudge, Settings; invites from the CRM.
 9. **Tracking notifications and marketing consent** (opt in capture, consent record, copy to CRM,
