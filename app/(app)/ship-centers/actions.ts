@@ -38,6 +38,8 @@ const str = (fd: FormData, k: string) => {
 };
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const CODE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+/** Words the exhibitor site (/ship/...) uses for its own pages, so never a GSC code. */
+const RESERVED_CODES = new Set(["confirm", "admin", "account", "terms", "privacy", "link", "api"]);
 
 async function isAdmin(supabase: Supabase): Promise<boolean> {
   const { data } = await supabase.auth.getClaims();
@@ -83,6 +85,7 @@ export async function saveShipCenter(_prev: ShipState, fd: FormData): Promise<Sh
   if (!code) fieldErrors.code = "The kit link needs a code.";
   else if (!CODE.test(code) || code.length < 3 || code.length > 40)
     fieldErrors.code = "3 to 40 lowercase letters, numbers and single hyphens.";
+  else if (RESERVED_CODES.has(code)) fieldErrors.code = "That word is used by the exhibitor site. Pick another code.";
   if (ship_email && !EMAIL.test(ship_email)) fieldErrors.ship_email = "That doesn't look like an email address.";
   if (logo_url && !/^https:\/\//i.test(logo_url)) fieldErrors.logo_url = "Use an https:// link to the logo image.";
   if (Object.keys(fieldErrors).length) return { error: "Check the highlighted fields.", fieldErrors };

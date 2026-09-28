@@ -654,6 +654,9 @@ export async function saveCobrand(_prev: PartnerState, fd: FormData): Promise<Pa
   const fieldErrors: Record<string, string> = {};
   if (code && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(code)) fieldErrors.code = "Lowercase letters, numbers and single hyphens.";
   if (code && (code.length < 3 || code.length > 40)) fieldErrors.code = "3 to 40 characters.";
+  // Words the GSC Shipping Center's exhibitor pages use for themselves (/ship/<word>/).
+  if (code && ["confirm", "admin", "account", "terms", "privacy", "link", "api"].includes(code))
+    fieldErrors.code = "That word is used by the exhibitor site. Pick another code.";
   if (logo_url && !/^https:\/\//i.test(logo_url)) fieldErrors.logo_url = "The logo has to be an https:// link.";
   if (cobrand_active && !code) fieldErrors.code = "Cobranding needs a code.";
   if (cobrand_active && !public_name) fieldErrors.public_name = "Cobranding needs the name exhibitors will see.";
