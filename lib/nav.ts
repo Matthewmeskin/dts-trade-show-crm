@@ -33,6 +33,9 @@ export const NAV_SECTIONS: NavSection[] = [
       // The public show pages on dtsone.com: what still needs a person's eyes
       // before they can publish, and what has gone stale since.
       { label: "Show pages", href: "/show-pages", icon: "external" },
+      // GSC Shipping Centers: a GSC's exhibitor shipping pages. Separate from
+      // Show pages on purpose; neither gets the other's controls.
+      { label: "Shipping Centers", href: "/ship-centers", icon: "truck" },
       // Quotes lives as a tab on Shipments, so light Shipments up there too.
       { label: "Shipments", href: "/shipments", icon: "shipments", match: ["/quotes"] },
       { label: "MHA Check", href: "/mha-check", icon: "truck" },

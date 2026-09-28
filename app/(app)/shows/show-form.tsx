@@ -14,7 +14,7 @@ import type { FreightAddressParts } from "@/lib/freight";
  * (advance_warehouse_* / direct_to_show_*) so they map straight onto the show
  * columns; the parse step composes them back into the legacy *_address line.
  */
-function FreightAddressFields({
+export function FreightAddressFields({
   prefix,
   values,
 }: {
@@ -134,14 +134,20 @@ export function ShowForm({
             />
           </Field>
 
-          <Field label="Show management company" htmlFor="show_management_company">
+          <Field label="Show management company" htmlFor="show_management_company" hint="The organizer that runs the show.">
             <input
               id="show_management_company"
               name="show_management_company"
               defaultValue={d?.show_management_company ?? ""}
               className={inputClass}
-              placeholder="Freeman, GES, …"
             />
+          </Field>
+          <Field
+            label="General service contractor (GSC)"
+            htmlFor="decorator"
+            hint="The decorator named in the exhibitor kit. A GSC Shipping Center only runs on shows this GSC runs."
+          >
+            <input id="decorator" name="decorator" defaultValue={d?.decorator ?? ""} className={inputClass} />
           </Field>
 
           <Field label="Venue" htmlFor="venue_id">
@@ -318,7 +324,7 @@ export function ShowForm({
           title="Sales & lead gen"
           description="Sales pipeline tracking. Start-call (−60d), email-team (−14d) and week-before (−7d) dates are computed from the show start date."
         >
-          <Field label="# of exhibitors" htmlFor="exhibitor_count" hint="Decorator is the “Show management company” above; ship windows are the Advance-warehouse and Direct-to-show dates below.">
+          <Field label="# of exhibitors" htmlFor="exhibitor_count" hint="Ship windows are the Advance-warehouse and Direct-to-show dates above.">
             <input id="exhibitor_count" name="exhibitor_count" type="number" defaultValue={d?.exhibitor_count ?? ""} className={inputClass} placeholder="e.g. 435" />
           </Field>
           <Field label="Sales people" htmlFor="sales_people">

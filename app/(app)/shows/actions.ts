@@ -128,6 +128,7 @@ function parseShow(fd: FormData): {
       edition_year: int(fd, "edition_year"),
       industry_vertical: str(fd, "industry_vertical"),
       show_management_company: str(fd, "show_management_company"),
+      decorator: str(fd, "decorator"),
       venue_id: str(fd, "venue_id"),
       gsc_contact_id: str(fd, "gsc_contact_id"),
       website_url: str(fd, "website_url"),
