@@ -69,6 +69,12 @@ Vercel installs deps, builds, and returns a live HTTPS URL.
 
 - **Supabase auth**: Supabase → Authentication → URL Configuration → set the
   **Site URL** to your new Vercel URL (good hygiene for email/password auth).
+- **One DTS sign-in**: signed-out visitors are sent to the DTS operations hub's
+  shared login (`https://dts-ap-portal.vercel.app/sso/crm`), which hands the
+  session back to `/auth/sso`; `/api/auth/sso` mints this app's own session and
+  needs `SUPABASE_SERVICE_ROLE_KEY`. Override the hub with
+  `NEXT_PUBLIC_DTS_LOGIN_ORIGIN` if it moves. The CRM's own form stays at
+  `/login?local=1`. See `lib/dts-login.ts`.
 - **Hyperion / n8n**: point the ingest at `https://<your-app>/api/tms/shipments`
   with `Authorization: Bearer <TMS_WEBHOOK_SECRET>`. See `TMS-INTEGRATION.md`.
 - **Redeploys**: re-run `npx vercel deploy --prod`, or connect the GitHub repo in
