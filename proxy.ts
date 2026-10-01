@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { hubSignInUrl, localPath } from "@/lib/dts-login";
 
 /**
  * Paths an unauthenticated visitor may reach. API routes are public to the
@@ -57,8 +58,21 @@ export async function proxy(request: NextRequest) {
     return res;
   };
 
-  // Unauthenticated visitors are sent to /login (except on public routes).
-  if (!user && !isPublic) return redirectTo("/login");
+  // One DTS sign-in (lib/dts-login.ts): a signed-out visitor goes to the
+  // hub's shared login page and comes back signed in, to the page they asked
+  // for. Someone already signed in at the hub never sees a login at all.
+  const toHub = (next: string) => {
+    const res = NextResponse.redirect(hubSignInUrl(next));
+    for (const cookie of supabaseResponse.cookies.getAll()) res.cookies.set(cookie);
+    return res;
+  };
+  if (!user && !isPublic) return toHub(pathname + request.nextUrl.search);
+
+  // /login itself goes to the shared login too. ?local=1 keeps the CRM's own
+  // form, for a failed hand-off or a hub outage.
+  if (!user && pathname === "/login" && !request.nextUrl.searchParams.has("local")) {
+    return toHub(localPath(request.nextUrl.searchParams.get("redirect")));
+  }
 
   // Signed-in users hitting /login are sent to the dashboard.
   if (user && pathname === "/login") return redirectTo("/");
