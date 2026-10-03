@@ -9,6 +9,7 @@ import type { Tables } from "@/lib/database.types";
 import { SOURCE_TYPES, TIMEZONES, slugify } from "@/lib/logistics";
 import { evergreenName } from "@/lib/ship-center";
 import { saveShipSetup, type ShipState } from "../../../actions";
+import { MapField } from "./map-field";
 
 type Prefix = "advance_warehouse" | "direct_to_show";
 
@@ -92,6 +93,7 @@ export function SetupForm({
   show,
   logistics,
   coordinator,
+  maps,
   venues,
 }: {
   partnerId: string;
@@ -103,6 +105,8 @@ export function SetupForm({
   show: Tables<"shows">;
   logistics: Tables<"show_public_logistics"> | null;
   coordinator: { name: string | null; mobile: string | null; manifestEmail: string; outboundEmail: boolean };
+  /** The show's maps, and whether files can be uploaded (Vercel Blob set up). */
+  maps: { floorPlanUrl: string | null; dockMapUrl: string | null; uploadReady: boolean };
   venues: { id: string; venue_name: string; label: string }[];
 }) {
   const [state, action] = useActionState(saveShipSetup, { error: null } as ShipState);
@@ -235,6 +239,24 @@ export function SetupForm({
                     <option value="weekly_then_daily">On</option>
                   </select>
                 </Field>
+                <MapField
+                  kind="floor_plan"
+                  partnerId={partnerId}
+                  showId={showId}
+                  defaultUrl={maps.floorPlanUrl}
+                  uploadReady={maps.uploadReady}
+                  error={err.floor_plan_url}
+                  hint="The organizer's online floor plan, or the PDF from the kit. Shown on the show's Shipping Center page."
+                />
+                <MapField
+                  kind="dock_map"
+                  partnerId={partnerId}
+                  showId={showId}
+                  defaultUrl={maps.dockMapUrl}
+                  uploadReady={maps.uploadReady}
+                  error={err.dock_map_url}
+                  hint="From the kit's move in and move out pages: the docks and where carriers check in. Also goes in the move out checklist email."
+                />
                 <Field label="Email the GSC its outbound list" htmlFor="outbound_email" hint="Daily from the show opening through teardown.">
                   <select id="outbound_email" name="outbound_email" defaultValue={coordinator.outboundEmail ? "on" : "off"} className={inputClass}>
                     <option value="off">Off</option>

@@ -130,6 +130,8 @@ export type ReminderContext = {
   pieces: number | null;
   onsiteName: string | null;
   onsiteMobile: string | null;
+  /** The dock and marshalling yard map from the kit, when staff added one. */
+  dockMapUrl?: string | null;
   staffName: string | null;
   phone: string;
 };
@@ -195,6 +197,7 @@ export function reminderEmail(kind: ReminderKind, c: ReminderContext): { subject
           `- Your material handling agreement (the outbound shipping form) turned in to the ${c.gscName} service desk.`,
           "- The bill of lading from us in hand.",
           `- ${c.onsiteName ? `${c.onsiteName}${c.onsiteMobile ? ` (${c.onsiteMobile})` : ""} reachable` : "Your on-site contact reachable"} until the carrier checks in and the freight leaves the dock.`,
+          ...(c.dockMapUrl ? [`- The dock and marshalling yard map from the kit, for your on-site contact: ${c.dockMapUrl}`] : []),
         ].join("\n"),
         "If the carrier looks late for check in, call us right away and we will chase it.",
         statusLine,

@@ -1649,7 +1649,9 @@ export type Database = {
           coordinator_name: string | null
           created_at: string
           created_by: string | null
+          dock_map_url: string | null
           enabled: boolean
+          floor_plan_url: string | null
           id: string
           manifest_email: string
           outbound_email: boolean
@@ -1664,7 +1666,9 @@ export type Database = {
           coordinator_name?: string | null
           created_at?: string
           created_by?: string | null
+          dock_map_url?: string | null
           enabled?: boolean
+          floor_plan_url?: string | null
           id?: string
           manifest_email?: string
           outbound_email?: boolean
@@ -1679,7 +1683,9 @@ export type Database = {
           coordinator_name?: string | null
           created_at?: string
           created_by?: string | null
+          dock_map_url?: string | null
           enabled?: boolean
+          floor_plan_url?: string | null
           id?: string
           manifest_email?: string
           outbound_email?: boolean

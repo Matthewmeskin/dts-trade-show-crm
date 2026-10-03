@@ -79,6 +79,15 @@ test("every reminder speaks as a broker and names no national contractor", () =>
   }).text, /material handling agreement[\s\S]*G service desk[\s\S]*bill of lading/);
 });
 
+test("the move out checklist carries the dock map when staff added one", () => {
+  const c = {
+    publicRef: "SC-A", contactName: null, showName: "S", year: 2026, gscName: "G", booth: null, moveIn: null, moveOut: "2026-11-14",
+    requestUrl: null, linkUrl: null, pickupDate: null, pieces: null, onsiteName: null, onsiteMobile: null, staffName: null, phone: "x",
+  };
+  assert.match(reminderEmail("moveout_checklist", { ...c, dockMapUrl: "https://example.com/dock-map.pdf" }).text, /marshalling yard map[^\n]*https:\/\/example\.com\/dock-map\.pdf/);
+  assert.doesNotMatch(reminderEmail("moveout_checklist", c).text, /marshalling yard map/);
+});
+
 const mleg = (over: Partial<ManifestLeg>): ManifestLeg => ({
   direction: "inbound", seq: 1, stage: "new", own_carrier: false, inbound_to: "advance_warehouse", city: "Sampletown", state: "OH",
   pieces: 4, weight_lbs: 1800, ready_date: "2026-11-01", onsite_contact_name: null, load: null, ...over,

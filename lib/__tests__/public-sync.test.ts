@@ -8,6 +8,8 @@ import {
   SHOW_EXPORT_SIG_BEFORE_FLAGS,
   PARTNER_EXPORT_SIG,
   SHIP_EXPORT_SIG,
+  SHIP_EXPORT_SIG_BEFORE_MAPS,
+  shipExportSig,
 } from "../public-sync";
 
 test("revalidation covers every show and every cobranded show, once each", () => {
@@ -52,7 +54,8 @@ test("the column signatures match the reviewed export views", () => {
   // public project's apply functions refuse anything else.
   assert.equal(SHOW_EXPORT_SIG_BEFORE_FLAGS, sig(SHOW_COLUMNS_BEFORE_FLAGS));
   assert.equal(SHOW_EXPORT_SIG, sig([...SHOW_COLUMNS_BEFORE_FLAGS, "is_public", "ship_enabled"]));
-  assert.equal(SHIP_EXPORT_SIG, sig(SHIP_COLUMNS));
+  assert.equal(SHIP_EXPORT_SIG_BEFORE_MAPS, sig(SHIP_COLUMNS));
+  assert.equal(SHIP_EXPORT_SIG, sig([...SHIP_COLUMNS, "dock_map_url", "floor_plan_url"]));
   assert.equal(PARTNER_EXPORT_SIG, sig(["display_name", "logo_url", "partner_code", "partner_type", "show_slug", "website"]));
 });
 
@@ -60,4 +63,10 @@ test("the show signature follows the export actually read, before and after expo
   assert.equal(showExportSig([]), null);
   assert.equal(showExportSig([{ slug: "sema" }]), SHOW_EXPORT_SIG_BEFORE_FLAGS);
   assert.equal(showExportSig([{ slug: "sema", is_public: false, ship_enabled: true }]), SHOW_EXPORT_SIG);
+});
+
+test("the Shipping Center signature follows the export actually read, before and after export 010", () => {
+  assert.equal(shipExportSig([]), null);
+  assert.equal(shipExportSig([{ partner_code: "acme" }]), SHIP_EXPORT_SIG_BEFORE_MAPS);
+  assert.equal(shipExportSig([{ partner_code: "acme", floor_plan_url: null, dock_map_url: null }]), SHIP_EXPORT_SIG);
 });
