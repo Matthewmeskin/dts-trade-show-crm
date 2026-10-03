@@ -1,7 +1,5 @@
--- PENDING: not applied. The exact SQL to run on DTS Database (qshciqxpkirlkmrwucnk) as migration
--- "tradeshow_0051_ship_maps", after tradeshow_0050_ship_mail, once Matthew has seen it and point
--- in time recovery is confirmed. After it runs, rename this file to its applied version.
--- Same as ../0051_ship_maps.sql with public -> tradeshow and no payables guard.
+-- Applied to DTS Database (qshciqxpkirlkmrwucnk) as migration 20261003030301 "tradeshow_0051_ship_maps".
+-- Recovered verbatim from supabase_migrations.schema_migrations (md5 of the statement: 02acf83440ed4f539f76665637799655). Do not edit: this is the record of what ran.
 
 alter table tradeshow.ship_shows
   add column floor_plan_url text,
