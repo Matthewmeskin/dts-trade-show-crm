@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
-import { getReport } from "@/lib/reports";
+import { datePresets, getReport, inRange, readRange, type DateRange } from "@/lib/reports";
 import { Constants } from "@/lib/database.types";
 import { SHOW_STATUS_META } from "@/lib/shows";
 import {
@@ -12,8 +12,9 @@ import {
   rollupShipmentStatus,
   type ShipmentStatus,
 } from "@/lib/shipments";
-import { formatCurrency, formatDateRange } from "@/lib/format";
+import { formatCurrency, formatDate, formatDateRange } from "@/lib/format";
 import { ShowSelect } from "../show-select";
+import { DateRangeFilter } from "../date-range-filter";
 import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export const dynamic = "force-dynamic";
@@ -23,25 +24,32 @@ export default async function ReportPage({
   searchParams,
 }: {
   params: Promise<{ report: string }>;
-  searchParams: Promise<{ show?: string }>;
+  searchParams: Promise<{ show?: string; from?: string; to?: string }>;
 }) {
   const { report } = await params;
   const def = getReport(report);
   if (!def) notFound();
 
-  const { show } = await searchParams;
+  const sp = await searchParams;
+  const show = sp.show;
+  const range = readRange(sp.from, sp.to);
+  const ranged = Boolean(range.from || range.to);
   const supabase = await createClient();
 
   let showOptions: { id: string; label: string }[] = [];
   if (def.scoped) {
     const { data } = await supabase
       .from("shows")
-      .select("id, show_name, edition_year")
+      .select("id, show_name, edition_year, show_start_date, move_in_start")
       .order("show_name");
-    showOptions = (data ?? []).map((s) => ({
-      id: s.id,
-      label: `${s.show_name}${s.edition_year ? ` ${s.edition_year}` : ""}`,
-    }));
+    // With a period set, the picker lists the shows that start in it (the
+    // picked show always stays, so the page never loses it).
+    showOptions = (data ?? [])
+      .filter((s) => s.id === show || inRange(s.show_start_date ?? s.move_in_start, range))
+      .map((s) => ({
+        id: s.id,
+        label: `${s.show_name}${s.edition_year ? ` ${s.edition_year}` : ""}`,
+      }));
   }
 
   return (
@@ -57,24 +65,41 @@ export default async function ReportPage({
             {def.title}
           </h1>
           <p className="mt-1 text-sm text-slate-500">{def.description}</p>
+          {ranged ? <p className="mt-1 text-sm font-medium text-slate-700">{periodNote(range, def.scoped)}</p> : null}
         </div>
-        {def.scoped ? (
-          <ShowSelect shows={showOptions} value={show ?? ""} basePath={`/reports/${def.slug}`} />
-        ) : null}
+        <div className="flex flex-wrap items-end gap-3">
+          <DateRangeFilter
+            from={range.from ?? ""}
+            to={range.to ?? ""}
+            show={show}
+            basePath={`/reports/${def.slug}`}
+            presets={datePresets()}
+          />
+          {def.scoped ? (
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Show</span>
+              <ShowSelect shows={showOptions} value={show ?? ""} basePath={`/reports/${def.slug}`} from={range.from ?? ""} to={range.to ?? ""} />
+            </label>
+          ) : null}
+        </div>
       </div>
 
       {def.scoped && !show ? (
         <Card>
-          <EmptyState icon={def.icon} title="Select a show" description="Choose a show above to run this report." />
+          <EmptyState
+            icon={def.icon}
+            title="Select a show"
+            description={ranged && showOptions.length === 0 ? "No shows start in this period. Pick another period or clear it." : "Choose a show above to run this report."}
+          />
         </Card>
       ) : (
         <>
           {def.slug === "exhibitors-per-show" && <ExhibitorsPerShow showId={show!} />}
           {def.slug === "shipments-by-status" && <ShipmentsByStatus showId={show!} />}
           {def.slug === "show-summary" && <ShowSummary showId={show!} />}
-          {def.slug === "exhibitor-history" && <ExhibitorHistory />}
-          {def.slug === "carrier-usage" && <CarrierUsage />}
-          {def.slug === "financials" && <Financials />}
+          {def.slug === "exhibitor-history" && <ExhibitorHistory range={range} />}
+          {def.slug === "carrier-usage" && <CarrierUsage range={range} />}
+          {def.slug === "financials" && <Financials range={range} />}
         </>
       )}
     </div>
@@ -82,6 +107,18 @@ export default async function ReportPage({
 }
 
 /* ---- helpers ------------------------------------------------------------- */
+
+/** What the period means on this report, in words. */
+function periodNote(r: DateRange, scoped: boolean): string {
+  const span = r.from && r.to ? `${formatDate(r.from)} to ${formatDate(r.to)}` : r.from ? `from ${formatDate(r.from)} on` : `through ${formatDate(r.to)}`;
+  return scoped ? `Shows starting ${span}.` : `Loads picked up ${span}.`;
+}
+
+/** Narrow a shipments query to the period, by pickup date (the one date every load has). */
+function byPickup<Q extends { gte: (c: string, v: string) => Q; lte: (c: string, v: string) => Q }>(q: Q, r: DateRange): Q {
+  const a = r.from ? q.gte("pickup_date", r.from) : q;
+  return r.to ? a.lte("pickup_date", r.to) : a;
+}
 
 function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
   return (
@@ -98,7 +135,7 @@ const STATUS_ORDER = Constants.public.Enums.shipment_status;
 
 /* ---- Financials by show & carrier (global) ------------------------------ */
 
-async function Financials() {
+async function Financials({ range }: { range: DateRange }) {
   const supabase = await createClient();
   // Page past the 1,000-row cap so revenue totals span every shipment.
   const ships = await fetchAll<{
@@ -109,13 +146,16 @@ async function Financials() {
     show: { show_name: string; edition_year: number | null } | null;
     carrier: { carrier_name: string } | null;
   }>(() =>
-    supabase
-      .from("shipments")
-      .select(
-        "show_id, carrier_id, billed_amount, cost_amount, show:shows(show_name, edition_year), carrier:carriers(carrier_name)",
-      )
-      // Quotes aren't real revenue yet — count only booked and above.
-      .neq("status", "quoted"),
+    byPickup(
+      supabase
+        .from("shipments")
+        .select(
+          "show_id, carrier_id, billed_amount, cost_amount, show:shows(show_name, edition_year), carrier:carriers(carrier_name)",
+        )
+        // Quotes aren't real revenue yet — count only booked and above.
+        .neq("status", "quoted"),
+      range,
+    ),
   );
 
   type Car = { id: string | null; name: string; count: number; billed: number; cost: number };
@@ -166,15 +206,20 @@ async function Financials() {
   }
 
   if (shows.size === 0)
-    return <EmptyCard icon="reports" label="No billed or cost figures on any shipment yet." />;
+    return (
+      <EmptyCard
+        icon="reports"
+        label={range.from || range.to ? "No billed or cost figures on loads picked up in this period." : "No billed or cost figures on any shipment yet."}
+      />
+    );
 
   // Unassigned (no show) sorts last; everything else alphabetical.
   const byName = <T extends { id: string | null; name: string }>(a: T, b: T) =>
     a.id === null ? 1 : b.id === null ? -1 : a.name.localeCompare(b.name);
   const showList = [...shows.values()].sort(byName);
   const grand = showList.reduce(
-    (acc, s) => ({ billed: acc.billed + s.billed, cost: acc.cost + s.cost }),
-    { billed: 0, cost: 0 },
+    (acc, s) => ({ count: acc.count + s.count, billed: acc.billed + s.billed, cost: acc.cost + s.cost }),
+    { count: 0, billed: 0, cost: 0 },
   );
 
   const money = (n: number) => formatCurrency(n, { cents: true });
@@ -239,7 +284,7 @@ async function Financials() {
           <tfoot>
             <tr className="border-t border-slate-200 font-semibold text-slate-900">
               <td className="px-5 py-3">Total</td>
-              <td className="px-5 py-3" />
+              <td className="px-5 py-3 text-right">{grand.count}</td>
               <td className="px-5 py-3 text-right">{money(grand.billed)}</td>
               <td className="px-5 py-3 text-right">{money(grand.cost)}</td>
               <td className="px-5 py-3 text-right">
@@ -255,21 +300,31 @@ async function Financials() {
 
 /* ---- Exhibitor history (global) ----------------------------------------- */
 
-async function ExhibitorHistory() {
+async function ExhibitorHistory({ range }: { range: DateRange }) {
   const supabase = await createClient();
   const [exhRes, linkRes, ships] = await Promise.all([
     supabase.from("exhibitors").select("id, company_name, industry").order("company_name"),
     supabase.from("show_exhibitors").select("exhibitor_id"),
     // Page past the 1,000-row cap so per-exhibitor counts span every shipment.
-    fetchAll<{ exhibitor_id: string | null; status: ShipmentStatus }>(
-      () => supabase.from("shipments").select("exhibitor_id, status"),
+    fetchAll<{ exhibitor_id: string | null; show_id: string | null; status: ShipmentStatus }>(
+      () => byPickup(supabase.from("shipments").select("exhibitor_id, show_id, status"), range),
     ),
   ]);
-  const exhibitors = exhRes.data ?? [];
-  if (exhibitors.length === 0) return <EmptyCard icon="exhibitors" />;
-
+  const ranged = Boolean(range.from || range.to);
   const showCount = new Map<string, number>();
-  for (const l of linkRes.data ?? []) showCount.set(l.exhibitor_id, (showCount.get(l.exhibitor_id) ?? 0) + 1);
+  if (ranged) {
+    // In a period, a show counts when the exhibitor shipped to it in that period.
+    const seen = new Map<string, Set<string>>();
+    for (const s of ships) {
+      if (!s.exhibitor_id || !s.show_id) continue;
+      const set = seen.get(s.exhibitor_id) ?? new Set<string>();
+      set.add(s.show_id);
+      seen.set(s.exhibitor_id, set);
+    }
+    for (const [k, v] of seen) showCount.set(k, v.size);
+  } else {
+    for (const l of linkRes.data ?? []) showCount.set(l.exhibitor_id, (showCount.get(l.exhibitor_id) ?? 0) + 1);
+  }
   const shipByExh = new Map<string, { total: number; delivered: number; in_transit: number; issue: number }>();
   for (const s of ships) {
     if (!s.exhibitor_id) continue;
@@ -280,6 +335,10 @@ async function ExhibitorHistory() {
     else if (s.status === "issue") e.issue += 1;
     shipByExh.set(s.exhibitor_id, e);
   }
+  // In a period, only the exhibitors who shipped in it.
+  const exhibitors = (exhRes.data ?? []).filter((e) => !ranged || shipByExh.has(e.id));
+  if (exhibitors.length === 0)
+    return <EmptyCard icon="exhibitors" label={ranged ? "No exhibitor loads picked up in this period." : undefined} />;
 
   return (
     <Card>
@@ -316,18 +375,17 @@ async function ExhibitorHistory() {
 
 /* ---- Carrier usage (global) --------------------------------------------- */
 
-async function CarrierUsage() {
+async function CarrierUsage({ range }: { range: DateRange }) {
   const supabase = await createClient();
   const [carRes, ships, cvRes] = await Promise.all([
     supabase.from("carriers").select("id, carrier_name").order("carrier_name"),
     // Page past the 1,000-row cap so per-carrier counts span every shipment.
-    fetchAll<{ carrier_id: string | null; show_id: string | null }>(
-      () => supabase.from("shipments").select("carrier_id, show_id"),
+    fetchAll<{ carrier_id: string | null; show_id: string | null; venue_id: string | null }>(
+      () => byPickup(supabase.from("shipments").select("carrier_id, show_id, venue_id"), range),
     ),
     supabase.from("carrier_venues").select("carrier_id, venue_id"),
   ]);
-  const carriers = carRes.data ?? [];
-  if (carriers.length === 0) return <EmptyCard icon="carriers" />;
+  const ranged = Boolean(range.from || range.to);
 
   const stats = new Map<string, { shipments: number; shows: Set<string>; venues: Set<string> }>();
   const get = (id: string) => {
@@ -340,8 +398,13 @@ async function CarrierUsage() {
     const g = get(s.carrier_id);
     g.shipments += 1;
     if (s.show_id) g.shows.add(s.show_id);
+    // In a period, the venues the carrier delivered to in it.
+    if (ranged && s.venue_id) g.venues.add(s.venue_id);
   }
-  for (const cv of cvRes.data ?? []) get(cv.carrier_id).venues.add(cv.venue_id);
+  if (!ranged) for (const cv of cvRes.data ?? []) get(cv.carrier_id).venues.add(cv.venue_id);
+  const carriers = (carRes.data ?? []).filter((c) => !ranged || (stats.get(c.id)?.shipments ?? 0) > 0);
+  if (carriers.length === 0)
+    return <EmptyCard icon="carriers" label={ranged ? "No carrier loads picked up in this period." : undefined} />;
 
   return (
     <Card>
@@ -349,7 +412,7 @@ async function CarrierUsage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100">
-              <Th>Carrier</Th><Th right>Shipments</Th><Th right>Shows</Th><Th right>Venues serviced</Th>
+              <Th>Carrier</Th><Th right>Shipments</Th><Th right>Shows</Th><Th right>{ranged ? "Venues" : "Venues serviced"}</Th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
