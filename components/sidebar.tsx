@@ -62,15 +62,24 @@ export function Sidebar({
           title="Trade Show CRM"
         >
           {logoOk ? (
-            // The same brand block as the other DTS portals: logo, then the
-            // portal name in maroon. Drop the file at public/dts-logo.png.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src="/dts-logo.png"
-              alt="DTS — Diversified Transportation Services"
-              className={`h-9 w-auto shrink-0 ${md("md:h-7")}`}
-              onError={() => setLogoOk(false)}
-            />
+            // The same brand block as the other DTS portals: the stacked
+            // logo, then the portal name in maroon. The light file has black
+            // lettering, the dark one white; the `dark` class picks which.
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/dts-logo.png"
+                alt="DTS — Diversified Transportation Services"
+                className={`h-9 w-auto shrink-0 dark:hidden ${md("md:h-7")}`}
+                onError={() => setLogoOk(false)}
+              />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/dts-logo-dark.png"
+                alt="DTS — Diversified Transportation Services"
+                className={`hidden h-9 w-auto shrink-0 dark:block ${md("md:h-7")}`}
+              />
+            </>
           ) : null}
           <span className={`leading-tight ${md("md:hidden")}`}>Trade Show CRM</span>
         </Link>
