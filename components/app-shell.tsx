@@ -93,7 +93,9 @@ export function AppShell({
               type="button"
               onClick={toggleDesktop}
               className="-ml-1 hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 md:flex"
-              aria-label={desktopCollapsed ? "Show sidebar" : "Hide sidebar"}
+              title={desktopCollapsed ? "Open the menu" : "Collapse the menu to icons"}
+              aria-label={desktopCollapsed ? "Open the menu" : "Collapse the menu to icons"}
+              aria-expanded={!desktopCollapsed}
             >
               <Icon name="panel-left" className="h-5 w-5" />
             </button>
