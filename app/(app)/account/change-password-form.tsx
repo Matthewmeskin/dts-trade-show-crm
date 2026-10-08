@@ -28,13 +28,14 @@ export function ChangePasswordForm({ email }: { email: string }) {
     setSaving(true);
     try {
       const supabase = createClient();
-      const { error: authErr } = await supabase.auth.signInWithPassword({
-        email,
-        password: current,
-      });
-      if (authErr) throw new Error("The current password is incorrect.");
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
+      // The project requires the current password inside the same request
+      // (Supabase "require current password" setting); the server checks it.
+      const { error } = await supabase.auth.updateUser({ password, current_password: current });
+      if (error) {
+        throw new Error(
+          /current password/i.test(error.message) ? "The current password is incorrect." : error.message,
+        );
+      }
       setDone(true);
       setCurrent("");
       setPassword("");

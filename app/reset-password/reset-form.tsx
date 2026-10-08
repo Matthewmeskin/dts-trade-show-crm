@@ -15,17 +15,26 @@ export function ResetPasswordForm() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // getSession() waits for the client to parse the URL fragment first.
-    createRecoveryClient()
-      .auth.getSession()
-      .then(({ data }) => {
-        if (data.session?.user) {
-          setEmail(data.session.user.email ?? null);
+    const supabase = createRecoveryClient();
+    const tokenHash = new URLSearchParams(window.location.search).get("token_hash");
+    // Links mailed by the n8n relay carry a one-time token hash; exchanging it
+    // here signs this page in on a short recovery session. Older links put the
+    // tokens in the URL fragment, which the client parses on its own.
+    const session = tokenHash
+      ? supabase.auth
+          .verifyOtp({ token_hash: tokenHash, type: "recovery" })
+          .then(({ data }) => data.session)
+      : supabase.auth.getSession().then(({ data }) => data.session);
+    session
+      .then((s) => {
+        if (s?.user) {
+          setEmail(s.user.email ?? null);
           setReady("ok");
         } else {
           setReady("none");
         }
-      });
+      })
+      .catch(() => setReady("none"));
   }, []);
 
   async function onSubmit(e: React.FormEvent) {

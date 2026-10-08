@@ -4,7 +4,6 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import { signIn, type LoginState } from "./actions";
-import { createRecoveryClient } from "@/lib/supabase/recovery";
 
 const initialState: LoginState = { error: null };
 
@@ -38,10 +37,17 @@ function ResetForm({ onBack }: { onBack: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      const { error } = await createRecoveryClient().auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      // The server asks the n8n relay to mint a recovery link and mail it from
+      // the Hamilton mailbox; the link lands on /reset-password here.
+      const res = await fetch("/api/auth/forgot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
-      if (error) throw error;
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || "Could not send the reset link.");
+      }
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send the reset link.");
