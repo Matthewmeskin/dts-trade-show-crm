@@ -10,7 +10,7 @@ const inputClass =
  * The current password is re-checked before the change so a screen someone
  * walked away from can't be used to swap it.
  */
-export function ChangePasswordForm({ email }: { email: string }) {
+export function ChangePasswordForm({ email, required = false }: { email: string; required?: boolean }) {
   const [current, setCurrent] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -30,7 +30,13 @@ export function ChangePasswordForm({ email }: { email: string }) {
       const supabase = createClient();
       // The project requires the current password inside the same request
       // (Supabase "require current password" setting); the server checks it.
-      const { error } = await supabase.auth.updateUser({ password, current_password: current });
+      // `data` clears the one-time-password flag the user-admin function set,
+      // which is what lets the rest of the CRM open again.
+      const { error } = await supabase.auth.updateUser({
+        password,
+        current_password: current,
+        data: { must_change_password: false },
+      });
       if (error) {
         throw new Error(
           /current password/i.test(error.message) ? "The current password is incorrect." : error.message,
@@ -40,6 +46,7 @@ export function ChangePasswordForm({ email }: { email: string }) {
       setCurrent("");
       setPassword("");
       setConfirm("");
+      if (required) window.location.assign("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update the password.");
     } finally {

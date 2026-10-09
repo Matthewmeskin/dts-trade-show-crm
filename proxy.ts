@@ -77,6 +77,20 @@ export async function proxy(request: NextRequest) {
   // Signed-in users hitting /login are sent to the dashboard.
   if (user && pathname === "/login") return redirectTo("/");
 
+  // A one-time password (new account, or a reset from the portal's Users
+  // page) is flagged on the login by the user-admin function. Until that
+  // person sets their own, the account page is the only page; it clears the
+  // flag.
+  if (user && !isPublic && pathname !== "/account" && user.user_metadata?.must_change_password === true) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/account";
+    url.search = "";
+    url.searchParams.set("required", "1");
+    const res = NextResponse.redirect(url);
+    for (const cookie of supabaseResponse.cookies.getAll()) res.cookies.set(cookie);
+    return res;
+  }
+
   return supabaseResponse;
 }
 
