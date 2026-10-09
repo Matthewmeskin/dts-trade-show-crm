@@ -70,7 +70,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [{ label: "Reports", href: "/reports", icon: "reports" }],
   },
   {
-    items: [{ label: "Users", href: "/users", icon: "users", adminOnly: true }],
+    items: [{ label: "Team contacts", href: "/users", icon: "contacts", adminOnly: true }],
   },
 ];
 

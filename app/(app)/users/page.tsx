@@ -1,13 +1,11 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
-import { NewUserForm } from "./user-form";
-import { UserRowControls } from "./user-row-controls";
 import { UserContactControls } from "./user-contact-controls";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Users · DTS Trade Show CRM" };
+export const metadata = { title: "Team contacts · DTS Trade Show CRM" };
 
 export default async function UsersPage() {
   const supabase = await createClient();
@@ -34,25 +32,25 @@ export default async function UsersPage() {
   return (
     <div>
       <PageHeader
-        title="Users"
-        description="Internal team members who can sign in to the CRM."
+        title="Team contacts"
+        description="Phone, title, booking link and the default MHA contact for the people who sign in here. Who has access, and whether they are an admin, is set on the DTS portal's Users page."
       />
 
-      <Card className="mb-6">
-        <div className="border-b border-slate-100 px-5 py-3.5">
-          <h2 className="text-sm font-semibold text-slate-900">Add a user</h2>
-          <p className="mt-0.5 text-xs text-slate-400">
-            Creates a sign-in with the email and temporary password you set.
-          </p>
-        </div>
-        <div className="px-5 py-5">
-          <NewUserForm />
-        </div>
-      </Card>
+      <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+        Adding people, removing them and making someone an admin happens in one place for every DTS
+        portal:{" "}
+        <a
+          href="https://dts-ap-portal.vercel.app/users"
+          className="font-medium text-dts-blue hover:underline"
+        >
+          the portal&apos;s Users page
+        </a>
+        . This page keeps the CRM&apos;s own contact details.
+      </div>
 
       <Card>
         {rows.length === 0 ? (
-          <EmptyState icon="users" title="No users yet" description="Add your first team member above." />
+          <EmptyState icon="users" title="No users yet" description="Give someone Trade Show CRM access on the portal's Users page and they appear here." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -62,7 +60,6 @@ export default async function UsersPage() {
                   <th className="px-5 py-3">Email</th>
                   <th className="px-5 py-3">Contact</th>
                   <th className="px-5 py-3">Role</th>
-                  <th className="px-5 py-3 text-right">Manage</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -87,14 +84,6 @@ export default async function UsersPage() {
                         ) : (
                           <Badge className="bg-slate-100 text-slate-600">Standard</Badge>
                         )}
-                      </td>
-                      <td className="px-5 py-3">
-                        <UserRowControls
-                          id={u.id}
-                          role={u.role}
-                          name={u.full_name?.trim() || u.email || ""}
-                          isSelf={u.id === uid}
-                        />
                       </td>
                     </tr>
                   );

@@ -37,59 +37,14 @@ async function requireAdmin(): Promise<{ uid: string } | { error: string }> {
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
 /** Invite/create an internal user with email + password. Admin only. */
+// createUser: access and roles are set on the DTS portal's Users page for every
+// portal at once (dts-sage/web, app/(app)/users). Kept so nothing that imports
+// it breaks; it refuses.
 export async function createUser(
   _prev: UserFormState,
   fd: FormData,
 ): Promise<UserFormState> {
-  const gate = await requireAdmin();
-  if ("error" in gate) return { error: gate.error };
-
-  const email = str(fd, "email").toLowerCase();
-  const full_name = str(fd, "full_name");
-  const password = String(fd.get("password") ?? "");
-  const role = (str(fd, "role") === "admin" ? "admin" : "standard") as Role;
-
-  const fieldErrors: Record<string, string> = {};
-  if (!email) fieldErrors.email = "Email is required.";
-  else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) fieldErrors.email = "Enter a valid email.";
-  if (!password) fieldErrors.password = "Password is required.";
-  else if (password.length < 8) fieldErrors.password = "Use at least 8 characters.";
-  if (Object.keys(fieldErrors).length) {
-    return { error: "Please fix the highlighted fields.", fieldErrors };
-  }
-
-  const admin = createAdminClient();
-  // email_confirm:true so they can sign in immediately (internal users, no
-  // public sign-up). The on_auth_user_created trigger creates the profile row,
-  // pulling full_name from user_metadata.
-  const { data, error } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { full_name },
-  });
-  if (error) {
-    const msg = /already.*registered|exists/i.test(error.message)
-      ? "A user with that email already exists."
-      : error.message;
-    return { error: msg, fieldErrors: { email: msg } };
-  }
-
-  if (role === "admin" && data.user) {
-    // Set the role through the caller's own session, not the service-role
-    // client: the profiles enforce_role_change trigger calls is_admin() (which
-    // reads auth.uid()), so a role change must run as the signed-in admin or it
-    // is rejected with "Only admins can change a user role".
-    const userClient = await createClient();
-    const { error: roleError } = await userClient
-      .from("profiles")
-      .update({ role })
-      .eq("id", data.user.id);
-    if (roleError) return { error: `User created, but setting admin role failed: ${roleError.message}` };
-  }
-
-  revalidatePath("/users");
-  redirect("/users?flash=user-created");
+  throw new Error("User access is managed on the DTS portal's Users page.");
 }
 
 /** Save a user's contact details, booking link + default-MHA-contact flag. Admin only. */
@@ -117,37 +72,17 @@ export async function setUserContact(fd: FormData) {
 }
 
 /** Change a user's role (admin ⇄ standard). Admin only. */
+// setUserRole: access and roles are set on the DTS portal's Users page for every
+// portal at once (dts-sage/web, app/(app)/users). Kept so nothing that imports
+// it breaks; it refuses.
 export async function setUserRole(fd: FormData) {
-  const gate = await requireAdmin();
-  if ("error" in gate) return;
-
-  const id = str(fd, "id");
-  const role = (str(fd, "role") === "admin" ? "admin" : "standard") as Role;
-  if (!id) return;
-  // Don't let an admin strip their own admin rights (and risk locking everyone
-  // out of user management).
-  if (id === gate.uid && role !== "admin") return;
-
-  // Update through the caller's session (not the service-role client): the
-  // profiles enforce_role_change trigger calls is_admin() against auth.uid(),
-  // so the service role — which has no user identity — is rejected. The RLS
-  // "profiles: admin update any" policy already allows an admin to do this.
-  const supabase = await createClient();
-  await supabase.from("profiles").update({ role }).eq("id", id);
-  revalidatePath("/users");
+  throw new Error("User access is managed on the DTS portal's Users page.");
 }
 
 /** Permanently remove a user. Admin only; can't delete yourself. */
+// deleteUser: access and roles are set on the DTS portal's Users page for every
+// portal at once (dts-sage/web, app/(app)/users). Kept so nothing that imports
+// it breaks; it refuses.
 export async function deleteUser(fd: FormData) {
-  const gate = await requireAdmin();
-  if ("error" in gate) return;
-
-  const id = str(fd, "id");
-  if (!id || id === gate.uid) return;
-
-  const admin = createAdminClient();
-  // Deleting the auth user cascades to the profile row (FK on delete cascade).
-  await admin.auth.admin.deleteUser(id);
-  revalidatePath("/users");
-  redirect("/users?flash=user-removed");
+  throw new Error("User access is managed on the DTS portal's Users page.");
 }
